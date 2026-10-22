@@ -2,3 +2,7 @@ Taller_B1_T1.pdf
 src/example.json
 src/exampleAlpha.json
 src/exampleyahooinfo.json
+taller1/
+.env/
+__pycache__/
+*.pyc
