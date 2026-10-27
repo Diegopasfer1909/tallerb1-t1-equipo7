@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "toolkit"
+version = "1.0.0"
+description = "Toolkit de extracción, análisis bursátil y gestión de carteras (MIAX, Taller B1-T1, equipo 7)"
+readme = "README.MD"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.2",
+    "matplotlib>=3.7",
+    "yfinance>=0.2.40",
+    "curl_cffi>=0.6",
+    "feedparser>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+sentimiento = ["pysentimiento", "transformers"]   # para puntuar las noticias (paquetes pesados)
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = ["red: tests que descargan datos de internet (se ejecutan con: pytest -m red)"]
+addopts = "-m 'not red'"

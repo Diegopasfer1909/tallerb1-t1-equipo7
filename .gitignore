@@ -3,6 +3,9 @@ src/example.json
 src/exampleAlpha.json
 src/exampleyahooinfo.json
 taller1/
+.env
 .env/
 __pycache__/
 *.pyc
+informe/
+*.egg-info/
