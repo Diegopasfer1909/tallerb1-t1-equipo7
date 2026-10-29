@@ -99,28 +99,48 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(len(series.prices), 1)
 
     def test_alpha_rejects_truncation_unless_explicit(self):
-        api = AlphaVantageAPI("test-key", session=session_for(alpha_payload(), alpha_payload()))
+        api = AlphaVantageAPI("test-key", session=session_for(alpha_payload()))
         with self.assertRaises(DataCoverageError):
             api.get_prices("IBM", "2026-01-01", "2026-10-24")
-        result = api.get_prices("IBM", "2026-01-01", "2026-10-24", allow_partial=True)
+        partial = AlphaVantageAPI(
+            "test-key", session=session_for(alpha_payload()), allow_partial=True
+        )
+        result = partial.get_prices("IBM", "2026-01-01", "2026-10-24")
         self.assertTrue(result.info["partial_history"])
 
     def test_alpha_rejects_adjusted_and_invalid_dates_before_request(self):
         session = session_for()
         api = AlphaVantageAPI("test-key", session=session)
-        for options in ({"adjusted": True}, {"outputsize": "wrong"}):
-            with self.assertRaises(ValueError):
-                api.get_prices("IBM", "2026-10-22", "2026-10-24", **options)
         with self.assertRaises(ValueError):
-            api.get_prices("IBM", "2026-10-24", "2026-10-22")
+            api.get_prices("IBM", "2026-10-22", "2026-10-24", adjusted=True)
+        with self.assertRaises(ValueError):
+            AlphaVantageAPI("test-key", session=session, outputsize="wrong")
+        for start, end in [("2026-10-24", "2026-10-22"), ("22/10/2026", "2026-10-24")]:
+            with self.assertRaises(ValueError):
+                api.get_prices("IBM", start, end)
         session.get.assert_not_called()
 
     def test_alpha_optional_overview_preserves_fundamentals(self):
-        session = session_for(alpha_payload(), {"Symbol": "IBM", "Name": "IBM Corp"})
-        result = AlphaVantageAPI("test-key", session=session).get_prices(
-            "IBM", "2026-10-22", "2026-10-24", include_info=True
+        overview = {
+            "Symbol": "IBM",
+            "Name": "IBM Corp",
+            "Currency": "USD",
+            "Beta": "0",
+            "MarketCapitalization": "1000000",
+            "PERatio": "None",
+            "AssetType": "Common Stock",
+        }
+        session = session_for(alpha_payload(), overview)
+        result = AlphaVantageAPI("test-key", session=session, include_info=True).get_prices(
+            "IBM", "2026-10-22", "2026-10-24"
         )
-        self.assertEqual(result.info["Name"], "IBM Corp")
+        self.assertEqual(result.info["name"], "IBM Corp")
+        self.assertEqual(result.info["currency"], "USD")
+        self.assertEqual(result.info["asset_type"], "stock")
+        self.assertEqual(result.info["beta"], 0)
+        self.assertEqual(result.info["market_cap"], 1000000)
+        self.assertTrue(pd.isna(result.info["pe_ratio"]))
+        self.assertEqual(result.info["raw"], overview)
         self.assertEqual(session.get.call_count, 2)
 
     def test_provider_errors_in_http_200_are_not_cached(self):
@@ -134,8 +154,8 @@ class ProviderTests(unittest.TestCase):
 
     def test_optional_alpha_metadata_failure_does_not_discard_prices(self):
         session = session_for(alpha_payload(), {"Information": "Quota reached"})
-        result = AlphaVantageAPI("test-key", session=session).get_prices(
-            "IBM", "2026-10-22", "2026-10-24", include_info=True
+        result = AlphaVantageAPI("test-key", session=session, include_info=True).get_prices(
+            "IBM", "2026-10-22", "2026-10-24"
         )
         self.assertEqual(len(result.prices), 2)
         self.assertIn("metadata_issue", result.info)
@@ -168,12 +188,12 @@ class ProviderTests(unittest.TestCase):
 
     def test_alpha_spaces_sequential_requests(self):
         session = session_for(alpha_payload(), {"Symbol": "IBM"})
-        api = AlphaVantageAPI("test-key", session=session)
+        api = AlphaVantageAPI("test-key", session=session, include_info=True)
         with (
             patch("src.providers.base.time.monotonic", return_value=100.0),
             patch("src.providers.base.time.sleep") as sleep,
         ):
-            api.get_prices("IBM", "2026-10-22", "2026-10-24", include_info=True)
+            api.get_prices("IBM", "2026-10-22", "2026-10-24")
         sleep.assert_called_once_with(1.1)
 
     def test_fred_retains_missing_values_and_metadata(self):
@@ -223,17 +243,45 @@ class ProviderTests(unittest.TestCase):
         )
         with patch("src.providers.yahoo.yf.Ticker") as ticker:
             ticker.return_value.history.return_value = prices
-            ticker.return_value.get_info.return_value = {"longName": "Example"}
+            ticker.return_value.get_info.return_value = {
+                "longName": "Example",
+                "currency": "USD",
+                "quoteType": "INDEX",
+                "trailingPE": 12.5,
+            }
             result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
         self.assertEqual(len(result.prices.columns), 7)
         self.assertIsNone(result.prices.index.tz)
-        self.assertEqual(result.info["longName"], "Example")
+        self.assertEqual(result.info["name"], "Example")
+        self.assertEqual(result.info["currency"], "USD")
+        self.assertEqual(result.info["asset_type"], "index")
+        self.assertEqual(result.info["pe_ratio"], 12.5)
+        self.assertIsNone(result.info["sector"])
+        self.assertEqual(result.info["raw"]["longName"], "Example")
         self.assertEqual(result.prices.index[0], pd.Timestamp("2026-10-22"))
         self.assertEqual(result.info["price_adjustment"], "split_adjusted")
         self.assertFalse(result.info["auto_adjust"])
         ticker.return_value.history.assert_called_once_with(
             start="2026-10-22", end="2026-10-24", auto_adjust=False
         )
+
+    def test_yahoo_profile_failure_keeps_downloaded_prices(self):
+        prices = pd.DataFrame(
+            {"Close": [1.5, 2.5]}, index=pd.date_range("2026-10-22", periods=2, tz="UTC")
+        )
+        with patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.return_value = prices
+            ticker.return_value.get_info.side_effect = RuntimeError("429 Too Many Requests")
+            result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
+        self.assertEqual(len(result.prices), 2)
+        self.assertIn("metadata_issue", result.info)
+        self.assertIsNone(result.info["currency"])
+
+    def test_yahoo_download_failures_become_provider_errors(self):
+        with patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.side_effect = RuntimeError("connection reset")
+            with self.assertRaises(ProviderError):
+                YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
 
     def test_models_reject_duplicate_dates_and_copy_input(self):
         result = AlphaVantageAPI("test-key", session=session_for(alpha_payload())).get_prices(

@@ -194,7 +194,7 @@ class MainTests(unittest.TestCase):
             "IBM",
             "yahoo",
             pd.DataFrame({"Close": [100, 102, 99, 100]}, index=self.dates),
-            info={"currency": "USD", "longName": "International Business Machines", "beta": 0.8},
+            info={"currency": "USD", "name": "International Business Machines", "beta": 0.8},
         )
 
     def test_holdings_summary_does_not_write_files(self):
@@ -295,6 +295,13 @@ class MainTests(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     parse_arguments()
 
+    def test_default_history_depends_on_the_provider(self):
+        for provider, days in (("yahoo", 365), ("alpha_vantage", 120)):
+            with patch("sys.argv", ["main.py", "--provider", provider, "--assets", "IBM:1"]):
+                args = parse_arguments()
+            start = pd.Timestamp(args.start)
+            self.assertEqual((pd.Timestamp(args.end) - start).days, days)
+
     def test_currency_is_normalized_as_a_target_currency(self):
         with patch("sys.argv", ["main.py", "--assets", "IBM:1", "--currency", "eur"]):
             self.assertEqual(parse_arguments().currency, "EUR")
@@ -332,7 +339,7 @@ class MainTests(unittest.TestCase):
                             response.json.return_value = payload
                             responses.append(response)
                     session.get.side_effect = responses
-                    alpha = AlphaVantageAPI("test-key", session=session)
+                    alpha = AlphaVantageAPI("test-key", session=session, include_info=True)
                     arguments = [
                         "main.py",
                         "--provider",
@@ -373,6 +380,7 @@ class MainTests(unittest.TestCase):
                     show.assert_called_once()
                     if name == "alpha_vantage":
                         alpha_factory.assert_called_once()
+                        self.assertTrue(alpha_factory.call_args.kwargs["include_info"])
                         yahoo_factory.assert_not_called()
                         self.assertEqual(session.get.call_count, 2 * len(symbols))
                         self.assertIn("Fuente: Alpha Vantage", report)

@@ -8,6 +8,9 @@ import pandas as pd
 from .economic_indicator import EconomicIndicator
 from .price_history import PriceHistory
 
+# Estas unidades de cotización son centésimas de su divisa principal.
+MINOR_UNITS = {"GBp": "GBP", "ZAc": "ZAR"}
+
 
 @dataclass
 class ExchangeRate:
@@ -69,11 +72,9 @@ class MarketContext:
             raise TypeError("La conversión de divisas requiere un DatetimeIndex.")
         if source == target:
             return prices.copy()
-        # Estas unidades de cotización son centésimas de su divisa principal.
-        minor_units = {"GBp": "GBP", "ZAc": "ZAR"}
-        if source in minor_units:
+        if source in MINOR_UNITS:
             prices = prices / 100
-            source = minor_units[source]
+            source = MINOR_UNITS[source]
         if source == target:
             return prices.copy()
         for rate in self.exchange_rates:

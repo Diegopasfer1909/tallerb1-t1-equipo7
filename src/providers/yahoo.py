@@ -4,7 +4,19 @@ import pandas as pd
 import yfinance as yf
 
 from ..models.price_history import PriceHistory
-from .base import ProviderError, date_range
+from .base import ProviderError, date_range, normalize_info
+
+FIELDS = {
+    "currency": ("currency",),
+    "name": ("longName", "shortName"),
+    "asset_type": ("quoteType",),
+    "sector": ("sector",),
+    "country": ("country",),
+    "beta": ("beta", "beta3Year"),
+    "market_cap": ("marketCap",),
+    "pe_ratio": ("trailingPE",),
+}
+ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": "fund"}
 
 
 class YahooFinanceAPI:
@@ -14,7 +26,11 @@ class YahooFinanceAPI:
         """Descarga los datos de Yahoo, normaliza las fechas y crea el historial."""
         first, last = date_range(start, end)
         ticker = yf.Ticker(symbol)
-        history = ticker.history(start=start, end=end, auto_adjust=adjusted)
+        try:
+            history = ticker.history(start=start, end=end, auto_adjust=adjusted)
+        except Exception:
+            # yfinance no documenta sus excepciones; se traducen al error común.
+            raise ProviderError(f"Yahoo no ha podido descargar los precios de {symbol}.") from None
         if history.empty:
             raise ProviderError(f"Yahoo no ha devuelto precios para {symbol}.")
         if not isinstance(history.index, pd.DatetimeIndex):
@@ -22,7 +38,20 @@ class YahooFinanceAPI:
         # Las fechas diarias corresponden al calendario de la bolsa, no a instantes UTC.
         history.index = history.index.tz_localize(None)
         history = history.loc[(history.index >= first) & (history.index < last)]
-        info = dict(ticker.get_info())
+
+        # La ficha es complementaria: si falla, se conservan los precios ya descargados.
+        try:
+            raw = dict(ticker.get_info())
+            issue = None
+        except Exception:
+            raw = {}
+            issue = (
+                "No se ha podido consultar la ficha del activo en Yahoo Finance. "
+                "Faltan la divisa y los datos de la empresa; indica la divisa expresamente."
+            )
+        info = normalize_info(raw, FIELDS, ASSET_TYPES)
+        if issue:
+            info["metadata_issue"] = issue
         # Yahoo ajusta Close por desdoblamientos incluso con auto_adjust=False.
         info["price_adjustment"] = "adjusted" if adjusted else "split_adjusted"
         info["auto_adjust"] = adjusted

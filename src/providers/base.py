@@ -1,13 +1,18 @@
-"""Cliente HTTP compartido por Alpha Vantage y FRED."""
+"""Contrato común de los proveedores y cliente HTTP compartido por Alpha Vantage y FRED."""
 
 import hashlib
 import json
+import math
 import os
 import time
+from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 
 import pandas as pd
 import requests
+
+from ..models.price_history import PriceHistory
 
 
 class ProviderError(RuntimeError):
@@ -18,16 +23,64 @@ class DataCoverageError(ProviderError):
     """Los datos disponibles no cubren el intervalo solicitado."""
 
 
-def date_range(start: str, end: str) -> tuple[pd.Timestamp, pd.Timestamp]:
-    """Todos los proveedores incluyen la fecha inicial y excluyen la final."""
+class PriceProvider(Protocol):
+    """Lo que el resto del programa necesita de cualquier fuente de precios.
+
+    Las opciones propias de cada proveedor se indican al crear el adaptador, de modo
+    que añadir una fuente nueva no obliga a cambiar la carga ni el análisis.
+    """
+
+    def get_prices(
+        self, symbol: str, start: str, end: str, *, adjusted: bool = False
+    ) -> PriceHistory: ...
+
+
+# Claves comunes de PriceHistory.info; cada adaptador traduce su ficha a estas claves.
+INFO_FIELDS = ("currency", "name", "asset_type", "sector", "country")
+NUMERIC_INFO_FIELDS = ("beta", "market_cap", "pe_ratio")
+
+
+def normalize_info(
+    raw: dict, fields: dict[str, tuple[str, ...]], asset_types: dict[str, str]
+) -> dict:
+    """Traduce la ficha del proveedor a las claves comunes y conserva el original en raw.
+
+    fields indica, para cada clave común, los nombres que usa el proveedor por orden de
+    preferencia. Los valores ausentes quedan como None (texto) o NaN (números).
+    """
+    info: dict = {"raw": raw}
+    for name in (*INFO_FIELDS, *NUMERIC_INFO_FIELDS):
+        candidates = [raw.get(key) for key in fields.get(name, ())]
+        value = next((v for v in candidates if v not in (None, "", "None", "-")), None)
+        if name in NUMERIC_INFO_FIELDS:
+            info[name] = _number(value)
+        elif name == "asset_type":
+            info[name] = asset_types.get(str(value), "unknown")
+        else:
+            info[name] = str(value) if value is not None else None
+    return info
+
+
+def _number(value) -> float:
+    """Acepta cifras en texto; una beta nula o negativa es válida."""
+    if isinstance(value, bool):
+        return math.nan
     try:
-        first, last = pd.Timestamp(start), pd.Timestamp(end)
+        number = float(value)
+    except (TypeError, ValueError):
+        return math.nan
+    return number if math.isfinite(number) else math.nan
+
+
+def date_range(start: str, end: str) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """Exige fechas AAAA-MM-DD; todos los proveedores incluyen el inicio y excluyen el final."""
+    try:
+        first = pd.Timestamp(datetime.strptime(start, "%Y-%m-%d"))
+        last = pd.Timestamp(datetime.strptime(end, "%Y-%m-%d"))
     except (ValueError, TypeError):
-        raise ValueError("Utiliza fechas válidas con el formato AAAA-MM-DD.") from None
-    if not isinstance(first, pd.Timestamp) or not isinstance(last, pd.Timestamp):
-        raise ValueError("start y end deben ser fechas válidas.")
-    if first.tzinfo or last.tzinfo or first != first.normalize() or last != last.normalize():
-        raise ValueError("Utiliza fechas sin hora ni zona horaria, por ejemplo 2026-10-01.")
+        raise ValueError(
+            "Utiliza fechas válidas con el formato AAAA-MM-DD, por ejemplo 2026-10-01."
+        ) from None
     if first >= last:
         raise ValueError("La fecha de inicio debe ser anterior a la fecha final.")
     return first, last

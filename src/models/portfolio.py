@@ -7,15 +7,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from ..simulation.monte_carlo import simulate_paths
+from ..simulation.monte_carlo import MonteCarloMixin
 from ..simulation.result import SimulationResult
+from ..validation import validate_symbols, validate_weights
 from .asset import Asset
 from .market_context import MarketContext
-from .validation import validate_weights
+from .price_history import period_returns
 
 
 @dataclass
-class Portfolio:
+class Portfolio(MonteCarloMixin):
     assets: list[Asset]
     allocations: list[float]
     reporting_currency: str = ""
@@ -32,16 +33,10 @@ class Portfolio:
         validate_weights(self.allocations)
         if self.rebalance not in (None, "monthly"):
             raise ValueError("El rebalanceo debe ser mensual o None.")
-        symbols = set()
-        currencies = set()
-        for asset in self.assets:
-            if not isinstance(asset, Asset):
-                raise TypeError("Los activos de la cartera deben ser objetos Asset.")
-            symbol = asset.symbol.lower()
-            if symbol in symbols:
-                raise ValueError(f"Activo repetido: {asset.symbol}. Combina antes sus pesos.")
-            symbols.add(symbol)
-            currencies.add(asset.currency)
+        if not all(isinstance(asset, Asset) for asset in self.assets):
+            raise TypeError("Los activos de la cartera deben ser objetos Asset.")
+        validate_symbols(asset.symbol for asset in self.assets)
+        currencies = {asset.currency for asset in self.assets}
         if self.reporting_currency and (
             len(self.reporting_currency) != 3
             or not self.reporting_currency.isalpha()
@@ -54,8 +49,8 @@ class Portfolio:
             raise ValueError(
                 "Todos los activos deben utilizar la misma divisa y unidad de cotización; en caso contrario, indica la divisa del informe y los tipos de cambio."
             )
-        # Comprueba al crear la cartera que pueda valorarse en una fecha común.
-        self.holdings()
+        # Comprueba al crear la cartera que haya fechas comunes y tipos de cambio suficientes.
+        self.close_prices()
 
     @property
     def currency(self) -> str:
@@ -95,37 +90,31 @@ class Portfolio:
         price_column: str = "Close",
         generated_on: datetime | None = None,
         simulation: SimulationResult | None = None,
-        *,
-        steps: int = 252,
-        simulations: int = 1000,
-        expected_returns: float | dict[str, float] | None = None,
-        volatilities: float | dict[str, float] | None = None,
-        confidence: float = 0.95,
-        seed: int | None = 42,
+        **simulation_options,
     ) -> Path:
-        """Guarda un informe Markdown en español con fecha y gráficos."""
+        """Guarda un informe Markdown en español con fecha y gráficos.
+
+        Sin un resultado previo, simula con los mismos parámetros que monte_carlo()
+        (steps, simulations, expected_returns, volatilities, confidence, seed=42).
+        """
         if simulation is None:
+            simulation_options.setdefault("seed", 42)
             simulation = self.monte_carlo(
-                steps=steps,
-                simulations=simulations,
-                seed=seed,
-                expected_returns=expected_returns,
-                volatilities=volatilities,
-                confidence=confidence,
                 periods_per_year=periods_per_year,
                 price_column=price_column,
+                **simulation_options,
             )
         return self.analyze(periods_per_year, price_column).report(generated_on, simulation)
 
     def plots_report(
         self,
-        path=None,
+        directory: str | Path | None = None,
         show: bool = False,
         periods_per_year: int = 252,
         price_column: str = "Close",
     ):
-        """Devuelve los gráficos históricos y solo guarda si se indica una ruta."""
-        return self.analyze(periods_per_year, price_column).plots_report(path, show)
+        """Devuelve todos los gráficos históricos y solo los guarda si se indica una carpeta."""
+        return self.analyze(periods_per_year, price_column).plots_report(directory, show)
 
     @property
     def valuation_date(self) -> pd.Timestamp:
@@ -167,50 +156,18 @@ class Portfolio:
 
     @property
     def weights(self) -> pd.Series:
-        weights = self.holdings()["weight"]
-        if not isinstance(weights, pd.Series):
-            raise TypeError("Se esperaba un peso por activo.")
-        return weights.copy()
+        return self.holdings()["weight"].copy()
 
     @property
     def total_value(self) -> float:
-        return float(np.sum(self.holdings()["value"].to_numpy(dtype=float)))
+        return float(self.holdings()["value"].sum())
 
     def returns(self, log: bool = False, price_column: str = "Close") -> pd.DataFrame:
-        prices = self.close_prices(price_column)
-        if log:
-            return pd.DataFrame(
-                np.log(prices / prices.shift(1)), index=prices.index, columns=prices.columns
-            ).dropna()
-        return prices.pct_change(fill_method=None).dropna()
+        return period_returns(self.close_prices(price_column), log)
 
-    def monte_carlo(
-        self,
-        steps: int = 252,
-        simulations: int = 1000,
-        seed: int | None = None,
-        expected_returns: float | dict[str, float] | None = None,
-        volatilities: float | dict[str, float] | None = None,
-        periods_per_year: int = 252,
-        price_column: str = "Close",
-        confidence: float = 0.95,
-    ) -> SimulationResult:
-        """Simula la cartera con los mismos pesos objetivo y rebalanceo que el análisis."""
+    def _simulation_inputs(self, price_column: str):
+        """Simula las posiciones actuales con los mismos pesos objetivo y rebalanceo."""
         prices = self.close_prices(price_column)
-        initial = self.holdings(price_column)["value"]
-        if not isinstance(initial, pd.Series):
-            raise TypeError("Se esperaba un valor por posición.")
-        return simulate_paths(
-            prices,
-            initial,
-            self.currency,
-            steps=steps,
-            simulations=simulations,
-            seed=seed,
-            expected_returns=expected_returns,
-            volatilities=volatilities,
-            periods_per_year=periods_per_year,
-            price_column=price_column,
-            rebalance_weights=self.target_weights if self.rebalance == "monthly" else None,
-            confidence=confidence,
-        )
+        starting_values = self.holdings(price_column)["value"]
+        weights = self.target_weights if self.rebalance == "monthly" else None
+        return prices, starting_values, weights

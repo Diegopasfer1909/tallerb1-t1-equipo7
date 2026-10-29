@@ -246,18 +246,20 @@ class AnalysisTests(unittest.TestCase):
             for relative_path in images:
                 self.assertEqual(Path(relative_path).parent, Path("."))
                 self.assertGreater((text_path.parent / relative_path).stat().st_size, 0)
-            image_path = Path(folder) / "charts.png"
-            figure = analysis.plots_report(image_path)
-            self.assertGreater(image_path.stat().st_size, 0)
-            plt.close(figure)
+            figures = analysis.plots_report(Path(folder) / "graficos")
+            self.assertEqual(set(figures), {"portfolio", "assets", "distribution"})
+            for name in ("analisis_cartera", "evolucion_activos", "distribucion_rentabilidades"):
+                self.assertGreater((Path(folder) / "graficos" / f"{name}.png").stat().st_size, 0)
+            for figure in figures.values():
+                plt.close(figure)
         self.assertEqual(plt.get_fignums(), [])
 
     def test_report_includes_instrument_information_and_individual_results(self):
         data = history("A", [100, 120, 96])
         data.info.update(
             {
-                "longName": "Empresa A",
-                "quoteType": "EQUITY",
+                "name": "Empresa A",
+                "asset_type": "stock",
                 "sector": "Technology",
                 "country": "United States",
             }
@@ -371,7 +373,7 @@ class AnalysisTests(unittest.TestCase):
 
     def test_reported_beta_is_separate_from_calculated_asset_and_portfolio_beta(self):
         data = history("A", [100, 120, 96])
-        data.info.update({"beta": 7, "marketCap": 1000000, "trailingPE": 15})
+        data.info.update({"beta": 7, "market_cap": 1000000, "pe_ratio": 15})
         benchmark = history("INDEX", [100, 110, 99])
         portfolio = buy_and_hold_portfolio(
             [Asset(data)], [1], market_context=MarketContext(benchmark=benchmark)
@@ -398,20 +400,23 @@ class AnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(analysis.metrics["difference_from_benchmark"], 0)
         self.assertTrue(any("4 fechas comunes" in message for message in analysis.warnings))
 
-    def test_alpha_fundamentals_accept_numeric_strings_and_missing_values(self):
+    def test_missing_fundamentals_are_nan_and_zero_beta_is_kept(self):
         data = history("A", [100, 120, 96])
-        data.info.update(
-            {
-                "Beta": "0",
-                "MarketCapitalization": "1000000",
-                "PERatio": "None",
-                "AssetType": "Common Stock",
-            }
-        )
+        data.info.update({"beta": 0.0, "pe_ratio": float("nan"), "asset_type": "stock"})
         analysis = buy_and_hold_portfolio([Asset(data)], [1]).analyze()
         self.assertEqual(analysis.asset_details.loc["A", "reported_beta"], 0)
         self.assertEqual(analysis.asset_details.loc["A", "asset_type"], "stock")
         self.assertTrue(np.isnan(analysis.asset_details.loc["A", "pe_ratio"]))
+        self.assertTrue(np.isnan(analysis.asset_details.loc["A", "market_cap"]))
+
+    def test_monthly_data_with_daily_annualization_is_flagged(self):
+        dates = pd.to_datetime(["2025-01-31", "2025-02-28", "2025-03-31"])
+        portfolio = buy_and_hold_portfolio([Asset(history("A", [100, 110, 121], dates=dates))], [1])
+        daily = portfolio.analyze()
+        self.assertTrue(any("periods_per_year" in message for message in daily.warnings))
+        monthly = portfolio.analyze(periods_per_year=12)
+        self.assertFalse(any("periods_per_year" in message for message in monthly.warnings))
+        self.assertAlmostEqual(monthly.metrics["annualized_return"], 1.1**12 - 1)
 
     def test_monthly_inflation_allows_normal_publication_lag(self):
         dates = pd.to_datetime(["2026-09-01", "2026-10-01", "2026-10-27"])

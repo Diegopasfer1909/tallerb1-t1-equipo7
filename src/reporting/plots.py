@@ -126,3 +126,36 @@ def plot_distribution(analysis, show=True):
     if show:
         plt.show()
     return figure
+
+
+# Nombre de archivo de cada gráfico; el informe Markdown utiliza las mismas claves.
+CHART_FILES = {
+    "portfolio": "analisis_cartera.png",
+    "assets": "evolucion_activos.png",
+    "distribution": "distribucion_rentabilidades.png",
+    "simulation": "simulacion_monte_carlo.png",
+}
+
+
+def plot_report(analysis) -> dict:
+    """Crea el conjunto de gráficos históricos sin mostrarlos ni guardarlos."""
+    return {
+        "portfolio": plot_analysis(analysis, show=False),
+        "assets": plot_assets(analysis, show=False),
+        "distribution": plot_distribution(analysis, show=False),
+    }
+
+
+def save_charts(figures: dict, directory, close: bool = False) -> dict[str, str]:
+    """Guarda cada figura en la carpeta y devuelve el nombre de archivo de cada gráfico."""
+    import matplotlib.pyplot as plt
+
+    saved = {}
+    for key, figure in figures.items():
+        try:
+            figure.savefig(directory / CHART_FILES[key], dpi=150, bbox_inches="tight")
+        finally:
+            if close:
+                plt.close(figure)
+        saved[key] = CHART_FILES[key]
+    return saved
