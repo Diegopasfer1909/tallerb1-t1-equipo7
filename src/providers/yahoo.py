@@ -20,6 +20,18 @@ ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": 
 
 
 class YahooFinanceAPI:
+    def get_info(self, symbol: str) -> dict:
+        """Consulta la ficha del activo; yfinance la obtiene con una petición adicional."""
+        try:
+            info = dict(yf.Ticker(symbol).get_info())
+        except Exception:
+            # yfinance no documenta sus excepciones; se traducen al error común.
+            raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.") from None
+        # Para símbolos sin ficha, yfinance puede devolver un diccionario casi vacío.
+        if not info.get("quoteType"):
+            raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.")
+        return info
+
     def get_prices(
         self, symbol: str, start: str, end: str, *, adjusted: bool = False
     ) -> PriceHistory:
@@ -40,15 +52,12 @@ class YahooFinanceAPI:
         history = history.loc[(history.index >= first) & (history.index < last)]
 
         # La ficha es complementaria: si falla, se conservan los precios ya descargados.
+        raw = {}
+        issue = None
         try:
-            raw = dict(ticker.get_info())
-            issue = None
-        except Exception:
-            raw = {}
-            issue = (
-                "No se ha podido consultar la ficha del activo en Yahoo Finance. "
-                "Faltan la divisa y los datos de la empresa; indica la divisa expresamente."
-            )
+            raw = self.get_info(symbol)
+        except ProviderError:
+            issue = "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los datos de la empresa; indica la divisa expresamente."
         info = normalize_info(raw, FIELDS, ASSET_TYPES)
         if issue:
             info["metadata_issue"] = issue
