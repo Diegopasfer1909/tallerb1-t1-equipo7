@@ -269,13 +269,27 @@ class ProviderTests(unittest.TestCase):
         prices = pd.DataFrame(
             {"Close": [1.5, 2.5]}, index=pd.date_range("2026-10-22", periods=2, tz="UTC")
         )
+        failures = {
+            "error": {"side_effect": RuntimeError("429 Too Many Requests")},
+            "empty profile": {"return_value": {"trailingPegRatio": None}},
+        }
+        for case, behaviour in failures.items():
+            with self.subTest(case=case), patch("src.providers.yahoo.yf.Ticker") as ticker:
+                ticker.return_value.history.return_value = prices
+                ticker.return_value.get_info.configure_mock(**behaviour)
+                result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
+                self.assertEqual(len(result.prices), 2)
+                self.assertIn("metadata_issue", result.info)
+                self.assertIsNone(result.info["currency"])
+                self.assertEqual(result.info["raw"], {})
+
+    def test_yahoo_info_raises_provider_error_without_a_profile(self):
         with patch("src.providers.yahoo.yf.Ticker") as ticker:
-            ticker.return_value.history.return_value = prices
-            ticker.return_value.get_info.side_effect = RuntimeError("429 Too Many Requests")
-            result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
-        self.assertEqual(len(result.prices), 2)
-        self.assertIn("metadata_issue", result.info)
-        self.assertIsNone(result.info["currency"])
+            ticker.return_value.get_info.return_value = {"quoteType": "EQUITY", "currency": "USD"}
+            self.assertEqual(YahooFinanceAPI().get_info("IBM")["currency"], "USD")
+            ticker.return_value.get_info.side_effect = RuntimeError("connection reset")
+            with self.assertRaises(ProviderError):
+                YahooFinanceAPI().get_info("IBM")
 
     def test_yahoo_download_failures_become_provider_errors(self):
         with patch("src.providers.yahoo.yf.Ticker") as ticker:
