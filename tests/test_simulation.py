@@ -47,7 +47,7 @@ class SimulationTests(unittest.TestCase):
 
     def test_one_step_matches_the_gbm_formula_with_cholesky(self):
         result = make_asset().monte_carlo(
-            steps=1, simulations=5, seed=42, expected_return=0.08, volatility=0.2
+            steps=1, simulations=5, seed=42, expected_returns=0.08, volatilities=0.2
         )
         shocks = np.random.default_rng(42).standard_normal((5, 1)).ravel()
         expected = 107 * np.exp((0.08 - 0.2**2 / 2) / 252 + 0.2 / np.sqrt(252) * shocks)
@@ -140,6 +140,15 @@ class SimulationTests(unittest.TestCase):
         pd.testing.assert_frame_equal(first.paths, second.paths)
         self.assertFalse(first.paths.equals(other.paths))
 
+    def test_asset_and_portfolio_share_one_simulation_method(self):
+        self.assertIs(Asset.monte_carlo, Portfolio.monte_carlo)
+        asset = make_asset()
+        options = dict(steps=5, simulations=10, seed=3, expected_returns={"A": 0.1})
+        single = asset.monte_carlo(**options)
+        portfolio = buy_and_hold_portfolio([asset], [1]).monte_carlo(**options)
+        np.testing.assert_allclose(portfolio.paths, single.paths)
+        self.assertEqual(single.assumptions.loc["A", "return_source"], "usuario")
+
     def test_single_holding_matches_the_asset_times_its_quantity(self):
         asset = make_asset()
         single = asset.monte_carlo(steps=10, simulations=20, seed=7)
@@ -158,8 +167,8 @@ class SimulationTests(unittest.TestCase):
             simulations=50000,
             seed=99,
             periods_per_year=1,
-            expected_return=0.1,
-            volatility=0.3,
+            expected_returns=0.1,
+            volatilities=0.3,
         )
         expected_final = 107 * np.exp(0.1)
         self.assertAlmostEqual(
@@ -172,8 +181,8 @@ class SimulationTests(unittest.TestCase):
             result = asset.monte_carlo(
                 steps=periods,
                 simulations=3,
-                expected_return=0.1,
-                volatility=0,
+                expected_returns=0.1,
+                volatilities=0,
                 periods_per_year=periods,
             )
             np.testing.assert_allclose(result.paths.iloc[-1], 100 * np.exp(0.1), rtol=1e-12)
@@ -214,8 +223,8 @@ class SimulationTests(unittest.TestCase):
             {"steps": 1.5},
             {"periods_per_year": 0},
             {"seed": -1},
-            {"volatility": -0.1},
-            {"expected_return": float("nan")},
+            {"volatilities": -0.1},
+            {"expected_returns": float("nan")},
             {"steps": 100000, "simulations": 100000},
         ]:
             with self.subTest(options=options), self.assertRaises(ValueError):

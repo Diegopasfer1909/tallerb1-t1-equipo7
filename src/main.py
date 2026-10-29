@@ -1,8 +1,3 @@
-import sys
-
-# Evita generar bytecode cuando importas los modulos durnate la ejecución del main.py
-sys.dont_write_bytecode = True
-
 import argparse
 import math
 from datetime import date, timedelta
@@ -11,13 +6,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.market_loader import load_report_context
-from src.models.validation import validate_weights
 from src.portfolio_loader import load_portfolio
 from src.providers import AlphaVantageAPI, ProviderError, YahooFinanceAPI
 from src.providers.base import date_range
 from src.reporting.formatting import format_number
+from src.validation import validate_symbols, validate_weights
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Yahoo admite historiales largos; el modo compact de Alpha Vantage, unas 100 sesiones.
+DEFAULT_HISTORY_DAYS = {"yahoo": 365, "alpha_vantage": 120}
 
 
 def parse_values(items: list[str]) -> dict[str, float]:
@@ -37,23 +34,17 @@ def parse_values(items: list[str]) -> dict[str, float]:
         raise ValueError(
             "Indica un solo archivo .txt o los pesos en consola, sin mezclar ambos formatos."
         )
-    values = {}
-    seen = set()
+    pairs = []
     for item in items:
         try:
             symbol, text = item.rsplit(":", 1)
-            symbol = symbol.strip()
-            value = float(text)
+            pairs.append((symbol.strip(), float(text)))
         except ValueError:
             raise ValueError(
                 f"Usa el formato SÍMBOLO:PESO, por ejemplo IBM:0.6. Has indicado: {item!r}."
             ) from None
-        if not symbol or not math.isfinite(value):
-            raise ValueError("Los símbolos no pueden estar vacíos y los valores deben ser finitos.")
-        if symbol.lower() in seen:
-            raise ValueError(f"Activo repetido: {symbol}.")
-        seen.add(symbol.lower())
-        values[symbol] = value
+    validate_symbols(symbol for symbol, _ in pairs)
+    values = dict(pairs)
     validate_weights(list(values.values()))
     return values
 
@@ -79,8 +70,8 @@ def parse_arguments() -> argparse.Namespace:
     options.add_argument(
         "--start",
         metavar="AAAA-MM-DD",
-        default=(date.today() - timedelta(days=30)).isoformat(),
-        help="Fecha de inicio, incluida (AAAA-MM-DD). Por defecto: hace 30 días",
+        help="Fecha de inicio, incluida (AAAA-MM-DD). Por defecto: hace un año con Yahoo "
+        "y 120 días con Alpha Vantage",
     )
     options.add_argument(
         "--end",
@@ -143,6 +134,9 @@ def parse_arguments() -> argparse.Namespace:
         help="Volatilidad anual sigma para todos (0.2) o por activo (IBM:0.2 MSFT:0.3)",
     )
     args = parser.parse_args()
+    if args.start is None:
+        days = DEFAULT_HISTORY_DAYS[args.provider]
+        args.start = (date.today() - timedelta(days=days)).isoformat()
     try:
         date_range(args.start, args.end)
         args.weights = parse_values(args.assets)
@@ -213,7 +207,9 @@ def parse_assumptions(items: list[str] | None, weights: dict[str, float]):
 def run_portfolio(args) -> None:
     """Coordina la carga, la simulación y las salidas solicitadas."""
     if args.provider == "alpha_vantage":
-        provider = AlphaVantageAPI(cache_dir=PROJECT_ROOT / ".cache" / "market-data")
+        provider = AlphaVantageAPI(
+            cache_dir=PROJECT_ROOT / ".cache" / "market-data", include_info=True
+        )
     else:
         provider = YahooFinanceAPI()
     portfolio = load_portfolio(
@@ -221,7 +217,6 @@ def run_portfolio(args) -> None:
         provider,
         args.start,
         args.end,
-        include_info=True,
         reporting_currency=args.currency,
         initial_capital=args.capital,
         rebalance=args.rebalance,
@@ -259,11 +254,7 @@ def show_plots(analysis, simulation=None) -> None:
     """Muestra los gráficos históricos y, si existe, la simulación, sin guardar archivos."""
     import matplotlib.pyplot as plt
 
-    from src.reporting.plots import plot_assets, plot_distribution
-
-    analysis.plot(show=False)
-    plot_assets(analysis, show=False)
-    plot_distribution(analysis, show=False)
+    analysis.plots_report()
     if simulation is not None:
         simulation.plot(show=False)
     plt.show()

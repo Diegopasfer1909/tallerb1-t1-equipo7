@@ -9,7 +9,7 @@ description = "Extracción y análisis de datos de mercado para el taller MIAX B
 readme = "README.MD"
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.16.5",
+    "numpy>=1.17",
     "pandas>=1.3.0",
     "matplotlib>=3.0.0",
     "yfinance>=0.1.70",
@@ -36,7 +36,3 @@ line-length = 100
 [tool.ruff.lint]
 # Errores de sintaxis, nombres sin usar y orden de las importaciones.
 select = ["E4", "E7", "E9", "F", "I", "B"]
-
-[tool.ruff.lint.per-file-ignores]
-# La configuración inicial debe preceder a las importaciones para evitar __pycache__.
-"src/main.py" = ["E402"]

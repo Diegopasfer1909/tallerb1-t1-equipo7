@@ -7,6 +7,7 @@ import pandas as pd
 
 from ..models.market_context import MarketContext
 from ..simulation.monte_carlo import estimate_parameters
+from ..validation import validate_positive_int
 from .metrics import annualized_return, performance, risk_adjusted, risk_contributions
 from .result import PortfolioAnalysis
 
@@ -104,7 +105,7 @@ def _add_benchmark(
     benchmark = context.benchmark
     if benchmark is None:
         return
-    currency = benchmark.info.get("currency") or benchmark.info.get("Currency")
+    currency = benchmark.info.get("currency")
     if not currency:
         for key in BENCHMARK_METRICS:
             notes[key] = "No consta la divisa del índice de referencia."
@@ -171,19 +172,10 @@ def _quality(portfolio, common_dates, price_column):
     return pd.DataFrame(records).set_index("asset")
 
 
-def _numeric_info(info: dict, *keys: str) -> float:
-    """Acepta cifras del proveedor en texto; una beta nula o negativa es válida."""
-    for key in keys:
-        value = info.get(key)
-        if value is None or isinstance(value, bool):
-            continue
-        try:
-            number = float(value)
-        except (TypeError, ValueError):
-            continue
-        if np.isfinite(number):
-            return number
-    return float("nan")
+def _numeric_info(info: dict, key: str) -> float:
+    """Los adaptadores ya convierten las cifras; un valor ausente queda como NaN."""
+    value = info.get(key)
+    return float(value) if value is not None else float("nan")
 
 
 def _asset_details(portfolio, prices, periods_per_year, benchmark_prices):
@@ -215,14 +207,14 @@ def _asset_details(portfolio, prices, periods_per_year, benchmark_prices):
                 "asset": asset.symbol,
                 "name": asset.name,
                 "asset_type": asset.asset_type,
-                "sector": info.get("sector") or info.get("Sector") or "Unknown",
-                "country": info.get("country") or info.get("Country") or "Unknown",
+                "sector": info.get("sector") or "Unknown",
+                "country": info.get("country") or "Unknown",
                 "quote_currency": asset.currency,
                 "source": asset.history.source,
-                "reported_beta": _numeric_info(info, "beta", "Beta", "beta3Year"),
+                "reported_beta": _numeric_info(info, "beta"),
                 "calculated_beta": beta,
-                "market_cap": _numeric_info(info, "marketCap", "MarketCapitalization"),
-                "pe_ratio": _numeric_info(info, "trailingPE", "PERatio"),
+                "market_cap": _numeric_info(info, "market_cap"),
+                "pe_ratio": _numeric_info(info, "pe_ratio"),
                 "total_return": result["total_return"],
                 "annualized_return": result["annualized_return"],
                 "annualized_volatility": result["annualized_volatility"],
@@ -253,12 +245,18 @@ def _missing_reference_notes() -> dict[str, str]:
     return {key: reason for keys, reason in reasons for key in keys}
 
 
-def _quality_warnings(
-    quality, context, weights, observation_count, periods_per_year, concentration_limit
-):
-    """Reúne avisos de cobertura y concentración sin alterar las métricas."""
+def _quality_warnings(quality, context, weights, dates, periods_per_year, concentration_limit):
+    """Reúne avisos de cobertura, frecuencia y concentración sin alterar las métricas."""
     warnings = []
-    if observation_count < periods_per_year:
+    # pct_change no sabe cuánto tiempo separa dos filas: la anualización depende de este dato.
+    typical_gap = pd.Series(dates).diff().dt.days.median()
+    if periods_per_year >= 252 and typical_gap > 5:
+        warnings.append(
+            f"Las fechas están separadas unos {typical_gap:.0f} días, pero se anualiza con "
+            f"{periods_per_year} períodos por año. Indica periods_per_year según la frecuencia "
+            "de los datos (por ejemplo, 12 si son mensuales)."
+        )
+    if len(dates) - 1 < periods_per_year:
         warnings.append(
             "El historial contiene menos de un año de datos. Las estimaciones anuales pueden variar mucho según el período elegido."
         )
@@ -309,12 +307,7 @@ def analyze_portfolio(
     price_column: str = "Close",
     concentration_limit: float = 0.4,
 ) -> PortfolioAnalysis:
-    if (
-        isinstance(periods_per_year, bool)
-        or not isinstance(periods_per_year, int)
-        or periods_per_year < 1
-    ):
-        raise ValueError("periods_per_year debe ser un entero positivo.")
+    validate_positive_int("periods_per_year", periods_per_year)
     if (
         isinstance(concentration_limit, bool)
         or not np.isfinite(concentration_limit)
@@ -348,23 +341,14 @@ def analyze_portfolio(
             warnings.append(f"{asset.symbol}: {asset.history.info['metadata_issue']}")
     holdings = portfolio.holdings(price_column)
     weights = holdings["weight"]
-    if not isinstance(weights, pd.Series):
-        raise TypeError("Se esperaba un peso actual por activo.")
     metrics["concentration_hhi"] = (weights**2).sum()
     metrics["effective_asset_count"] = 1 / metrics["concentration_hhi"]
-    sectors = pd.Series(
-        {
-            asset.symbol: asset.history.info.get("sector")
-            or asset.history.info.get("Sector")
-            or "Unknown"
-            for asset in portfolio.assets
-        }
-    )
-    sector_weights = pd.Series(weights.groupby(sectors).sum()).sort_values(ascending=False)
+    details = _asset_details(portfolio, prices, periods_per_year, benchmark_prices)
+    sector_weights = weights.groupby(details["sector"]).sum().sort_values(ascending=False)
     quality = _quality(portfolio, prices.index, price_column)
     warnings.extend(
         _quality_warnings(
-            quality, context, weights, len(returns), periods_per_year, concentration_limit
+            quality, context, weights, prices.index, periods_per_year, concentration_limit
         )
     )
     missing_metrics = metrics.index[metrics.isna().to_numpy()]
@@ -382,7 +366,7 @@ def analyze_portfolio(
         data_quality=quality,
         warnings=warnings,
         reference_names=_reference_names(context),
-        asset_details=_asset_details(portfolio, prices, periods_per_year, benchmark_prices),
+        asset_details=details,
         asset_prices=prices.copy(),
         metric_notes=notes,
         initial_capital=portfolio.initial_capital,

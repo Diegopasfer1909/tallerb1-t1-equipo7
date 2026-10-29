@@ -3,11 +3,24 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .validation import validate_dates
+from ..validation import validate_dates
+
+
+def period_returns(prices, log: bool = False):
+    """Rentabilidades entre observaciones consecutivas de una Series o un DataFrame."""
+    if log:
+        return np.log(prices / prices.shift(1)).dropna()
+    return prices.pct_change(fill_method=None).dropna()
 
 
 @dataclass
 class PriceHistory:
+    """Historial validado de un símbolo. info usa las claves comunes de los proveedores.
+
+    mean y std se calculan al crear el objeto sobre las columnas de precios; si cambian los
+    precios, crea un historial nuevo para que las estadísticas sigan siendo correctas.
+    """
+
     symbol: str
     source: str
     prices: pd.DataFrame
@@ -68,9 +81,4 @@ class PriceHistory:
         return values.copy().rename(self.symbol)
 
     def returns(self, log: bool = False, column: str = "Close") -> pd.Series:
-        prices = self.closing_prices(column)
-        if log:
-            return pd.Series(
-                np.log(prices / prices.shift(1)), index=prices.index, name=prices.name
-            ).dropna()
-        return prices.pct_change(fill_method=None).dropna()
+        return period_returns(self.closing_prices(column), log)

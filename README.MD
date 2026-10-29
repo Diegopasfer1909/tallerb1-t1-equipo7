@@ -39,7 +39,7 @@ python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plot
 | --- | --- |
 | `--provider yahoo` o `--provider alpha_vantage` | Proveedor de precios; por defecto, Yahoo Finance |
 | `--assets SÍMBOLO:PESO ...` o `--assets archivo.txt` | Pesos objetivo de la cartera; obligatorio |
-| `--start AAAA-MM-DD` | Fecha de inicio incluida; por defecto, hace 30 días |
+| `--start AAAA-MM-DD` | Fecha de inicio incluida; por defecto, hace un año con Yahoo y 120 días con Alpha Vantage (el modo `compact` ofrece unas 100 sesiones) |
 | `--end AAAA-MM-DD` | Fecha de fin excluida; por defecto, hoy |
 | `--simulate` | Simular la evolución de la cartera a partir de los datos históricos |
 | `--plots-report` | Mostrar el conjunto de gráficos sin crear un documento |
@@ -101,6 +101,42 @@ Desde Python, `Portfolio(assets, allocations, ...)` recibe una lista de pesos en
 el mismo orden que los activos. El capital se puede cambiar con `initial_capital`
 y se puede analizar una estrategia sin reajustes con `rebalance=None`.
 
+## Uso desde Python
+
+Todos los proveedores de precios cumplen el mismo contrato, `PriceProvider`:
+`get_prices(symbol, start, end)` devuelve un `PriceHistory`. Las opciones propias de
+cada fuente se fijan al crear el adaptador, por lo que `load_portfolio()` y el
+análisis no necesitan saber qué proveedor se utiliza:
+
+```python
+from src.portfolio_loader import load_portfolio
+from src.providers import AlphaVantageAPI, YahooFinanceAPI
+
+yahoo = YahooFinanceAPI()
+alpha = AlphaVantageAPI(include_info=True, outputsize="compact", allow_partial=False)
+
+history = yahoo.get_prices("^GSPC", "2025-10-01", "2026-10-01")
+print(history.mean["Close"], history.std["Close"])  # calculadas al crear el objeto
+
+portfolio = load_portfolio({"IBM": 0.6, "MSFT": 0.4}, yahoo, "2025-10-01", "2026-10-01")
+```
+
+Las fechas se indican siempre como `AAAA-MM-DD`. Cada adaptador traduce la ficha
+del proveedor a unas claves comunes de `history.info`: `currency`, `name`,
+`asset_type` (`stock`, `index`, `etf`, `fund` o `unknown`), `sector`, `country`,
+`beta`, `market_cap` y `pe_ratio`. La respuesta original se conserva en
+`info["raw"]`. Si la ficha no está disponible, los precios descargados se conservan,
+`info["metadata_issue"]` explica el problema y la divisa debe indicarse con
+`load_portfolio(..., currency="USD")`; no se supone ninguna.
+
+`mean` y `std` se calculan al crear el historial. Si cambias los precios, crea un
+`PriceHistory` nuevo para que las estadísticas sigan correspondiendo a los datos.
+
+La consola trabaja con precios diarios. Si construyes historiales con otra
+frecuencia, indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()`
+(por ejemplo, 12 para datos mensuales); el análisis avisa si las fechas no
+parecen diarias y se anualiza con 252 períodos.
+
 ## Parámetros de Monte Carlo
 
 Los mismos parámetros se pueden utilizar con `--simulate` y con `--report`. El
@@ -142,7 +178,17 @@ options = dict(steps=126, simulations=5000, expected_returns=0.08,
                volatilities=0.20, confidence=0.99, seed=7)
 result = portfolio.monte_carlo(**options)
 path = portfolio.report(**options)
+
+# El mismo método simula un único activo, partiendo de su último precio.
+ibm = portfolio.assets[0].monte_carlo(**options)
+ibm.plot()
 ```
+
+`Asset` y `Portfolio` heredan `monte_carlo()` de `MonteCarloMixin`, de modo que
+el algoritmo existe una sola vez. Cada clase indica qué precios simular y con qué
+valores iniciales; la cartera añade además sus pesos de rebalanceo.
+`expected_returns` y `volatilities` admiten un valor para todos los activos o un
+diccionario por símbolo, también cuando se simula un único activo.
 
 Si ya tienes un resultado, puedes reutilizarlo con `portfolio.report(simulation=result)`.
 Los parámetros de generación solo se utilizan cuando no se proporciona un resultado.
@@ -211,6 +257,10 @@ que carezcan de una referencia configurada quedan sin calcular.
 distribución, más los de simulación si se añade `--simulate` o `--report`. No guarda archivos por sí solo. Puede
 combinarse con `--report` para ver los gráficos y guardar el informe completo.
 
+Desde Python, `portfolio.plots_report()` devuelve ese mismo conjunto como un
+diccionario de figuras (`portfolio`, `assets` y `distribution`). Con
+`portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
+
 Cada informe crea una carpeta dentro del proyecto:
 
 ```text
@@ -235,6 +285,6 @@ python -B -m unittest discover -s tests -v
 ```
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
-código, formato y pruebas con Python 3.10 y 3.14. La ejecución del archivo principal
-no genera `__pycache__`. La caché de respuestas de Alpha Vantage y FRED se conserva
+código, formato y pruebas con Python 3.10 y 3.14. `__pycache__` está excluido
+en `.gitignore`. La caché de respuestas de Alpha Vantage y FRED se conserva
 para evitar consultas repetidas; no contiene las claves en texto.

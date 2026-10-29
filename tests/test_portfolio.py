@@ -150,7 +150,7 @@ class PortfolioTests(unittest.TestCase):
             asset("A", [1, 2], info={"price_adjustment": "adjusted"})
 
     def test_close_only_nav_and_return_calculations(self):
-        fund = asset("FUND", [100, 110, 99], info={"quoteType": "MUTUALFUND"})
+        fund = asset("FUND", [100, 110, 99], info={"asset_type": "fund"})
         self.assertEqual(fund.asset_type, "fund")
         np.testing.assert_allclose(fund.history.returns(), [0.1, -0.1])
         np.testing.assert_allclose(fund.history.returns(log=True), np.log([1.1, 0.9]))
@@ -176,7 +176,7 @@ class PortfolioTests(unittest.TestCase):
         np.testing.assert_allclose(portfolio.target_weights, [0.5, 0.5])
         self.assertAlmostEqual(portfolio.weights["A"], (100 / 90) / (100 / 90 + 50 / 40))
         self.assertEqual(provider.get_prices.call_count, 2)
-        provider.get_prices.assert_any_call("A", "2026-10-01", "2026-10-03", adjusted=False)
+        provider.get_prices.assert_any_call("A", "2026-10-01", "2026-10-03")
 
     def test_loader_validates_weights_before_network_calls(self):
         provider = Mock(spec=YahooFinanceAPI)
@@ -185,20 +185,11 @@ class PortfolioTests(unittest.TestCase):
                 load_portfolio(holdings, provider, "2026-10-01", "2026-10-03")
         provider.get_prices.assert_not_called()
 
-    def test_alpha_loader_preserves_options_and_accepts_explicit_currency(self):
+    def test_loader_uses_the_common_interface_and_accepts_explicit_currency(self):
         provider = Mock(spec=AlphaVantageAPI)
         history = asset("A", [90, 100]).history
         history.info.clear()
         provider.get_prices.return_value = history
-        portfolio = load_portfolio(
-            {"A": 1}, provider, "2026-10-01", "2026-10-03", currency="USD", allow_partial=True
-        )
+        portfolio = load_portfolio({"A": 1}, provider, "2026-10-01", "2026-10-03", currency="USD")
         self.assertAlmostEqual(portfolio.total_value, 10000 * 100 / 90)
-        provider.get_prices.assert_called_once_with(
-            "A",
-            "2026-10-01",
-            "2026-10-03",
-            allow_partial=True,
-            outputsize="compact",
-            include_info=False,
-        )
+        provider.get_prices.assert_called_once_with("A", "2026-10-01", "2026-10-03")

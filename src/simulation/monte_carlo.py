@@ -1,10 +1,16 @@
 """Simulación de activos correlacionados, con rebalanceo mensual opcional."""
 
+from abc import ABC, abstractmethod
 from numbers import Integral, Real
 
 import numpy as np
 import pandas as pd
 
+from ..validation import (
+    validate_positive_int,
+    validate_price_table,
+    validate_target_weights,
+)
 from .result import SimulationResult
 
 MAX_SIMULATION_VALUES = 20_000_000
@@ -30,6 +36,55 @@ def estimate_parameters(
     if not np.isfinite(parameters.select_dtypes(include="number").to_numpy()).all():
         raise ValueError("No se han podido estimar parámetros finitos para la simulación.")
     return parameters
+
+
+class MonteCarloMixin(ABC):
+    """Un único método de simulación para un activo y para una cartera.
+
+    Cada clase solo indica qué precios simular, el valor inicial de cada posición y,
+    si procede, los pesos a los que rebalancear. El motor de cálculo es el mismo.
+    """
+
+    currency: str
+
+    @abstractmethod
+    def _simulation_inputs(
+        self, price_column: str
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series | None]:
+        """Devuelve los precios históricos, los valores iniciales y los pesos de rebalanceo."""
+
+    def monte_carlo(
+        self,
+        steps: int = 252,
+        simulations: int = 1000,
+        seed: int | None = None,
+        expected_returns: float | dict[str, float] | None = None,
+        volatilities: float | dict[str, float] | None = None,
+        periods_per_year: int = 252,
+        price_column: str = "Close",
+        confidence: float = 0.95,
+    ) -> SimulationResult:
+        """Simula el valor desde la última fecha histórica.
+
+        expected_returns y volatilities admiten un valor para todos los activos o un
+        diccionario por símbolo; los activos sin supuesto usan su estimación histórica.
+        periods_per_year debe corresponder a la frecuencia de los precios (252 si son diarios).
+        """
+        prices, starting_values, rebalance_weights = self._simulation_inputs(price_column)
+        return simulate_paths(
+            prices,
+            starting_values,
+            self.currency,
+            steps=steps,
+            simulations=simulations,
+            seed=seed,
+            expected_returns=expected_returns,
+            volatilities=volatilities,
+            periods_per_year=periods_per_year,
+            price_column=price_column,
+            rebalance_weights=rebalance_weights,
+            confidence=confidence,
+        )
 
 
 def simulate_paths(
@@ -63,20 +118,7 @@ def simulate_paths(
     target = None
     rebalance_steps = set()
     if rebalance_weights is not None:
-        if not rebalance_weights.index.is_unique or set(rebalance_weights.index) != set(
-            prices.columns
-        ):
-            raise ValueError("Indica un peso objetivo por cada activo de la simulación.")
-        target = rebalance_weights.reindex(prices.columns).to_numpy(dtype=float)
-        if (
-            not np.isfinite(target).all()
-            or (target < 0).any()
-            or (target > 1).any()
-            or not np.isclose(target.sum(), 1, rtol=0, atol=1e-10)
-        ):
-            raise ValueError(
-                "Los pesos objetivo de la simulación deben estar entre 0 y 1 y sumar 1."
-            )
+        target = validate_target_weights(rebalance_weights, prices.columns)
         rebalance_steps = _monthly_rebalance_steps(steps, periods_per_year)
     if simulations * (steps + 1 + 2 * len(initial)) > MAX_SIMULATION_VALUES:
         raise ValueError(
@@ -145,35 +187,21 @@ def _apply_assumptions(parameters, expected_returns, volatilities) -> None:
 
 def _validate_settings(steps, simulations, periods_per_year, seed) -> None:
     """Comprueba el número de períodos, escenarios y la semilla aleatoria."""
-    for name, value in [
-        ("steps", steps),
-        ("simulations", simulations),
-        ("periods_per_year", periods_per_year),
-    ]:
-        if isinstance(value, bool) or not isinstance(value, Integral) or value < 1:
-            raise ValueError(f"{name} debe ser un entero positivo.")
+    validate_positive_int("steps", steps)
+    validate_positive_int("simulations", simulations)
+    validate_positive_int("periods_per_year", periods_per_year)
     if seed is not None and (isinstance(seed, bool) or not isinstance(seed, Integral) or seed < 0):
         raise ValueError("seed debe ser un entero no negativo o None.")
 
 
 def _prepare_prices(prices: pd.DataFrame) -> pd.DataFrame:
     """Valida y ordena los precios sin rellenar observaciones que falten."""
-    if not isinstance(prices, pd.DataFrame) or prices.empty or prices.columns.has_duplicates:
-        raise ValueError("La simulación necesita una tabla no vacía con una columna por activo.")
-    if (
-        not isinstance(prices.index, pd.DatetimeIndex)
-        or prices.index.has_duplicates
-        or prices.index.hasnans
-    ):
-        raise ValueError("Los precios históricos necesitan fechas válidas y sin repetir.")
-    prices = prices.sort_index().astype(float)
+    if isinstance(prices, pd.DataFrame):
+        prices = prices.sort_index().astype(float)
+    validate_price_table(prices)
     if len(prices) < 3:
         raise ValueError(
             "Para realizar la simulación hacen falta precios de todos los activos en al menos tres fechas."
-        )
-    if not np.isfinite(prices.to_numpy()).all() or (prices <= 0).to_numpy().any():
-        raise ValueError(
-            "Los precios de la simulación deben ser positivos y finitos, y no puede faltar ningún dato."
         )
     return prices
 

@@ -55,11 +55,20 @@ class PortfolioAnalysis:
 
         return plot_analysis(self, show)
 
-    def plots_report(self, path: str | Path | None = None, show: bool = False):
-        """Devuelve la figura y solo guarda una imagen si se indica una ruta."""
-        destination = Path(path) if path is not None else None
-        figure = self.plot(show)
-        if destination is not None:
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            figure.savefig(destination)
-        return figure
+    def plots_report(self, directory: str | Path | None = None, show: bool = False) -> dict:
+        """Devuelve los gráficos históricos: cartera, activos comparados y distribución.
+
+        Solo guarda archivos si se indica una carpeta, con los mismos nombres que el informe.
+        """
+        import matplotlib.pyplot as plt
+
+        from ..reporting.plots import plot_report, save_charts
+
+        figures = plot_report(self)
+        if directory is not None:
+            directory = Path(directory)
+            directory.mkdir(parents=True, exist_ok=True)
+            save_charts(figures, directory)
+        if show:
+            plt.show()
+        return figures

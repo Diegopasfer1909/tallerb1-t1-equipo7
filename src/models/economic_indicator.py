@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from .validation import validate_dates
+from ..validation import validate_dates
 
 
 @dataclass

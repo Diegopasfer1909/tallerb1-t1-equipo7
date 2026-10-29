@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .plots import plot_assets, plot_distribution
+from .plots import plot_report, save_charts
 from .report import build_report
 
 REPORTS_DIR = Path(__file__).resolve().parents[2] / "informes"
@@ -16,8 +16,6 @@ def save_report(
     generated_on: datetime | None = None,
     simulation=None,
 ) -> Path:
-    import matplotlib.pyplot as plt
-
     generated_on = generated_on or datetime.now().astimezone()
     if simulation is not None:
         if (
@@ -58,22 +56,10 @@ def save_report(
         report_dir = REPORTS_DIR / name
     # Evita sobrescribir informes anteriores, incluso si coinciden en el mismo segundo.
     report_dir.mkdir(parents=True, exist_ok=False)
-    charts = {}
-
-    def save_chart(key, filename, figure):
-        try:
-            figure.savefig(report_dir / filename, dpi=150, bbox_inches="tight")
-        finally:
-            plt.close(figure)
-        charts[key] = filename
-
-    save_chart("portfolio", "analisis_cartera.png", analysis.plot(show=False))
-    save_chart("assets", "evolucion_activos.png", plot_assets(analysis, show=False))
-    save_chart(
-        "distribution", "distribucion_rentabilidades.png", plot_distribution(analysis, show=False)
-    )
+    figures = plot_report(analysis)
     if simulation is not None:
-        save_chart("simulation", "simulacion_monte_carlo.png", simulation.plot(show=False))
+        figures["simulation"] = simulation.plot(show=False)
+    charts = save_charts(figures, report_dir, close=True)
     text = build_report(analysis, generated_on, charts, simulation)
     path = report_dir / f"{name}.md"
     path.write_text(text, encoding="utf-8")

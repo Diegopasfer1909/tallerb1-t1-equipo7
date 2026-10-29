@@ -3,11 +3,45 @@
 import pandas as pd
 
 from ..models.price_history import PriceHistory
-from .base import ApiClient, DataCoverageError, ProviderError, date_range
+from .base import ApiClient, DataCoverageError, ProviderError, date_range, normalize_info
+
+FIELDS = {
+    "currency": ("Currency",),
+    "name": ("Name",),
+    "asset_type": ("AssetType",),
+    "sector": ("Sector",),
+    "country": ("Country",),
+    "beta": ("Beta",),
+    "market_cap": ("MarketCapitalization",),
+    "pe_ratio": ("PERatio",),
+}
+ASSET_TYPES = {"Common Stock": "stock", "ETF": "etf", "Mutual Fund": "fund"}
 
 
 class AlphaVantageAPI:
-    def __init__(self, api_key=None, cache_dir=None, cache_ttl=86400, session=None):
+    """Adaptador de Alpha Vantage; sus opciones propias se fijan al crearlo.
+
+    outputsize="compact" devuelve las últimas 100 sesiones; "full" requiere un plan que lo
+    permita. allow_partial acepta historiales que empiezan después de la fecha pedida.
+    include_info consulta además la ficha OVERVIEW, que consume otra petición.
+    """
+
+    def __init__(
+        self,
+        api_key=None,
+        cache_dir=None,
+        cache_ttl=86400,
+        session=None,
+        *,
+        outputsize: str = "compact",
+        allow_partial: bool = False,
+        include_info: bool = False,
+    ):
+        if outputsize not in ("compact", "full"):
+            raise ValueError("outputsize debe ser 'compact' o 'full'.")
+        self.outputsize = outputsize
+        self.allow_partial = allow_partial
+        self.include_info = include_info
         self.client = ApiClient(
             api_key,
             "ALPHA_VANTAGE_API_KEY",
@@ -30,15 +64,7 @@ class AlphaVantageAPI:
         return info
 
     def get_prices(
-        self,
-        symbol: str,
-        start: str,
-        end: str,
-        *,
-        adjusted: bool = False,
-        outputsize: str = "compact",
-        allow_partial: bool = False,
-        include_info: bool = False,
+        self, symbol: str, start: str, end: str, *, adjusted: bool = False
     ) -> PriceHistory:
         """Descarga, normaliza y selecciona los precios antes de crear el modelo."""
         first, last = date_range(start, end)
@@ -46,31 +72,31 @@ class AlphaVantageAPI:
             raise ValueError(
                 "Este adaptador gratuito de Alpha Vantage solo admite precios sin ajustar."
             )
-        if outputsize not in ("compact", "full"):
-            raise ValueError("outputsize debe ser 'compact' o 'full'.")
         params = {
             "function": "TIME_SERIES_DAILY",
             "symbol": symbol,
-            "outputsize": outputsize,
+            "outputsize": self.outputsize,
             "apikey": self.client.api_key,
         }
         payload = self.client.get_json("https://www.alphavantage.co/query", params)
         prices = self._parse_prices(payload)
-        coverage = self._check_coverage(prices, first, allow_partial)
+        coverage = self._check_coverage(prices, first, self.allow_partial)
         prices = prices.loc[(prices.index >= first) & (prices.index < last)]
         if prices.empty:
             raise DataCoverageError(
                 "No hay precios de Alpha Vantage dentro de las fechas solicitadas."
             )
 
-        info = {}
-        if include_info:
+        raw = {}
+        issue = None
+        if self.include_info:
             try:
-                info = self.get_info(symbol)
+                raw = self.get_info(symbol)
             except ProviderError:
-                info["metadata_issue"] = (
-                    "No se ha podido consultar la información de la empresa en Alpha Vantage. Es posible que se haya alcanzado el límite de consultas o que el plan no permita acceder a ella."
-                )
+                issue = "No se ha podido consultar la información de la empresa en Alpha Vantage. Es posible que se haya alcanzado el límite de consultas o que el plan no permita acceder a ella."
+        info = normalize_info(raw, FIELDS, ASSET_TYPES)
+        if issue:
+            info["metadata_issue"] = issue
         info["provider_metadata"] = payload.get("Meta Data", {})
         info["price_adjustment"] = "unadjusted"
         info["requested_start"] = start
@@ -122,8 +148,9 @@ class AlphaVantageAPI:
                 f"El historial disponible de Alpha Vantage comienza el {earliest.date()}; "
                 "el inicio solicitado es anterior. El modo compact proporciona las últimas 100 observaciones. "
                 "Elige una fecha de inicio dentro del historial disponible. Desde Python también "
-                "puedes solicitar outputsize='full' si tu plan lo permite, o aceptar un historial "
-                "parcial con allow_partial=True. No se han recortado las fechas sin tu autorización."
+                "puedes crear AlphaVantageAPI(outputsize='full') si tu plan lo permite, o aceptar "
+                "un historial parcial con AlphaVantageAPI(allow_partial=True). No se han recortado "
+                "las fechas sin tu autorización."
             )
         available_end = latest.date().isoformat()
         coverage = {

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from .models.asset import Asset
 from .models.economic_indicator import EconomicIndicator
-from .models.market_context import ExchangeRate, MarketContext
+from .models.market_context import MINOR_UNITS, ExchangeRate, MarketContext
 from .providers import FredAPI, ProviderError, YahooFinanceAPI
 
 # Referencias iniciales que el usuario puede cambiar expresamente.
@@ -26,8 +26,7 @@ REPORT_DEFAULTS = {
 def load_currency_context(assets: list[Asset], target: str, start: str, end: str) -> MarketContext:
     """Obtiene los cambios directos necesarios sin pedir al usuario símbolos de divisas."""
     provider = YahooFinanceAPI()
-    minor_units = {"GBp": "GBP", "ZAc": "ZAR"}
-    currencies = {minor_units.get(asset.currency, asset.currency) for asset in assets}
+    currencies = {MINOR_UNITS.get(asset.currency, asset.currency) for asset in assets}
     earlier = (date.fromisoformat(start) - timedelta(days=7)).isoformat()
     rates = []
     for source in sorted(currencies):
@@ -83,15 +82,14 @@ def load_market_context(
         return context
     # Incluye datos anteriores para alinear el inicio sin utilizar observaciones futuras.
     earlier = (date.fromisoformat(start) - timedelta(days=75)).isoformat()
-    for field, series_id in [("inflation", inflation_series), ("risk_free_rate", risk_free_series)]:
-        if series_id:
-            try:
-                setattr(context, field, fred.get_series(series_id, earlier, end))
-            except (ProviderError, ValueError):
-                label = "inflación" if field == "inflation" else "tipo de interés de referencia"
-                context.issues.append(
-                    f"No se ha podido descargar la serie de {label} ({series_id})."
-                )
+    if inflation_series:
+        context.inflation = _optional_series(
+            fred, inflation_series, earlier, end, context, "inflación"
+        )
+    if risk_free_series:
+        context.risk_free_rate = _optional_series(
+            fred, risk_free_series, earlier, end, context, "tipo de interés de referencia"
+        )
     for (base, quote), series_id in (exchange_rate_series or {}).items():
         indicator = fred.get_series(series_id, earlier, end)
         context.exchange_rates.append(ExchangeRate(base, quote, indicator))
@@ -102,6 +100,15 @@ def load_market_context(
         exchange_rates=context.exchange_rates,
         issues=context.issues,
     )
+
+
+def _optional_series(fred, series_id, start, end, context, label):
+    """Registra el fallo de una referencia opcional en lugar de detener el informe."""
+    try:
+        return fred.get_series(series_id, start, end)
+    except (ProviderError, ValueError):
+        context.issues.append(f"No se ha podido descargar la serie de {label} ({series_id}).")
+        return None
 
 
 def load_report_context(
