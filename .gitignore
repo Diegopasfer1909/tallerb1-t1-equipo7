@@ -1,4 +1,14 @@
 Taller_B1_T1.pdf
-src/example.json
-src/exampleAlpha.json
-src/exampleyahooinfo.json
+examples*
+.env
+.env.*
+!.env.example
+.cache/
+__pycache__/
+.venv/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+informes/
+docs

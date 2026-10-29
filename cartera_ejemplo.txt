@@ -1,0 +1,3 @@
+# Pesos objetivo: deben sumar 1.
+IBM:0.6
+MSFT:0.4
