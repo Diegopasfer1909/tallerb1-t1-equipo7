@@ -7,6 +7,7 @@ import numpy as np
 
 from .plots import plot_report, save_charts
 from .report import build_report
+from .sections import chart_keys, select_sections
 
 REPORTS_DIR = Path(__file__).resolve().parents[2] / "informes"
 
@@ -15,7 +16,11 @@ def save_report(
     analysis,
     generated_on: datetime | None = None,
     simulation=None,
+    *,
+    sections=None,
+    detail: str = "compact",
 ) -> Path:
+    selected = select_sections(sections, detail, has_simulation=simulation is not None)
     generated_on = generated_on or datetime.now().astimezone()
     if simulation is not None:
         if (
@@ -56,11 +61,13 @@ def save_report(
         report_dir = REPORTS_DIR / name
     # Evita sobrescribir informes anteriores, incluso si coinciden en el mismo segundo.
     report_dir.mkdir(parents=True, exist_ok=False)
-    figures = plot_report(analysis)
-    if simulation is not None:
+    figures = plot_report(analysis, keys=chart_keys(selected))
+    if simulation is not None and "simulation" in selected:
         figures["simulation"] = simulation.plot(show=False)
     charts = save_charts(figures, report_dir, close=True)
-    text = build_report(analysis, generated_on, charts, simulation)
+    text = build_report(
+        analysis, generated_on, charts, simulation, sections=selected, detail=detail
+    )
     path = report_dir / f"{name}.md"
     path.write_text(text, encoding="utf-8")
     return path

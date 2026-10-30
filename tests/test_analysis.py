@@ -242,13 +242,18 @@ class AnalysisTests(unittest.TestCase):
             self.assertIn("28/10/2026", report)
             self.assertIn("Información de los activos seleccionados", report)
             images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", report)
-            self.assertEqual(len(images), 3)
+            self.assertEqual(len(images), 4)
             for relative_path in images:
                 self.assertEqual(Path(relative_path).parent, Path("."))
                 self.assertGreater((text_path.parent / relative_path).stat().st_size, 0)
             figures = analysis.plots_report(Path(folder) / "graficos")
-            self.assertEqual(set(figures), {"portfolio", "assets", "distribution"})
-            for name in ("analisis_cartera", "evolucion_activos", "distribucion_rentabilidades"):
+            self.assertEqual(set(figures), {"portfolio", "assets", "distribution", "risk_return"})
+            for name in (
+                "analisis_cartera",
+                "evolucion_activos",
+                "distribucion_rentabilidades",
+                "riesgo_rentabilidad",
+            ):
                 self.assertGreater((Path(folder) / "graficos" / f"{name}.png").stat().st_size, 0)
             for figure in figures.values():
                 plt.close(figure)

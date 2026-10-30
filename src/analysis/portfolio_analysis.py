@@ -8,8 +8,16 @@ import pandas as pd
 from ..models.market_context import MarketContext
 from ..simulation.monte_carlo import estimate_parameters
 from ..validation import validate_positive_int
-from .metrics import annualized_return, performance, risk_adjusted, risk_contributions
+from .metrics import (
+    annualized_return,
+    correlation_pairs,
+    drawdown_episode,
+    performance,
+    risk_adjusted,
+    risk_contributions,
+)
 from .result import PortfolioAnalysis
+from .warnings import WarningThresholds, evaluate_risk
 
 if TYPE_CHECKING:
     from ..models.portfolio import Portfolio
@@ -245,8 +253,8 @@ def _missing_reference_notes() -> dict[str, str]:
     return {key: reason for keys, reason in reasons for key in keys}
 
 
-def _quality_warnings(quality, context, weights, dates, periods_per_year, concentration_limit):
-    """Reúne avisos de cobertura, frecuencia y concentración sin alterar las métricas."""
+def _quality_warnings(quality, context, dates, periods_per_year):
+    """Reúne avisos de cobertura, frecuencia y fuentes sin alterar las métricas."""
     warnings = []
     # pct_change no sabe cuánto tiempo separa dos filas: la anualización depende de este dato.
     typical_gap = pd.Series(dates).diff().dt.days.median()
@@ -259,10 +267,6 @@ def _quality_warnings(quality, context, weights, dates, periods_per_year, concen
     if len(dates) - 1 < periods_per_year:
         warnings.append(
             "El historial contiene menos de un año de datos. Las estimaciones anuales pueden variar mucho según el período elegido."
-        )
-    if weights.max() > concentration_limit:
-        warnings.append(
-            f"Una posición supera el umbral orientativo de concentración del {concentration_limit * 100:.0f} %."
         )
     if quality["partial_history"].to_numpy().any():
         warnings.append(
@@ -306,8 +310,13 @@ def analyze_portfolio(
     periods_per_year: int = 252,
     price_column: str = "Close",
     concentration_limit: float = 0.4,
+    *,
+    warning_thresholds: WarningThresholds | None = None,
 ) -> PortfolioAnalysis:
     validate_positive_int("periods_per_year", periods_per_year)
+    if warning_thresholds is not None and not isinstance(warning_thresholds, WarningThresholds):
+        raise TypeError("warning_thresholds debe ser WarningThresholds.")
+    thresholds = warning_thresholds or WarningThresholds()
     if (
         isinstance(concentration_limit, bool)
         or not np.isfinite(concentration_limit)
@@ -346,10 +355,16 @@ def analyze_portfolio(
     details = _asset_details(portfolio, prices, periods_per_year, benchmark_prices)
     sector_weights = weights.groupby(details["sector"]).sum().sort_values(ascending=False)
     quality = _quality(portfolio, prices.index, price_column)
-    warnings.extend(
-        _quality_warnings(
-            quality, context, weights, prices.index, periods_per_year, concentration_limit
-        )
+    warnings.extend(_quality_warnings(quality, context, prices.index, periods_per_year))
+    correlations = asset_returns.corr()
+    risk_warnings = evaluate_risk(
+        metrics,
+        weights,
+        sector_weights,
+        correlation_pairs(correlations),
+        drawdown_episode(values),
+        concentration_limit,
+        thresholds,
     )
     missing_metrics = metrics.index[metrics.isna().to_numpy()]
     notes = {key: reason for key, reason in notes.items() if key in missing_metrics}
@@ -360,7 +375,7 @@ def analyze_portfolio(
         values=values,
         metrics=metrics,
         holdings=holdings,
-        correlations=asset_returns.corr(),
+        correlations=correlations,
         risk_contributions=risk_contributions(asset_returns, weights),
         sector_weights=sector_weights,
         data_quality=quality,
@@ -372,4 +387,6 @@ def analyze_portfolio(
         initial_capital=portfolio.initial_capital,
         target_weights=portfolio.target_weights,
         rebalance=portfolio.rebalance,
+        benchmark_prices=benchmark_prices.copy() if benchmark_prices is not None else None,
+        risk_warnings=risk_warnings,
     )
