@@ -30,6 +30,13 @@ from src.providers import AlphaVantageAPI, ProviderError, YahooFinanceAPI
 
 class MainTests(unittest.TestCase):
     def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        usage = patch.dict(
+            os.environ, {"ALPHA_VANTAGE_USAGE_DB": str(Path(folder.name) / "usage.sqlite3")}
+        )
+        usage.start()
+        self.addCleanup(usage.stop)
         self.dates = pd.date_range("2026-01-01", periods=4)
         self.history = PriceHistory(
             "IBM",

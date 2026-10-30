@@ -7,6 +7,7 @@ import math
 import os
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
@@ -119,6 +120,9 @@ class ApiClient:
         cache_ttl: float = 86400,
         session: requests.Session | None = None,
         min_interval: float = 0,
+        before_request: Callable[[], None] | None = None,
+        on_rejection: Callable[[int, str | None], None] | None = None,
+        allow_redirects: bool = True,
     ):
         if api_key is None:
             api_key = os.getenv(env_name, "")
@@ -132,6 +136,9 @@ class ApiClient:
         self.cache_ttl = cache_ttl
         self.session = session if session is not None else requests.Session()
         self.min_interval = min_interval
+        self.before_request = before_request
+        self.on_rejection = on_rejection
+        self.allow_redirects = allow_redirects
         self._last_request: float | None = None
         self._prune_cache()
 
@@ -186,24 +193,34 @@ class ApiClient:
         self._last_request = time.monotonic()
 
     def _download(self, url: str, params: dict) -> dict:
+        # Solo los envíos reales consumen cuota, también los que terminan en error.
+        if self.before_request is not None:
+            self.before_request()
+        http_error = False
         try:
-            response = self.session.get(url, params=params, timeout=30)
+            response = self.session.get(
+                url, params=params, timeout=30, allow_redirects=self.allow_redirects
+            )
             response.raise_for_status()
         except requests.HTTPError as error:
-            status, reason = "unknown", None
-            if error.response is not None:
-                status = error.response.status_code
-                reason = self._rejection(error.response)
-            detail = f" Mensaje original: {reason}" if reason else ""
-            raise ProviderError(
-                f"El proveedor ha devuelto el estado HTTP {status}.{detail}"
-            ) from None
+            # Se trata fuera del except: el HTTPError contiene la URL con la clave y quedaría
+            # encadenado a cualquier excepción que lance on_rejection.
+            http_error, response = True, error.response
         except requests.RequestException:
             # Las excepciones de requests pueden contener claves en la URL; no las muestres.
             raise ProviderError(
                 "No se ha podido conectar con el proveedor. Comprueba la conexión o inténtalo "
                 "más tarde."
             ) from None
+        if http_error:
+            status, reason = "unknown", None
+            if response is not None:
+                status = response.status_code
+                reason = self._rejection(response)
+                if self.on_rejection is not None:
+                    self.on_rejection(status, reason)
+            detail = f" Mensaje original: {reason}" if reason else ""
+            raise ProviderError(f"El proveedor ha devuelto el estado HTTP {status}.{detail}")
         try:
             payload = response.json()
         except ValueError:
@@ -213,6 +230,8 @@ class ApiClient:
         # Un estado HTTP 200 también puede contener errores de cuota o permisos.
         reason = self._rejection(response)
         if reason:
+            if self.on_rejection is not None:
+                self.on_rejection(200, reason)
             raise ProviderError(
                 f"El proveedor ha rechazado la consulta. Mensaje original: {reason}"
             )

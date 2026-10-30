@@ -6,10 +6,13 @@ las lanza el trabajo de integración con los secretos del repositorio; en local:
     python -m unittest tests.integration_apis -v
 
 Cada prueba que necesita una clave se omite si no está configurada. Alpha Vantage gratuito
-admite pocas consultas al día, así que sus pruebas hacen una sola petición.
+admite pocas consultas al día, así que sus pruebas hacen una sola petición; con
+ALPHA_VANTAGE_INTEGRATION=0 no se consulta, y si la cuota está agotada la prueba se omite
+con un aviso en lugar de fallar.
 """
 
 import io
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -31,6 +34,8 @@ from src.providers import (
     ALPHA_VANTAGE_KEY,
     AlfredAPI,
     AlphaVantageAPI,
+    AlphaVantageQuotaError,
+    ProviderError,
     YahooFinanceAPI,
     has_api_key,
 )
@@ -38,6 +43,11 @@ from src.providers import (
 TODAY = date.today()
 END = TODAY.isoformat()
 ONE_YEAR_AGO = (TODAY - timedelta(days=365)).isoformat()
+# En GitHub Actions, las pull requests que no cambian el adaptador lo ponen a 0 para no
+# gastar la cuota diaria compartida.
+ALPHA_VANTAGE_ENABLED = os.getenv("ALPHA_VANTAGE_INTEGRATION", "1") != "0"
+# Frases con las que Alpha Vantage avisa, en una respuesta HTTP 200, de que la cuota se agotó.
+QUOTA_PHRASES = ("rate limit", "requests per day", "call frequency", "sparingly")
 
 
 @unittest.skipUnless(has_api_key(ALFRED_KEY), f"Falta {ALFRED_KEY}")
@@ -89,11 +99,22 @@ class YahooIntegrationTests(unittest.TestCase):
 
 
 @unittest.skipUnless(has_api_key(ALPHA_VANTAGE_KEY), f"Falta {ALPHA_VANTAGE_KEY}")
+@unittest.skipUnless(ALPHA_VANTAGE_ENABLED, "ALPHA_VANTAGE_INTEGRATION=0")
 class AlphaVantageIntegrationTests(unittest.TestCase):
     def test_compact_daily_prices_with_one_request(self):
         # Unas 40 sesiones caben en las últimas 100 que devuelve el modo compact.
         start = (TODAY - timedelta(days=60)).isoformat()
-        history = AlphaVantageAPI().get_prices("IBM", start, END)
+        try:
+            history = AlphaVantageAPI().get_prices("IBM", start, END)
+        except ProviderError as error:
+            if not isinstance(error, AlphaVantageQuotaError) and not any(
+                phrase in str(error).lower() for phrase in QUOTA_PHRASES
+            ):
+                raise
+            # La cuota agotada no indica un fallo del adaptador: se avisa sin bloquear main.
+            if os.getenv("GITHUB_ACTIONS"):
+                print(f"::warning title=Cuota de Alpha Vantage agotada::{error}")
+            self.skipTest(f"Cuota de Alpha Vantage agotada: {error}")
         self.assertGreater(len(history.prices), 20)
         self.assertEqual(history.price_basis, "unadjusted")
         self.assertTrue(np.isfinite(history.prices["Close"]).all())
