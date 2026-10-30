@@ -71,6 +71,15 @@ OBSERVATIONS = {
 
 
 class ProviderTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        usage = patch.dict(
+            os.environ, {"ALPHA_VANTAGE_USAGE_DB": str(Path(folder.name) / "usage.sqlite3")}
+        )
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def test_economic_indicator_rejects_booleans(self):
         dates = pd.date_range("2026-10-01", periods=2)
         with self.assertRaisesRegex(TypeError, "no booleanos"):

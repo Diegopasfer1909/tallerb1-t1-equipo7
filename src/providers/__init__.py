@@ -2,6 +2,7 @@
 
 from .alfred import API_KEY_ENV as ALFRED_KEY
 from .alfred import AlfredAPI
+from .alpha_quota import AlphaVantageQuotaError
 from .alpha_vantage import API_KEY_ENV as ALPHA_VANTAGE_KEY
 from .alpha_vantage import AlphaVantageAPI
 from .base import DataCoverageError, PriceProvider, ProviderError, has_api_key
@@ -12,6 +13,7 @@ __all__ = [
     "ALPHA_VANTAGE_KEY",
     "AlfredAPI",
     "AlphaVantageAPI",
+    "AlphaVantageQuotaError",
     "DataCoverageError",
     "PriceProvider",
     "ProviderError",

@@ -6,6 +6,7 @@ from ..errors import PortfolioError
 from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
 from ..validation import date_range
+from .alpha_quota import AlphaVantageQuota, AlphaVantageQuotaError
 from .base import (
     ApiClient,
     DataCoverageError,
@@ -48,6 +49,8 @@ class AlphaVantageAPI:
     outputsize="compact" devuelve las últimas 100 sesiones; "full" requiere un plan que lo
     permita. allow_partial acepta historiales que empiezan después de la fecha pedida.
     include_info consulta además la ficha OVERVIEW, que consume otra petición.
+    La cuota de 25 peticiones en 24 horas se conserva aunque se desactive la caché.
+    usage_db permite compartir el registro persistente entre ejecuciones.
     """
 
     def __init__(
@@ -60,6 +63,7 @@ class AlphaVantageAPI:
         outputsize: str = "compact",
         allow_partial: bool = False,
         include_info: bool = False,
+        usage_db=None,
     ):
         if outputsize not in ("compact", "full"):
             raise PortfolioError("outputsize debe ser 'compact' o 'full'.")
@@ -74,7 +78,11 @@ class AlphaVantageAPI:
             cache_ttl=cache_ttl,
             session=session,
             min_interval=1.1,
+            allow_redirects=False,
         )
+        self.quota = AlphaVantageQuota(self.client.api_key, usage_db)
+        self.client.before_request = self.quota.reserve
+        self.client.on_rejection = self.quota.handle_rejection
 
     def get_info(self, symbol: str) -> dict:
         """Consulta opcional de la ficha de la empresa; consume una petición adicional."""
@@ -123,6 +131,8 @@ class AlphaVantageAPI:
             return build_profile({}, FIELDS, ASSET_TYPES)
         try:
             return build_profile(self.get_info(symbol), FIELDS, ASSET_TYPES)
+        except AlphaVantageQuotaError as error:
+            return build_profile({}, FIELDS, ASSET_TYPES, issue=str(error))
         except ProviderError:
             return build_profile({}, FIELDS, ASSET_TYPES, issue=PROFILE_ISSUE)
 

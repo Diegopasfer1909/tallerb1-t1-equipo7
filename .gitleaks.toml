@@ -1,0 +1,19 @@
+# Reglas de gitleaks para el trabajo «Búsqueda de claves filtradas» del pipeline.
+# Se añaden a las predeterminadas, que ya cubren claves genéricas de alta entropía, para
+# detectar siempre los formatos de las dos API del proyecto, también en URL y cuadernos.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "alpha-vantage-api-key"
+description = "Clave de Alpha Vantage (16 caracteres alfanuméricos)"
+regex = '''(?i)(?:alpha_?vantage\w*key|api_?key)\W{0,5}([a-z0-9]{16})\b'''
+secretGroup = 1
+keywords = ["alpha_vantage", "alphavantage", "apikey", "api_key"]
+
+[[rules]]
+id = "fred-api-key"
+description = "Clave de FRED o ALFRED (32 caracteres hexadecimales)"
+regex = '''(?i)(?:fred\w*key|api_key)\W{0,5}([a-f0-9]{32})\b'''
+secretGroup = 1
+keywords = ["fred", "api_key"]

@@ -157,6 +157,56 @@ del proveedor a un `AssetProfile` común, disponible en `history.profile`: `curr
 `profile.issue` explica el problema y la divisa debe indicarse con
 `load_portfolio(..., currency="USD")`; no se supone ninguna.
 
+### Cuota gratuita de Alpha Vantage
+
+Alpha Vantage [permite 25 peticiones al día](https://www.alphavantage.co/support/).
+El adaptador limita los envíos a **25 por clave en cualquier ventana de 24 horas**,
+sin suponer una hora de reinicio del proveedor. Cada consulta de precios consume
+una petición y cada ficha `OVERVIEW` otra. La consola activa ambas: una cartera de
+12 activos sin caché puede consumir 24 peticiones. Desde Python se puede usar
+`include_info=False` si no se necesita la ficha.
+
+Las respuestas vigentes en caché no consumen cuota y siguen disponibles al llegar
+al límite. Los intentos fallidos sí cuentan: el proveedor puede haber recibido la
+petición aunque no llegue la respuesta. No se reintentan automáticamente ni se
+siguen redirecciones. La petición 26 se bloquea antes del envío con
+`AlphaVantageQuotaError` (subclase de `ProviderError`), que indica cuándo vuelve a
+haber cuota en UTC. Si solo falta cuota para la ficha opcional, se conservan los
+precios y se explica el problema en `profile.issue`.
+
+El registro SQLite se guarda en `~/.local/state/miax/alpha-vantage.sqlite3`, fuera
+de la caché, y persiste entre ejecuciones y carpetas de trabajo. Solo contiene el
+hash de la clave, las horas de los intentos y los bloqueos de cuota. Las reservas son atómicas entre
+procesos; si no se puede leer o guardar el registro, no se envía la consulta.
+Desactivar o limpiar la caché no reinicia la cuota.
+
+Para elegir otra ubicación persistente, configura `ALPHA_VANTAGE_USAGE_DB` en
+el entorno o `.env`, o pasa `usage_db="/ruta/alpha-vantage.sqlite3"` al adaptador.
+Todos los procesos que usen una misma clave deben usar el mismo archivo; no debe
+borrarse para reiniciar el contador. El registro empieza vacío al instalar este
+control: no conoce peticiones anteriores, realizadas por otras aplicaciones o
+desde otros equipos. La misma clave puede usarse en CI y en local: si Alpha Vantage
+responde que se ha alcanzado el límite, esa respuesta prevalece aunque el contador
+local sea inferior a 25. Se reconocen los avisos de cuota de `Information` y `Note`
+en respuestas HTTP 200, además del estado HTTP 429, incluso sin cuerpo JSON.
+
+El rechazo genera `AlphaVantageQuotaError` y guarda un bloqueo para esa clave. Si el
+aviso es del límite diario, dura 24 horas desde la respuesta, como margen conservador
+al desconocer el reinicio real del proveedor. Si es un aviso de ritmo (más de una
+petición por segundo o demasiadas por minuto) o un HTTP 429 sin más detalle, dura 60
+segundos; nunca acorta un bloqueo diario ya guardado. Los siguientes intentos se
+detienen antes del envío, también después de reiniciar el proceso; no prolongan el
+bloqueo y la caché sigue disponible. Los errores de clave o de acceso a endpoints
+premium no activan este bloqueo. Si falla la persistencia del rechazo, se informa
+del problema y el cliente actual conserva el bloqueo en memoria.
+
+Esto permite reaccionar al consumo compartido, pero no sincroniza los contadores de
+máquinas distintas: cada instalación o runner nuevo debe recibir primero el aviso
+del proveedor para conocer un agotamiento externo. No puede anticiparlo ni conocer
+la cuota restante global sin un registro central compartido.
+En las pruebas locales de integración, `ALPHA_VANTAGE_INTEGRATION=0` permite omitir
+Alpha Vantage para reservar cuota.
+
 El historial indica además cómo ajusta el proveedor los cierres (`price_basis`), si
 empieza después de la fecha pedida (`partial_history`) y cuántas fechas sin precio
 de cierre ha descartado el adaptador (`dropped_rows`). Una fecha sin cierre no
@@ -372,7 +422,12 @@ python -B -m unittest discover -s tests -v
 ```
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
-código, formato y pruebas con Python 3.10 y 3.14.
+código, formato y pruebas con Python 3.10 y 3.14. El trabajo «Paquete instalable»
+construye la distribución, revisa sus metadatos con `twine check` y repite las
+pruebas importando `src` desde la rueda instalada, no desde el repositorio. El
+trabajo «Búsqueda de claves filtradas» revisa todo el historial con gitleaks y las
+reglas de `.gitleaks.toml`: el escaneo de secretos de GitHub no reconoce las claves
+de Alpha Vantage ni de FRED.
 
 Las pruebas de integración (`tests/integration_apis.py`) consultan las API reales:
 comprueban que las series predeterminadas tienen versiones publicadas en ALFRED, que
@@ -385,15 +440,23 @@ variables → Actions). Si falta un secreto, el trabajo falla en lugar de omitir
 pruebas reales; por eso las pull requests desde forks, que no reciben secretos, no lo
 superan.
 
+Para reservar la cuota diaria de Alpha Vantage, una pull request solo lo consulta si
+cambia `src/providers/`, `src/validation.py`, `tests/integration_apis.py`,
+`pyproject.toml` o el pipeline; tras integrar en `main`, cada lunes y a mano se
+consulta siempre. Si la cuota está agotada, la prueba se omite con un aviso en el
+resumen de la ejecución en lugar de fallar.
+
 El trabajo «Comprobaciones completas» resume el resultado: solo se supera si la
-calidad, las pruebas con Python 3.10 y 3.14 y la integración se superan. Es la
-comprobación obligatoria para integrar en `main`. Las ramas se prueban al abrir su pull
-request; el push solo lanza el pipeline en `main`. En local, las pruebas de integración
-usan las claves de `.env` o del entorno:
+calidad, las pruebas con Python 3.10 y 3.14, el paquete, la búsqueda de claves y la
+integración se superan. Es la comprobación obligatoria para integrar en `main`. Las
+ramas se prueban al abrir su pull request; el push solo lanza el pipeline en `main`. En
+local, las pruebas de integración usan las claves de `.env` o del entorno:
 
 ```powershell
 python -B -m unittest tests.integration_apis -v
-``` `__pycache__` está excluido
+```
+
+`__pycache__` está excluido
 en `.gitignore`. La caché de respuestas de Alpha Vantage y ALFRED se conserva en
 `.cache/market-data`, dentro de la carpeta desde la que ejecutas el programa, para
 evitar consultas repetidas; no contiene las claves en texto y las respuestas de más
