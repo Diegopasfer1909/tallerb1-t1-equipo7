@@ -372,7 +372,21 @@ python -B -m unittest discover -s tests -v
 ```
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
-código, formato y pruebas con Python 3.10 y 3.14. `__pycache__` está excluido
+código, formato y pruebas con Python 3.10 y 3.14.
+
+Las pruebas de integración (`tests/integration_apis.py`) consultan las API reales:
+comprueban que las series predeterminadas tienen versiones publicadas en ALFRED, que
+Alpha Vantage y Yahoo Finance responden y que el informe incluye inflación y Sharpe.
+No forman parte de la suite anterior. En GitHub Actions las ejecuta el trabajo
+«Integración con las API reales» tras cada integración en `main`, cada lunes y a mano
+desde la pestaña Actions (Run workflow), con los secretos `FRED_API_KEY` y
+`ALPHA_VANTAGE_API_KEY` del repositorio (Settings → Secrets and variables → Actions).
+Si falta un secreto, sus pruebas se omiten y el resumen del trabajo lo avisa. En local
+usan las claves de `.env` o del entorno:
+
+```powershell
+python -B -m unittest tests.integration_apis -v
+``` `__pycache__` está excluido
 en `.gitignore`. La caché de respuestas de Alpha Vantage y ALFRED se conserva en
 `.cache/market-data`, dentro de la carpeta desde la que ejecutas el programa, para
 evitar consultas repetidas; no contiene las claves en texto y las respuestas de más

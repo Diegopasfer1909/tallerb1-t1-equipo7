@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Lunes a las 06:00 UTC: detecta cambios en las API aunque no haya commits.
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -59,3 +62,39 @@ jobs:
         run: python -m pip install .
       - name: Ejecutar pruebas sin conexión
         run: python -m unittest discover -s tests -v
+
+  integracion:
+    name: Integración con las API reales
+    # Usa los secretos del repositorio, que las pull requests desde forks no reciben, y
+    # Alpha Vantage gratuito admite pocas consultas al día: solo tras integrar en main,
+    # cada semana o a mano desde la pestaña Actions.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+      ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Preparar Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Instalar dependencias del proyecto
+        run: python -m pip install .
+      - name: Comprobar los secretos
+        run: |
+          for name in FRED_API_KEY ALPHA_VANTAGE_API_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::warning title=Falta un secreto::$name no está configurado; se omiten sus pruebas."
+            fi
+          done
+      - name: Ejecutar pruebas de integración
+        run: python -m unittest tests.integration_apis -v
