@@ -18,11 +18,29 @@ python -m pip install -e ".[dev]"
 La instalación editable permite ejecutar el archivo principal utilizando los
 paquetes de `src`. Al trasladar el proyecto, recrea el entorno e instala de nuevo.
 
-Puedes elegir Yahoo Finance o Alpha Vantage para los precios y la información
-de los activos. Para usar Alpha Vantage, copia `.env.example` a `.env` y completa
-`ALPHA_VANTAGE_API_KEY`. Las referencias económicas de FRED se consultan aparte
-y requieren `FRED_API_KEY`. Si falta una referencia opcional, el informe explica
-qué medidas no han podido calcularse.
+### Claves de API (opcionales)
+
+El programa funciona sin ninguna clave: Yahoo Finance no la necesita. Las claves solo
+amplían lo que se puede hacer. Para añadirlas, copia `.env.example` a `.env` y
+completa las que quieras; el programa busca `.env` en la carpeta desde la que lo
+ejecutas y en las superiores.
+
+| Sin clave | Con `ALPHA_VANTAGE_API_KEY` | Con `FRED_API_KEY` (ALFRED) |
+| --- | --- | --- |
+| Precios y fichas de Yahoo Finance, conversión de divisas, Monte Carlo, gráficos e informe con el índice de referencia | `--provider alpha_vantage` | El informe añade inflación, rentabilidad real, tipo de interés y las ratios de Sharpe y Sortino |
+
+Antes de descargar nada, la consola comprueba las claves que necesita lo que has
+pedido:
+
+- Si eliges `--provider alpha_vantage` sin su clave, se detiene con un mensaje que
+  indica qué falta y propone `--provider yahoo`.
+- Si pides `--report` sin `FRED_API_KEY`, avisa de lo que no incluirá y genera el
+  informe con el resto; el informe explica qué medidas faltan y por qué.
+- Si un proveedor rechaza una clave (no válida o sin cuota), el mensaje muestra el
+  motivo que da el proveedor, sin mostrar la clave.
+
+Desde Python, `has_api_key("FRED_API_KEY")` (en `src.providers`) indica si una clave
+está configurada.
 
 ## Uso
 
@@ -44,6 +62,7 @@ python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plot
 | `--simulate` | Simular la evolución de la cartera a partir de los datos históricos |
 | `--plots-report` | Mostrar el conjunto de gráficos sin crear un documento |
 | `--report` | Generar Monte Carlo y guardar el informe Markdown con sus imágenes |
+| `--output-dir CARPETA` | Carpeta de los informes; por defecto, `informes` dentro de la carpeta actual |
 | `--currency EUR` | Convertir los precios y las posiciones a la divisa indicada |
 | `--steps 252` | Sesiones futuras de la simulación |
 | `--simulations 1000` | Número de escenarios |
@@ -57,8 +76,10 @@ python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plot
 | `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones |
 
 Cada peso debe estar entre 0 y 1, incluidos ambos extremos, y todos deben sumar 1.
-Por ejemplo, `IBM:0.6 MSFT:0.4` representa un 60 % y un 40 %. No se convierten
-porcentajes ni cantidades de acciones automáticamente: `IBM:60` no es válido.
+Por ejemplo, `IBM:0.6 MSFT:0.4` representa un 60 % y un 40 %. Se admite el redondeo
+a seis decimales, como `0.333333` tres veces; en ese caso los pesos se reparten para
+sumar exactamente 1. No se convierten porcentajes ni cantidades de acciones
+automáticamente: `IBM:60` no es válido.
 
 También puedes indicar un archivo de texto UTF-8, con un activo por línea:
 
@@ -97,9 +118,16 @@ generan fechas futuras ni se reconstruyen festivos de las bolsas. El histórico
 conserva el rebalanceo al cierre de cada mes. Con `--rebalance none` se desactivan
 los reajustes en ambos recorridos. El informe explica esta diferencia.
 
-Desde Python, `Portfolio(assets, allocations, ...)` recibe una lista de pesos en
-el mismo orden que los activos. El capital se puede cambiar con `initial_capital`
-y se puede analizar una estrategia sin reajustes con `rebalance=None`.
+Desde Python, `Portfolio(assets, {"IBM": 0.6, "MSFT": 0.4}, ...)` recibe los pesos
+objetivo como un diccionario por símbolo. `portfolio.target_weights` los conserva en
+el orden de los activos y `portfolio.current_weights` muestra los pesos al final del
+histórico. El capital se puede cambiar con `initial_capital`, que se valida al crear
+la cartera, y se puede analizar una estrategia sin reajustes con `rebalance=None`.
+`Portfolio.from_units(assets, {"IBM": 10, "MSFT": 5})` crea una cartera sin
+rebalanceo a partir de las cantidades de cada activo.
+
+La cartera no cambia después de crearse, por lo que su valoración se calcula una sola
+vez y se reutiliza en cada consulta.
 
 ## Uso desde Python
 
@@ -116,21 +144,26 @@ yahoo = YahooFinanceAPI()
 alpha = AlphaVantageAPI(include_info=True, outputsize="compact", allow_partial=False)
 
 history = yahoo.get_prices("^GSPC", "2025-10-01", "2026-10-01")
-print(history.mean["Close"], history.std["Close"])  # calculadas al crear el objeto
+print(history.mean["Close"], history.std["Close"])  # calculadas a partir de los precios
 
 portfolio = load_portfolio({"IBM": 0.6, "MSFT": 0.4}, yahoo, "2025-10-01", "2026-10-01")
 ```
 
 Las fechas se indican siempre como `AAAA-MM-DD`. Cada adaptador traduce la ficha
-del proveedor a unas claves comunes de `history.info`: `currency`, `name`,
-`asset_type` (`stock`, `index`, `etf`, `fund` o `unknown`), `sector`, `country`,
-`beta`, `market_cap` y `pe_ratio`. La respuesta original se conserva en
-`info["raw"]`. Si la ficha no está disponible, los precios descargados se conservan,
-`info["metadata_issue"]` explica el problema y la divisa debe indicarse con
+del proveedor a un `AssetProfile` común, disponible en `history.profile`: `currency`,
+`name`, `asset_type` (`stock`, `index`, `etf`, `fund` o `unknown`), `sector`,
+`country`, `beta`, `market_cap` y `pe_ratio`. La respuesta original se conserva en
+`profile.raw`. Si la ficha no está disponible, los precios descargados se conservan,
+`profile.issue` explica el problema y la divisa debe indicarse con
 `load_portfolio(..., currency="USD")`; no se supone ninguna.
 
-`mean` y `std` se calculan al crear el historial. Si cambias los precios, crea un
-`PriceHistory` nuevo para que las estadísticas sigan correspondiendo a los datos.
+El historial indica además cómo ajusta el proveedor los cierres (`price_basis`), si
+empieza después de la fecha pedida (`partial_history`) y cuántas fechas sin precio
+de cierre ha descartado el adaptador (`dropped_rows`). Una fecha sin cierre no
+invalida toda la descarga: se descarta y el informe lo indica.
+
+`mean` y `std` se calculan con los precios cada vez que se consultan, por lo que
+siempre corresponden a los datos. Los modelos no se modifican después de crearse.
 
 La consola trabaja con precios diarios. Si construyes historiales con otra
 frecuencia, indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()`
@@ -179,16 +212,27 @@ options = dict(steps=126, simulations=5000, expected_returns=0.08,
 result = portfolio.monte_carlo(**options)
 path = portfolio.report(**options)
 
+# Los mismos parámetros se pueden agrupar en un objeto y reutilizar.
+from src.simulation import SimulationSettings
+
+settings = SimulationSettings(**options)
+result = portfolio.monte_carlo(settings)
+
 # El mismo método simula un único activo, partiendo de su último precio.
-ibm = portfolio.assets[0].monte_carlo(**options)
+ibm = portfolio.assets[0].monte_carlo(settings)
 ibm.plot()
 ```
 
-`Asset` y `Portfolio` heredan `monte_carlo()` de `MonteCarloMixin`, de modo que
-el algoritmo existe una sola vez. Cada clase indica qué precios simular y con qué
-valores iniciales; la cartera añade además sus pesos de rebalanceo.
-`expected_returns` y `volatilities` admiten un valor para todos los activos o un
-diccionario por símbolo, también cuando se simula un único activo.
+`SimulationSettings` reúne los parámetros con sus valores por defecto y los valida
+una sola vez; la consola lo crea antes de descargar datos. Sin indicar `seed`, se
+utiliza 42 en todos los casos, de modo que la simulación es reproducible; con
+`seed=None` cada ejecución produce escenarios distintos.
+
+`Asset` y `Portfolio` comparten el mismo cálculo, `simulate()`. Cada clase indica con
+`simulation_inputs()` qué precios simular y con qué valores iniciales; la cartera
+añade además sus pesos de rebalanceo. `expected_returns` y `volatilities` admiten un
+valor para todos los activos o un diccionario por símbolo, también cuando se simula
+un único activo.
 
 Si ya tienes un resultado, puedes reutilizarlo con `portfolio.report(simulation=result)`.
 Los parámetros de generación solo se utilizan cuando no se proporciona un resultado.
@@ -209,9 +253,38 @@ si una descarga falla.
 
 Las fuentes auxiliares se mantienen separadas: el índice de referencia y los
 cambios de divisa automáticos se consultan en Yahoo Finance; la inflación y el
-tipo de interés se consultan en FRED. Elegir Alpha Vantage para los activos no
-cambia estas referencias. El informe identifica la fuente de cada activo y
-explica el origen de las referencias utilizadas.
+tipo de interés se consultan en ALFRED. Elegir Alpha Vantage para los activos no
+cambia estas referencias. El informe identifica la fuente de cada activo y de
+cada referencia utilizada.
+
+### Datos económicos tal como se publicaron (ALFRED)
+
+FRED ofrece la última versión de cada serie: incluye revisiones posteriores y sitúa
+cada dato en el periodo al que corresponde, aunque se publicara semanas después. Usar
+esa serie en un análisis del pasado introduce un sesgo de anticipación (look-ahead
+bias): el resultado utiliza cifras que entonces no se conocían.
+
+Por eso la inflación y el tipo de interés se consultan en ALFRED, el archivo histórico
+de FRED, que guarda cada versión publicada. En cada fecha del análisis se usa el
+último dato que se había publicado hasta ese día, sin revisiones posteriores. Por
+ejemplo, el IPC de agosto no se tiene en cuenta hasta su publicación en septiembre,
+y si se revisa en octubre, la revisión solo cuenta desde octubre. ALFRED utiliza la
+misma clave que FRED (`FRED_API_KEY`).
+
+Los tipos de cambio que se descargan de ALFRED (`load_alfred_fx_rates()`) se usan por
+fecha de observación: son precios de mercado que se conocían ese mismo día y no se
+revisan. Desde Python, `AlfredAPI().get_series(serie, inicio, fin)` devuelve la serie
+tal como se publicó; con `point_in_time=False` devuelve la última versión por fecha de
+observación. Si una serie no tiene versiones archivadas para el periodo, sus medidas
+quedan sin calcular y el informe lo explica.
+
+Desde Python, las referencias se cargan con `load_references(divisa, inicio, fin)`
+(o con `load_market_references()` para elegir cada serie) y se pasan al análisis:
+`portfolio.analyze(references)`. Los tipos de cambio forman parte de la cartera
+(`fx_rates`), porque sin ellos no se puede valorar; `load_portfolio()` los descarga
+con `load_fx_rates()` cuando se indica `reporting_currency`. Todas estas funciones
+admiten el proveedor como argumento, de modo que se pueden sustituir sin cambiar
+el resto del programa.
 
 Los datos disponibles no son idénticos. El adaptador diario de Alpha Vantage usa
 precios sin ajustar y solicita las últimas 100 observaciones. Si no cubren las
@@ -222,9 +295,10 @@ disponible para todos los instrumentos. Para construir y valorar un activo es
 necesario conocer su divisa; no se supone USD si falta ese dato.
 
 Un desdoblamiento puede distorsionar las rentabilidades calculadas con precios
-sin ajustar. El informe advierte de esta diferencia frente a los cierres de Yahoo,
-que se ajustan por desdoblamientos. Los símbolos también pueden variar entre
-proveedores, especialmente en mercados internacionales.
+sin ajustar. El informe advierte de ello para cada activo con precios sin ajustar,
+sea cual sea el proveedor; los cierres de Yahoo ya se ajustan por desdoblamientos.
+Los símbolos también pueden variar entre proveedores, especialmente en mercados
+internacionales.
 
 ## Información y supuestos del informe
 
@@ -254,14 +328,18 @@ que carezcan de una referencia configurada quedan sin calcular.
 ## Gráficos e informes
 
 `--plots-report` muestra gráficos históricos, de comparación de activos y de
-distribución, más los de simulación si se añade `--simulate` o `--report`. No guarda archivos por sí solo. Puede
-combinarse con `--report` para ver los gráficos y guardar el informe completo.
+distribución, más los de simulación si se añade `--simulate` o `--report`. No guarda
+archivos por sí solo ni descarga las referencias económicas, por lo que el gráfico de
+la cartera no incluye el índice. Puede combinarse con `--report` para ver los gráficos
+y guardar el informe completo.
 
 Desde Python, `portfolio.plots_report()` devuelve ese mismo conjunto como un
 diccionario de figuras (`portfolio`, `assets`, `distribution` y `risk_return`). Con
 `portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
 
-Cada informe crea una carpeta dentro del proyecto:
+Cada informe crea una carpeta dentro de `informes`, en la carpeta desde la que
+ejecutas el programa, o dentro de la indicada con `--output-dir` (`directory=` desde
+Python):
 
 ```text
 informes/
@@ -276,6 +354,14 @@ informes/
 
 El informe completo incluye la imagen de Monte Carlo. Si se generan
 dos informes en el mismo segundo, se añaden microsegundos al nombre para conservar ambos.
+El informe se prepara en una carpeta temporal y solo aparece cuando se ha guardado
+completo: si algo falla, no quedan carpetas a medias ni gráficos abiertos.
+
+## Documentación de arquitectura
+
+La carpeta `arquitectura/` contiene diagramas editables de Excalidraw: paquetes y
+dependencias, la revisión de arquitectura, diagramas UML de clases y los flujos de uso
+desde la consola y desde Python. Consulta `arquitectura/README.md` para abrirlos.
 
 ## Comprobaciones
 
@@ -287,8 +373,10 @@ python -B -m unittest discover -s tests -v
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
 código, formato y pruebas con Python 3.10 y 3.14. `__pycache__` está excluido
-en `.gitignore`. La caché de respuestas de Alpha Vantage y FRED se conserva
-para evitar consultas repetidas; no contiene las claves en texto.
+en `.gitignore`. La caché de respuestas de Alpha Vantage y ALFRED se conserva en
+`.cache/market-data`, dentro de la carpeta desde la que ejecutas el programa, para
+evitar consultas repetidas; no contiene las claves en texto y las respuestas de más
+de un día se eliminan automáticamente.
 
 ## Lectura y selección del informe
 
@@ -308,14 +396,13 @@ Desde Python se pueden reutilizar los mismos resultados sin descargar de nuevo:
 from src.analysis import WarningThresholds
 
 analysis = portfolio.analyze(
-    concentration_limit=0.45,
     warning_thresholds=WarningThresholds(
-        sector_weight=0.55, correlation=0.85, drawdown=0.30, volatility=0.25
+        asset_weight=0.45, sector_weight=0.55, correlation=0.85, drawdown=0.30, volatility=0.25
     ),
 )
 text = analysis.markdown(detail="full")
 path = analysis.report(sections=["summary", "warnings", "performance"])
-# También se admiten sections y detail directamente en portfolio.report().
+# También se admiten sections, detail y directory directamente en portfolio.report().
 ```
 
 Las secciones disponibles, en orden de lectura, son `summary`, `warnings`,
@@ -333,8 +420,11 @@ el gráfico de cartera e índice utiliza exactamente esas fechas y la divisa del
 informe, con ambos recorridos normalizados a 100 al inicio común.
 
 Las advertencias de riesgo se encuentran en `analysis.risk_warnings`, con código,
-nivel, valor observado y umbral. Los avisos de datos y metodología permanecen en
-`analysis.warnings`. Las reglas usan pesos actuales y omiten correlaciones sin
+nivel, valor observado, umbral y unidad (`percent`, `ratio` o `days`). Los demás
+avisos están en `analysis.notices`: cada `Notice` indica si señala un problema de los
+datos (`data`) o un criterio de metodología (`method`), y el informe los presenta por
+separado. `analysis.metric_notes` explica por qué falta cada medida sin calcular.
+Las reglas usan pesos actuales y omiten correlaciones sin
 posición o no definidas; un sector desconocido no se interpreta como una apuesta
 sectorial. Son umbrales orientativos, no recomendaciones de inversión. La ausencia
 de referencias sigue dejando sus métricas sin calcular, sin suponer un tipo cero.

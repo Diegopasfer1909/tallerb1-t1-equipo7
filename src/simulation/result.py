@@ -1,12 +1,16 @@
-"""Consulta y representación de simulaciones, sin descargas ni guardado automático."""
+"""Resultado de una simulación, sin descargas ni guardado automático."""
 
 from dataclasses import dataclass
 
 import pandas as pd
 
+from ..constants import Rebalance
+
 
 @dataclass
 class SimulationResult:
+    """rebalance_interval es el número de períodos simulados entre reajustes, si los hay."""
+
     paths: pd.DataFrame
     currency: str
     valuation_date: pd.Timestamp
@@ -16,10 +20,11 @@ class SimulationResult:
     price_column: str
     seed: int | None
     starting_values: pd.Series
-    rebalance: str | None = None
-    target_weights: pd.Series | None = None
-    confidence: float = 0.95
-    correlation_method: str = "Cholesky"
+    rebalance: Rebalance
+    target_weights: pd.Series | None
+    rebalance_interval: int | None
+    confidence: float
+    correlation_method: str
 
     def summary(self) -> pd.Series:
         initial = float(self.paths.iloc[0, 0])
@@ -42,28 +47,10 @@ class SimulationResult:
         )
 
     def plot(self, show: bool = True, max_paths: int = 100):
-        import matplotlib.pyplot as plt
-        from matplotlib.ticker import FuncFormatter
+        """Trayectorias y distribución del valor final; show las muestra en pantalla."""
+        from ..reporting.plots import plot_simulation, show_figures
 
-        if isinstance(max_paths, bool) or not isinstance(max_paths, int) or max_paths < 1:
-            raise ValueError("max_paths debe ser un entero positivo.")
-        figure, axes = plt.subplots(1, 2, figsize=(12, 4))
-        self.paths.iloc[:, :max_paths].plot(ax=axes[0], legend=False, alpha=0.25)
-        axes[0].set(
-            title="Trayectorias simuladas", xlabel="Período", ylabel=f"Valor ({self.currency})"
-        )
-        axes[1].hist(self.paths.iloc[-1], bins=30, edgecolor="white")
-        axes[1].set(
-            title="Distribución del valor final",
-            xlabel=f"Valor ({self.currency})",
-            ylabel="Número de simulaciones",
-        )
-        for axis in axes:
-            for scale in (axis.xaxis, axis.yaxis):
-                scale.set_major_formatter(
-                    FuncFormatter(lambda value, _: f"{value:g}".replace(".", ","))
-                )
-        figure.tight_layout()
+        figure = plot_simulation(self, max_paths)
         if show:
-            plt.show()
+            show_figures()
         return figure
