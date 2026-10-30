@@ -258,7 +258,7 @@ distribución, más los de simulación si se añade `--simulate` o `--report`. N
 combinarse con `--report` para ver los gráficos y guardar el informe completo.
 
 Desde Python, `portfolio.plots_report()` devuelve ese mismo conjunto como un
-diccionario de figuras (`portfolio`, `assets` y `distribution`). Con
+diccionario de figuras (`portfolio`, `assets`, `distribution` y `risk_return`). Con
 `portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
 
 Cada informe crea una carpeta dentro del proyecto:
@@ -270,6 +270,7 @@ informes/
     ├── analisis_cartera.png
     ├── evolucion_activos.png
     ├── distribucion_rentabilidades.png
+    ├── riesgo_rentabilidad.png
     └── simulacion_monte_carlo.png
 ```
 
@@ -288,3 +289,70 @@ Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
 código, formato y pruebas con Python 3.10 y 3.14. `__pycache__` está excluido
 en `.gitignore`. La caché de respuestas de Alpha Vantage y FRED se conserva
 para evitar consultas repetidas; no contiene las claves en texto.
+
+## Lectura y selección del informe
+
+El informe comienza con cinco cifras y las advertencias. Por defecto, las demás
+secciones quedan plegadas en visores Markdown compatibles con `<details>`.
+`detail="full"` produce Markdown completamente desplegado, también útil para
+visores que no admitan esos elementos HTML.
+
+```powershell
+python src/main.py --assets cartera_ejemplo.txt --report --report-detail full
+python src/main.py --assets cartera_ejemplo.txt --report --report-sections summary warnings performance
+```
+
+Desde Python se pueden reutilizar los mismos resultados sin descargar de nuevo:
+
+```python
+from src.analysis import WarningThresholds
+
+analysis = portfolio.analyze(
+    concentration_limit=0.45,
+    warning_thresholds=WarningThresholds(
+        sector_weight=0.55, correlation=0.85, drawdown=0.30, volatility=0.25
+    ),
+)
+text = analysis.markdown(detail="full")
+path = analysis.report(sections=["summary", "warnings", "performance"])
+# También se admiten sections y detail directamente en portfolio.report().
+```
+
+Las secciones disponibles, en orden de lectura, son `summary`, `warnings`,
+`composition`, `performance`, `diversification`, `simulation` y `data`.
+Seleccionar secciones solo cambia la presentación. Se guardan únicamente las
+imágenes utilizadas por esas secciones. Si `portfolio.report()` o la consola
+excluyen `simulation`, no generan Monte Carlo; `--simulate` lo solicita de forma
+independiente. Sin selección explícita se conserva la simulación automática de
+`portfolio.report()` y `--report`. `analysis.report()` sigue permitiendo un
+informe histórico o un resultado de simulación proporcionado explícitamente.
+
+El resumen muestra valor final, rentabilidad anualizada, diferencia anual frente
+al índice, caída máxima y Sharpe. Indica las fechas comunes de la comparación:
+el gráfico de cartera e índice utiliza exactamente esas fechas y la divisa del
+informe, con ambos recorridos normalizados a 100 al inicio común.
+
+Las advertencias de riesgo se encuentran en `analysis.risk_warnings`, con código,
+nivel, valor observado y umbral. Los avisos de datos y metodología permanecen en
+`analysis.warnings`. Las reglas usan pesos actuales y omiten correlaciones sin
+posición o no definidas; un sector desconocido no se interpreta como una apuesta
+sectorial. Son umbrales orientativos, no recomendaciones de inversión. La ausencia
+de referencias sigue dejando sus métricas sin calcular, sin suponer un tipo cero.
+
+`analysis.drawdown_episode` describe la mayor caída: último pico anterior al valle,
+primera recuperación y días naturales desde el pico. Si no se recuperó, la duración
+termina en la última fecha del análisis; si no hubo caídas, las fechas quedan vacías.
+
+`analysis.monthly_returns` y `analysis.annual_returns` contienen rentabilidad,
+número de observaciones y cobertura parcial. El mejor y peor mes se eligen solo
+entre meses completos. Se exige un cierre previo y el final del período usando
+lunes-viernes como aproximación conservadora, sin asumir festivos de una bolsa.
+Los períodos sin observaciones no se convierten en rentabilidad cero y un retorno
+que atraviese un mes/año entero sin precios no se asigna íntegramente al período
+de llegada. Estas tablas son rentabilidades por calendario, sin anualización.
+
+El panel histórico compara cartera e índice, anota la recuperación de la mayor
+caída y enfrenta pesos actuales con contribuciones al riesgo. Se añade
+`riesgo_rentabilidad.png`, un gráfico de volatilidad y rentabilidad anualizadas
+para la cartera y sus activos. Los resultados numéricos proceden del análisis;
+los generadores de texto y gráficos no consultan proveedores.

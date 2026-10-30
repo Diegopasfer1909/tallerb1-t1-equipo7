@@ -370,7 +370,7 @@ class MainTests(unittest.TestCase):
                             self.assertEqual(main(), 0, output.getvalue())
                             path = next((Path(folder) / "informes").glob("*/*.md"))
                             report = path.read_text(encoding="utf-8")
-                            self.assertEqual(len(list(path.parent.glob("*.png"))), 4)
+                            self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
                             self.assertIn("Simulación de Monte Carlo", report)
                             self.assertIn("Retorno anual μ", report)
                             for symbol in symbols:
@@ -434,7 +434,7 @@ class MainTests(unittest.TestCase):
             self.assertEqual(main(), 0)
             path = next((Path(folder) / "informes").glob("*/*.md"))
             report = path.read_text(encoding="utf-8")
-            self.assertEqual(len(list(path.parent.glob("*.png"))), 4)
+            self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
         context.assert_called_once()
         self.assertIn("International Business Machines", report)
         self.assertIn("Retorno anual μ", report)
@@ -454,7 +454,7 @@ class MainTests(unittest.TestCase):
             self.assertEqual(main(), 0)
             path = next((Path(folder) / "informes").glob("*/*.md"))
             report = path.read_text(encoding="utf-8")
-            self.assertEqual(len(list(path.parent.glob("*.png"))), 4)
+            self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
         self.assertIn("1000 escenarios", report)
         self.assertIn("252 períodos", report)
         self.assertIn("Semilla aleatoria: 42", report)
@@ -472,7 +472,7 @@ class MainTests(unittest.TestCase):
             yahoo.return_value.get_prices.return_value = self.history
             try:
                 self.assertEqual(main(), 0)
-                self.assertEqual(len(plt.get_fignums()), 4)
+                self.assertEqual(len(plt.get_fignums()), 5)
             finally:
                 plt.close("all")
         show.assert_called_once()

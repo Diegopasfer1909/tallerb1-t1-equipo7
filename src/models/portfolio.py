@@ -1,8 +1,11 @@
 """Cartera definida por pesos objetivo y un capital hipotético de referencia."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -13,6 +16,9 @@ from ..validation import validate_symbols, validate_weights
 from .asset import Asset
 from .market_context import MarketContext
 from .price_history import period_returns
+
+if TYPE_CHECKING:
+    from ..analysis.warnings import WarningThresholds
 
 
 @dataclass
@@ -78,11 +84,19 @@ class Portfolio(MonteCarloMixin):
         periods_per_year: int = 252,
         price_column: str = "Close",
         concentration_limit: float = 0.4,
+        *,
+        warning_thresholds: WarningThresholds | None = None,
     ):
         """Analiza la asignación de capital y su rebalanceo sin realizar descargas."""
         from ..analysis.portfolio_analysis import analyze_portfolio
 
-        return analyze_portfolio(self, periods_per_year, price_column, concentration_limit)
+        return analyze_portfolio(
+            self,
+            periods_per_year,
+            price_column,
+            concentration_limit,
+            warning_thresholds=warning_thresholds,
+        )
 
     def report(
         self,
@@ -90,21 +104,35 @@ class Portfolio(MonteCarloMixin):
         price_column: str = "Close",
         generated_on: datetime | None = None,
         simulation: SimulationResult | None = None,
+        *,
+        sections=None,
+        detail: str = "compact",
+        concentration_limit: float = 0.4,
+        warning_thresholds: WarningThresholds | None = None,
         **simulation_options,
     ) -> Path:
         """Guarda un informe Markdown en español con fecha y gráficos.
 
-        Sin un resultado previo, simula con los mismos parámetros que monte_carlo()
+        Si se incluye simulation y no hay un resultado previo, usa monte_carlo()
         (steps, simulations, expected_returns, volatilities, confidence, seed=42).
         """
-        if simulation is None:
+        from ..reporting.sections import select_sections
+
+        selected = select_sections(sections, detail, has_simulation=True)
+        analysis = self.analyze(
+            periods_per_year,
+            price_column,
+            concentration_limit,
+            warning_thresholds=warning_thresholds,
+        )
+        if simulation is None and "simulation" in selected:
             simulation_options.setdefault("seed", 42)
             simulation = self.monte_carlo(
                 periods_per_year=periods_per_year,
                 price_column=price_column,
                 **simulation_options,
             )
-        return self.analyze(periods_per_year, price_column).report(generated_on, simulation)
+        return analysis.report(generated_on, simulation, sections=sections, detail=detail)
 
     def plots_report(
         self,

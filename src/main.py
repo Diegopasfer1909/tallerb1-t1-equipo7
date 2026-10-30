@@ -10,6 +10,7 @@ from src.portfolio_loader import load_portfolio
 from src.providers import AlphaVantageAPI, ProviderError, YahooFinanceAPI
 from src.providers.base import date_range
 from src.reporting.formatting import format_number
+from src.reporting.sections import SECTION_TITLES, select_sections
 from src.validation import validate_symbols, validate_weights
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +102,18 @@ def parse_arguments() -> argparse.Namespace:
         help="Divisa a la que convertir la cartera, por ejemplo EUR",
     )
     options.add_argument(
+        "--report-detail",
+        choices=["compact", "full"],
+        default="compact",
+        help="Informe con secciones plegadas o todo desplegado",
+    )
+    options.add_argument(
+        "--report-sections",
+        nargs="+",
+        choices=list(SECTION_TITLES),
+        help="Secciones del informe; por defecto, todas",
+    )
+    options.add_argument(
         "--steps", type=int, default=252, help="Sesiones futuras de Monte Carlo (252)"
     )
     options.add_argument(
@@ -134,10 +147,16 @@ def parse_arguments() -> argparse.Namespace:
         help="Volatilidad anual sigma para todos (0.2) o por activo (IBM:0.2 MSFT:0.3)",
     )
     args = parser.parse_args()
+    selected = select_sections(args.report_sections, args.report_detail, has_simulation=True)
+    args.run_simulation = args.simulate or (args.report and "simulation" in selected)
     if args.start is None:
         days = DEFAULT_HISTORY_DAYS[args.provider]
         args.start = (date.today() - timedelta(days=days)).isoformat()
     try:
+        if not args.report and (
+            args.report_sections is not None or args.report_detail != "compact"
+        ):
+            raise ValueError("Las opciones de presentación requieren --report.")
         date_range(args.start, args.end)
         args.weights = parse_values(args.assets)
         args.expected_returns = parse_assumptions(args.expected_returns, args.weights)
@@ -158,7 +177,7 @@ def parse_arguments() -> argparse.Namespace:
             raise ValueError("La confianza debe estar entre 0,5 y 1.")
         if not math.isfinite(args.capital) or args.capital <= 0:
             raise ValueError("El capital debe ser positivo y finito.")
-        if not (args.simulate or args.report) and (
+        if not args.run_simulation and (
             args.expected_returns is not None
             or args.volatilities is not None
             or args.steps != 252
@@ -166,7 +185,9 @@ def parse_arguments() -> argparse.Namespace:
             or args.confidence != 0.95
             or args.seed != 42
         ):
-            raise ValueError("Los parámetros de Monte Carlo requieren --simulate o --report.")
+            raise ValueError(
+                "Los parámetros de Monte Carlo requieren --simulate o la sección simulation de --report."
+            )
         args.rebalance = None if args.rebalance == "none" else "monthly"
         args.currency = args.currency.strip().upper()
         if args.currency and (len(args.currency) != 3 or not args.currency.isalpha()):
@@ -230,7 +251,7 @@ def run_portfolio(args) -> None:
         )
     print_portfolio(portfolio)
     simulation = None
-    if args.simulate or args.report:
+    if args.run_simulation:
         # El informe muestra el horizonte, los escenarios, la semilla y los supuestos utilizados.
         simulation = portfolio.monte_carlo(
             steps=args.steps,
@@ -244,7 +265,9 @@ def run_portfolio(args) -> None:
     if args.report or args.plots_report:
         analysis = portfolio.analyze()
         if args.report:
-            path = analysis.report(simulation=simulation)
+            path = analysis.report(
+                simulation=simulation, sections=args.report_sections, detail=args.report_detail
+            )
             print(f"Informe generado: {path.resolve()}")
         if args.plots_report:
             show_plots(analysis, simulation)

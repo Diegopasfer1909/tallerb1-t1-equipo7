@@ -7,15 +7,39 @@ def plot_analysis(analysis, show=True):
     import matplotlib.pyplot as plt
 
     figure, axes = plt.subplots(2, 2, figsize=(12, 8))
-    axes[0, 0].plot(analysis.values.index, analysis.values.to_numpy())
-    title = (
-        "Crecimiento con precios ajustados"
-        if analysis.price_column == "Adj Close"
-        else "Valor histórico de la cartera"
+    comparison = analysis.benchmark_comparison
+    if comparison.empty:
+        axes[0, 0].plot(
+            analysis.values.index, analysis.values / analysis.values.iloc[0] * 100, label="Cartera"
+        )
+    else:
+        normalized = comparison / comparison.iloc[0] * 100
+        axes[0, 0].plot(normalized.index, normalized["portfolio"], label="Cartera")
+        axes[0, 0].plot(normalized.index, normalized["benchmark"], label="Índice de referencia")
+    axes[0, 0].set(
+        title="Evolución en fechas comunes" if not comparison.empty else "Evolución de la cartera",
+        ylabel=f"Base 100 ({analysis.currency})",
+        xlabel="Fecha",
     )
-    axes[0, 0].set(title=title, ylabel=f"Valor ({analysis.currency})", xlabel="Fecha")
+    axes[0, 0].legend()
     axes[0, 1].plot(analysis.drawdown.index, analysis.drawdown.to_numpy() * 100)
     axes[0, 1].set(title="Caídas desde máximos anteriores", ylabel="Caída (%)", xlabel="Fecha")
+    episode = analysis.drawdown_episode
+    if episode.trough is not None:
+        recovery = (
+            f"Recuperación: {episode.recovery:%d/%m/%Y}"
+            if episode.recovery is not None
+            else "Sin recuperar"
+        )
+        axes[0, 1].scatter([episode.trough], [episode.depth * 100], color="tab:red", zorder=3)
+        axes[0, 1].text(
+            0.03,
+            0.05,
+            f"Valle: {episode.trough:%d/%m/%Y}\n{recovery}",
+            transform=axes[0, 1].transAxes,
+            fontsize=9,
+            bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"},
+        )
     correlations = analysis.correlations
     heatmap = axes[1, 0].imshow(correlations, vmin=-1, vmax=1, cmap="RdBu_r")
     ticks = np.arange(len(correlations))
@@ -41,11 +65,66 @@ def plot_analysis(analysis, show=True):
             0.5,
             "No hay datos suficientes para calcular la contribución al riesgo",
             ha="center",
+            va="center",
+            transform=axes[1, 1].transAxes,
+            wrap=True,
         )
     else:
-        axes[1, 1].bar(shares.index, shares * 100)
-    axes[1, 1].set(title="Contribución al riesgo con los pesos actuales", ylabel="Contribución (%)")
+        positions = np.arange(len(shares))
+        axes[1, 1].bar(
+            positions - 0.2,
+            analysis.holdings.loc[shares.index, "weight"] * 100,
+            width=0.4,
+            label="Peso actual",
+        )
+        axes[1, 1].bar(positions + 0.2, shares * 100, width=0.4, label="Contribución al riesgo")
+        axes[1, 1].set(xticks=positions, xticklabels=shares.index)
+        axes[1, 1].legend()
+    axes[1, 1].set(title="Pesos actuales frente a contribución al riesgo", ylabel="Porcentaje (%)")
     _spanish_axes(list(axes.flat))
+    figure.tight_layout()
+    if show:
+        plt.show()
+    return figure
+
+
+def plot_risk_return(analysis, show=True):
+    """Usa los resultados ya calculados sobre el mismo historial de la cartera."""
+    import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
+
+    figure, axis = plt.subplots(figsize=(9, 5))
+    details = analysis.asset_details
+    axis.scatter(
+        details["annualized_volatility"] * 100,
+        details["annualized_return"] * 100,
+        label="Activos",
+        alpha=0.75,
+    )
+    for symbol, row in details.iterrows():
+        axis.annotate(
+            symbol,
+            (row["annualized_volatility"] * 100, row["annualized_return"] * 100),
+            xytext=(5, 5),
+            textcoords="offset points",
+        )
+    axis.scatter(
+        [analysis.metrics["annualized_volatility"] * 100],
+        [analysis.metrics["annualized_return"] * 100],
+        marker="*",
+        s=160,
+        label="Cartera",
+    )
+    axis.set(
+        title="Riesgo y rentabilidad histórica",
+        xlabel="Volatilidad anual (%)",
+        ylabel="Rentabilidad anualizada (%)",
+    )
+    axis.axhline(0, color="grey", linewidth=0.7)
+    axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}".replace(".", ",")))
+    _spanish_axes([axis])
+    axis.legend()
+    axis.margins(0.15)
     figure.tight_layout()
     if show:
         plt.show()
@@ -134,15 +213,22 @@ CHART_FILES = {
     "assets": "evolucion_activos.png",
     "distribution": "distribucion_rentabilidades.png",
     "simulation": "simulacion_monte_carlo.png",
+    "risk_return": "riesgo_rentabilidad.png",
 }
 
 
-def plot_report(analysis) -> dict:
+def plot_report(analysis, keys=None) -> dict:
     """Crea el conjunto de gráficos históricos sin mostrarlos ni guardarlos."""
+    builders = {
+        "portfolio": plot_analysis,
+        "assets": plot_assets,
+        "distribution": plot_distribution,
+        "risk_return": plot_risk_return,
+    }
     return {
-        "portfolio": plot_analysis(analysis, show=False),
-        "assets": plot_assets(analysis, show=False),
-        "distribution": plot_distribution(analysis, show=False),
+        key: build(analysis, show=False)
+        for key, build in builders.items()
+        if keys is None or key in keys
     }
 
 
@@ -151,11 +237,12 @@ def save_charts(figures: dict, directory, close: bool = False) -> dict[str, str]
     import matplotlib.pyplot as plt
 
     saved = {}
-    for key, figure in figures.items():
-        try:
+    try:
+        for key, figure in figures.items():
             figure.savefig(directory / CHART_FILES[key], dpi=150, bbox_inches="tight")
-        finally:
-            if close:
+            saved[key] = CHART_FILES[key]
+    finally:
+        if close:
+            for figure in figures.values():
                 plt.close(figure)
-        saved[key] = CHART_FILES[key]
     return saved
