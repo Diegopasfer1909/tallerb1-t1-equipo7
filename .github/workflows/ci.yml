@@ -1,7 +1,9 @@
 name: Comprobaciones de Python
 
 on:
+  # Las ramas se prueban en su pull request; el push solo a main evita ejecutar todo dos veces.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -65,13 +67,8 @@ jobs:
 
   integracion:
     name: Integración con las API reales
-    # Usa los secretos del repositorio, que las pull requests desde forks no reciben, y
-    # Alpha Vantage gratuito admite pocas consultas al día: solo tras integrar en main,
-    # cada semana o a mano desde la pestaña Actions.
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # Se ejecuta en cada pull request, tras integrar en main, cada lunes y a mano. Usa los
+    # secretos del repositorio: las pull requests desde forks no los reciben y fallan aquí.
     needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -90,11 +87,39 @@ jobs:
       - name: Instalar dependencias del proyecto
         run: python -m pip install .
       - name: Comprobar los secretos
+        # Sin claves, las pruebas reales se omitirían y el trabajo pasaría sin probar nada.
         run: |
+          missing=0
           for name in FRED_API_KEY ALPHA_VANTAGE_API_KEY; do
             if [ -z "${!name}" ]; then
-              echo "::warning title=Falta un secreto::$name no está configurado; se omiten sus pruebas."
+              echo "::error title=Falta un secreto::$name no está disponible para este trabajo."
+              missing=1
             fi
           done
+          exit $missing
       - name: Ejecutar pruebas de integración
         run: python -m unittest tests.integration_apis -v
+
+  resultado:
+    name: Comprobaciones completas
+    # Única comprobación obligatoria para integrar en main. Falla si algún trabajo falla, se
+    # cancela o se omite: una prueba real omitida no debe contar como superada.
+    if: ${{ always() }}
+    needs: [lint, tests, integracion]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Revisar el resultado de cada trabajo
+        env:
+          RESULTADOS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys
+
+          results = {name: job["result"] for name, job in json.loads(os.environ["RESULTADOS"]).items()}
+          for name, result in results.items():
+              print(f"{name}: {result}")
+          failed = [name for name, result in results.items() if result != "success"]
+          if failed:
+              sys.exit(f"Trabajos sin superar: {', '.join(failed)}")
+          PY

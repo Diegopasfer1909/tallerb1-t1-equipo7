@@ -378,10 +378,17 @@ Las pruebas de integración (`tests/integration_apis.py`) consultan las API real
 comprueban que las series predeterminadas tienen versiones publicadas en ALFRED, que
 Alpha Vantage y Yahoo Finance responden y que el informe incluye inflación y Sharpe.
 No forman parte de la suite anterior. En GitHub Actions las ejecuta el trabajo
-«Integración con las API reales» tras cada integración en `main`, cada lunes y a mano
-desde la pestaña Actions (Run workflow), con los secretos `FRED_API_KEY` y
-`ALPHA_VANTAGE_API_KEY` del repositorio (Settings → Secrets and variables → Actions).
-Si falta un secreto, sus pruebas se omiten y el resumen del trabajo lo avisa. En local
+«Integración con las API reales» en cada pull request, tras integrar en `main`, cada
+lunes y a mano desde la pestaña Actions (Run workflow), con los secretos
+`FRED_API_KEY` y `ALPHA_VANTAGE_API_KEY` del repositorio (Settings → Secrets and
+variables → Actions). Si falta un secreto, el trabajo falla en lugar de omitir las
+pruebas reales; por eso las pull requests desde forks, que no reciben secretos, no lo
+superan.
+
+El trabajo «Comprobaciones completas» resume el resultado: solo se supera si la
+calidad, las pruebas con Python 3.10 y 3.14 y la integración se superan. Es la
+comprobación obligatoria para integrar en `main`. Las ramas se prueban al abrir su pull
+request; el push solo lanza el pipeline en `main`. En local, las pruebas de integración
 usan las claves de `.env` o del entorno:
 
 ```powershell
