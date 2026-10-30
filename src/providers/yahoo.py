@@ -3,8 +3,10 @@
 import pandas as pd
 import yfinance as yf
 
+from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
-from .base import ProviderError, date_range, normalize_info
+from ..validation import date_range
+from .base import DataCoverageError, ProviderError, build_profile, drop_missing_closes
 
 FIELDS = {
     "currency": ("currency",),
@@ -17,6 +19,11 @@ FIELDS = {
     "pe_ratio": ("trailingPE",),
 }
 ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": "fund"}
+PROFILE_ISSUE = (
+    "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya "
+    "alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los "
+    "datos de la empresa; indica la divisa expresamente."
+)
 
 
 class YahooFinanceAPI:
@@ -37,9 +44,8 @@ class YahooFinanceAPI:
     ) -> PriceHistory:
         """Descarga los datos de Yahoo, normaliza las fechas y crea el historial."""
         first, last = date_range(start, end)
-        ticker = yf.Ticker(symbol)
         try:
-            history = ticker.history(start=start, end=end, auto_adjust=adjusted)
+            history = yf.Ticker(symbol).history(start=start, end=end, auto_adjust=adjusted)
         except Exception:
             # yfinance no documenta sus excepciones; se traducen al error común.
             raise ProviderError(f"Yahoo no ha podido descargar los precios de {symbol}.") from None
@@ -50,18 +56,24 @@ class YahooFinanceAPI:
         # Las fechas diarias corresponden al calendario de la bolsa, no a instantes UTC.
         history.index = history.index.tz_localize(None)
         history = history.loc[(history.index >= first) & (history.index < last)]
+        prices, dropped = drop_missing_closes(history)
+        if prices.empty:
+            raise DataCoverageError(
+                f"Yahoo no ha devuelto precios de {symbol} dentro de las fechas solicitadas."
+            )
+        return PriceHistory(
+            symbol,
+            "yahoo",
+            prices,
+            profile=self._profile(symbol),
+            # Yahoo ajusta Close por desdoblamientos incluso con auto_adjust=False.
+            price_basis="adjusted" if adjusted else "split_adjusted",
+            dropped_rows=dropped,
+        )
 
-        # La ficha es complementaria: si falla, se conservan los precios ya descargados.
-        raw = {}
-        issue = None
+    def _profile(self, symbol: str) -> AssetProfile:
+        """La ficha es complementaria: si falla, se conservan los precios ya descargados."""
         try:
-            raw = self.get_info(symbol)
+            return build_profile(self.get_info(symbol), FIELDS, ASSET_TYPES)
         except ProviderError:
-            issue = "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los datos de la empresa; indica la divisa expresamente."
-        info = normalize_info(raw, FIELDS, ASSET_TYPES)
-        if issue:
-            info["metadata_issue"] = issue
-        # Yahoo ajusta Close por desdoblamientos incluso con auto_adjust=False.
-        info["price_adjustment"] = "adjusted" if adjusted else "split_adjusted"
-        info["auto_adjust"] = adjusted
-        return PriceHistory(symbol, "yahoo", history, info=info)
+            return build_profile({}, FIELDS, ASSET_TYPES, issue=PROFILE_ISSUE)

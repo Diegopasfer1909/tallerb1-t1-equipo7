@@ -4,42 +4,51 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..simulation.monte_carlo import MonteCarloMixin
+from ..constants import ASSET_TYPES, CLOSE, PERIODS_PER_YEAR, AssetType, PriceColumn
+from ..errors import PortfolioError
+from ..simulation import SimulationInputs, SimulationResult, SimulationSettings, simulate
 from .price_history import PriceHistory
 
-ASSET_TYPES = ("stock", "index", "etf", "fund", "unknown")
 
+@dataclass(frozen=True)
+class Asset:
+    """currency y asset_type completan o confirman los datos de la ficha del proveedor."""
 
-@dataclass
-class Asset(MonteCarloMixin):
     history: PriceHistory
     currency: str = ""
-    asset_type: str = "unknown"
+    asset_type: AssetType = "unknown"
 
     def __post_init__(self) -> None:
         if not isinstance(self.history, PriceHistory):
             raise TypeError("El activo necesita un objeto PriceHistory.")
         if not isinstance(self.history.symbol, str) or not self.history.symbol.strip():
-            raise ValueError("El activo necesita un símbolo.")
-        if self.history.info.get("price_adjustment") == "adjusted":
-            raise ValueError(
-                "La valoración necesita Close sin ajuste por dividendos. Descarga con adjusted=False; utiliza Adj Close para las rentabilidades."
+            raise PortfolioError("El activo necesita un símbolo.")
+        if self.history.price_basis == "adjusted":
+            raise PortfolioError(
+                "La valoración necesita Close sin ajuste por dividendos. Descarga con "
+                "adjusted=False; utiliza Adj Close para las rentabilidades."
             )
-        reported = self.history.info.get("currency")
-        if self.currency and reported and self.currency != reported:
-            raise ValueError(
-                f"{self.symbol} cotiza en {reported}; la divisa indicada es {self.currency}."
-            )
-        if not self.currency:
-            self.currency = reported or ""
-        if not isinstance(self.currency, str) or not self.currency.strip():
-            raise ValueError(f"Falta la divisa de {self.symbol}. Indícala expresamente.")
-        # GBp (peniques) y GBP (libras) son unidades distintas: conserva las mayúsculas.
-        self.currency = self.currency.strip()
+        object.__setattr__(self, "currency", self._resolve_currency())
         if self.asset_type == "unknown":
-            self.asset_type = self.history.info.get("asset_type") or "unknown"
+            object.__setattr__(self, "asset_type", self.history.profile.asset_type)
         if self.asset_type not in ASSET_TYPES:
-            raise ValueError(f"El tipo de activo debe ser uno de {', '.join(ASSET_TYPES)}.")
+            raise PortfolioError(f"El tipo de activo debe ser uno de {', '.join(ASSET_TYPES)}.")
+
+    def _resolve_currency(self) -> str:
+        """La divisa indicada debe coincidir con la publicada; nunca se supone ninguna."""
+        if not isinstance(self.currency, str):
+            raise TypeError("La divisa debe indicarse como texto, por ejemplo USD.")
+        given = self.currency.strip()
+        reported = (self.history.profile.currency or "").strip()
+        if given and reported and given != reported:
+            raise PortfolioError(
+                f"{self.symbol} cotiza en {reported}; la divisa indicada es {given}."
+            )
+        # GBp (peniques) y GBP (libras) son unidades distintas: conserva las mayúsculas.
+        currency = given or reported
+        if not currency:
+            raise PortfolioError(f"Falta la divisa de {self.symbol}. Indícala expresamente.")
+        return currency
 
     @property
     def symbol(self) -> str:
@@ -47,13 +56,32 @@ class Asset(MonteCarloMixin):
 
     @property
     def name(self) -> str:
-        return self.history.info.get("name") or self.symbol
+        return self.history.profile.name or self.symbol
 
     @property
     def latest_price(self) -> float:
         return float(self.history.closing_prices().iloc[-1])
 
-    def _simulation_inputs(self, price_column: str):
+    def simulation_inputs(self, price_column: PriceColumn = CLOSE) -> SimulationInputs:
         """Simula el valor de una unidad desde su último precio Close."""
-        prices = self.history.closing_prices(price_column).to_frame()
-        return prices, pd.Series({self.symbol: self.latest_price}), None
+        return SimulationInputs(
+            prices=self.history.closing_prices(price_column).to_frame(),
+            starting_values=pd.Series({self.symbol: self.latest_price}),
+            currency=self.currency,
+            price_column=price_column,
+        )
+
+    def monte_carlo(
+        self,
+        settings: SimulationSettings | None = None,
+        *,
+        periods_per_year: int = PERIODS_PER_YEAR,
+        price_column: PriceColumn = CLOSE,
+        **options,
+    ) -> SimulationResult:
+        """Simula una unidad del activo; options admite los campos de SimulationSettings."""
+        return simulate(
+            self.simulation_inputs(price_column),
+            SimulationSettings.from_options(settings, **options),
+            periods_per_year,
+        )

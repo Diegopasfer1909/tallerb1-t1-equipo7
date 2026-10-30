@@ -1,18 +1,35 @@
-"""Resultados del análisis, independientes de las descargas y su presentación."""
+"""Resultados del análisis, independientes de las descargas.
 
-from dataclasses import dataclass, field
+Los métodos de presentación solo delegan en el paquete reporting.
+"""
+
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 
+from ..constants import Rebalance
+from ..models.notice import Notice
 from ..simulation.result import SimulationResult
-from .metrics import calendar_returns, correlation_pairs, drawdown_episode, drawdowns
+from .metrics import (
+    DrawdownEpisode,
+    calendar_returns,
+    correlation_pairs,
+    drawdown_episode,
+    drawdowns,
+)
 from .warnings import RiskWarning
 
 
 @dataclass
 class PortfolioAnalysis:
+    """notices reúne los avisos de datos y metodología; risk_warnings, las reglas de riesgo.
+
+    metric_notes explica por qué falta cada medida sin calcular, y reference_table cita la
+    serie y la fuente de cada referencia utilizada.
+    """
+
     currency: str
     price_column: str
     periods_per_year: int
@@ -23,23 +40,23 @@ class PortfolioAnalysis:
     risk_contributions: pd.Series
     sector_weights: pd.Series
     data_quality: pd.DataFrame
-    warnings: list[str]
-    reference_names: dict[str, str]
+    notices: list[Notice]
+    metric_notes: dict[str, str]
+    reference_table: pd.DataFrame
     asset_details: pd.DataFrame
     asset_prices: pd.DataFrame
-    metric_notes: dict[str, str] = field(default_factory=dict)
-    initial_capital: float = 10_000
-    target_weights: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))
-    rebalance: str | None = "monthly"
-    benchmark_prices: pd.Series | None = None
-    risk_warnings: list[RiskWarning] = field(default_factory=list)
+    initial_capital: float
+    target_weights: pd.Series
+    rebalance: Rebalance
+    benchmark_prices: pd.Series | None
+    risk_warnings: list[RiskWarning]
 
     @property
     def drawdown(self) -> pd.Series:
         return drawdowns(self.values)
 
     @property
-    def drawdown_episode(self):
+    def drawdown_episode(self) -> DrawdownEpisode:
         return drawdown_episode(self.values)
 
     @property
@@ -71,30 +88,39 @@ class PortfolioAnalysis:
 
     def report(
         self,
-        generated_on: datetime | None = None,
         simulation: SimulationResult | None = None,
         *,
         sections=None,
         detail: str = "compact",
+        directory: str | Path | None = None,
+        generated_on: datetime | None = None,
     ) -> Path:
         """Guarda el Markdown y sus imágenes juntos en una carpeta con fecha y hora."""
         from ..reporting.export import save_report
 
-        return save_report(self, generated_on, simulation, sections=sections, detail=detail)
+        return save_report(
+            self,
+            simulation,
+            sections=sections,
+            detail=detail,
+            directory=directory,
+            generated_on=generated_on,
+        )
 
     def plot(self, show: bool = True):
-        from ..reporting.plots import plot_analysis
+        from ..reporting.plots import plot_analysis, show_figures
 
-        return plot_analysis(self, show)
+        figure = plot_analysis(self)
+        if show:
+            show_figures()
+        return figure
 
     def plots_report(self, directory: str | Path | None = None, show: bool = False) -> dict:
         """Devuelve los gráficos de cartera, activos, distribución y riesgo/rentabilidad.
 
         Solo guarda archivos si se indica una carpeta, con los mismos nombres que el informe.
         """
-        import matplotlib.pyplot as plt
-
-        from ..reporting.plots import plot_report, save_charts
+        from ..reporting.plots import plot_report, save_charts, show_figures
 
         figures = plot_report(self)
         if directory is not None:
@@ -102,5 +128,5 @@ class PortfolioAnalysis:
             directory.mkdir(parents=True, exist_ok=True)
             save_charts(figures, directory)
         if show:
-            plt.show()
+            show_figures()
         return figures

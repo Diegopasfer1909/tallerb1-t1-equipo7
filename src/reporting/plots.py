@@ -1,98 +1,133 @@
-"""Gráficos de evolución, caídas, correlaciones y contribución al riesgo."""
+"""Gráficos de evolución, caídas, correlaciones, riesgo y simulación."""
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter
+
+from ..validation import validate_positive_int
+from .formatting import DATE_FORMAT, format_date, format_tick
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+    from ..analysis.result import PortfolioAnalysis
+    from ..simulation.result import SimulationResult
 
 
-def plot_analysis(analysis, show=True):
-    import matplotlib.pyplot as plt
+def _numbers(*scales) -> None:
+    """Coma decimal y separador de miles en los ejes indicados (axis.xaxis o axis.yaxis)."""
+    for scale in scales:
+        scale.set_major_formatter(FuncFormatter(format_tick))
 
+
+def _dates(axis) -> None:
+    """Fechas numéricas, sin depender del idioma del sistema."""
+    axis.xaxis.set_major_formatter(mdates.DateFormatter(DATE_FORMAT))
+    axis.tick_params(axis="x", labelrotation=25)
+
+
+def plot_analysis(analysis: PortfolioAnalysis) -> Figure:
+    """Evolución frente al índice, caídas, correlaciones y contribución al riesgo."""
     figure, axes = plt.subplots(2, 2, figsize=(12, 8))
+    _plot_value(axes[0, 0], analysis)
+    _plot_drawdown(axes[0, 1], analysis)
+    _plot_correlations(figure, axes[1, 0], analysis.correlations)
+    _plot_risk_shares(axes[1, 1], analysis)
+    figure.tight_layout()
+    return figure
+
+
+def _plot_value(axis, analysis: PortfolioAnalysis) -> None:
+    """Cartera e índice en base 100 sobre las mismas fechas y en la misma divisa."""
     comparison = analysis.benchmark_comparison
     if comparison.empty:
-        axes[0, 0].plot(
-            analysis.values.index, analysis.values / analysis.values.iloc[0] * 100, label="Cartera"
-        )
+        values = analysis.values
+        axis.plot(values.index, values / values.iloc[0] * 100, label="Cartera")
+        title = "Evolución de la cartera"
     else:
         normalized = comparison / comparison.iloc[0] * 100
-        axes[0, 0].plot(normalized.index, normalized["portfolio"], label="Cartera")
-        axes[0, 0].plot(normalized.index, normalized["benchmark"], label="Índice de referencia")
-    axes[0, 0].set(
-        title="Evolución en fechas comunes" if not comparison.empty else "Evolución de la cartera",
-        ylabel=f"Base 100 ({analysis.currency})",
-        xlabel="Fecha",
-    )
-    axes[0, 0].legend()
-    axes[0, 1].plot(analysis.drawdown.index, analysis.drawdown.to_numpy() * 100)
-    axes[0, 1].set(title="Caídas desde máximos anteriores", ylabel="Caída (%)", xlabel="Fecha")
+        axis.plot(normalized.index, normalized["portfolio"], label="Cartera")
+        axis.plot(normalized.index, normalized["benchmark"], label="Índice de referencia")
+        title = "Evolución en fechas comunes"
+    axis.set(title=title, ylabel=f"Base 100 ({analysis.currency})", xlabel="Fecha")
+    axis.legend()
+    _numbers(axis.yaxis)
+    _dates(axis)
+
+
+def _plot_drawdown(axis, analysis: PortfolioAnalysis) -> None:
+    """Caídas desde máximos, con el valle y la recuperación de la mayor de ellas."""
+    drawdown = analysis.drawdown
+    axis.plot(drawdown.index, drawdown.to_numpy() * 100)
+    axis.set(title="Caídas desde máximos anteriores", ylabel="Caída (%)", xlabel="Fecha")
     episode = analysis.drawdown_episode
     if episode.trough is not None:
         recovery = (
-            f"Recuperación: {episode.recovery:%d/%m/%Y}"
+            f"Recuperación: {format_date(episode.recovery)}"
             if episode.recovery is not None
             else "Sin recuperar"
         )
-        axes[0, 1].scatter([episode.trough], [episode.depth * 100], color="tab:red", zorder=3)
-        axes[0, 1].text(
+        axis.scatter([episode.trough], [episode.depth * 100], color="tab:red", zorder=3)
+        axis.text(
             0.03,
             0.05,
-            f"Valle: {episode.trough:%d/%m/%Y}\n{recovery}",
-            transform=axes[0, 1].transAxes,
+            f"Valle: {format_date(episode.trough)}\n{recovery}",
+            transform=axis.transAxes,
             fontsize=9,
             bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"},
         )
-    correlations = analysis.correlations
-    heatmap = axes[1, 0].imshow(correlations, vmin=-1, vmax=1, cmap="RdBu_r")
+    _numbers(axis.yaxis)
+    _dates(axis)
+
+
+def _plot_correlations(figure: Figure, axis, correlations: pd.DataFrame) -> None:
+    heatmap = axis.imshow(correlations, vmin=-1, vmax=1, cmap="RdBu_r")
     ticks = np.arange(len(correlations))
-    axes[1, 0].set(
+    axis.set(
         xticks=ticks,
         yticks=ticks,
         xticklabels=correlations.columns,
         yticklabels=correlations.index,
         title="Correlaciones históricas entre rentabilidades",
     )
-    from matplotlib.ticker import FuncFormatter
+    figure.colorbar(heatmap, ax=axis, format=FuncFormatter(format_tick))
 
-    figure.colorbar(
-        heatmap,
-        ax=axes[1, 0],
-        format=FuncFormatter(lambda value, _: f"{value:g}".replace(".", ",")),
-    )
+
+def _plot_risk_shares(axis, analysis: PortfolioAnalysis) -> None:
     # Omite las contribuciones ausentes para no presentarlas como riesgo cero.
     shares = analysis.risk_contributions.dropna()
     if shares.empty:
-        axes[1, 1].text(
+        axis.text(
             0.5,
             0.5,
             "No hay datos suficientes para calcular la contribución al riesgo",
             ha="center",
             va="center",
-            transform=axes[1, 1].transAxes,
+            transform=axis.transAxes,
             wrap=True,
         )
     else:
         positions = np.arange(len(shares))
-        axes[1, 1].bar(
-            positions - 0.2,
-            analysis.holdings.loc[shares.index, "weight"] * 100,
-            width=0.4,
-            label="Peso actual",
-        )
-        axes[1, 1].bar(positions + 0.2, shares * 100, width=0.4, label="Contribución al riesgo")
-        axes[1, 1].set(xticks=positions, xticklabels=shares.index)
-        axes[1, 1].legend()
-    axes[1, 1].set(title="Pesos actuales frente a contribución al riesgo", ylabel="Porcentaje (%)")
-    _spanish_axes(list(axes.flat))
-    figure.tight_layout()
-    if show:
-        plt.show()
-    return figure
+        weights = analysis.holdings.loc[shares.index, "weight"]
+        axis.bar(positions - 0.2, weights * 100, width=0.4, label="Peso actual")
+        axis.bar(positions + 0.2, shares * 100, width=0.4, label="Contribución al riesgo")
+        axis.set(xticks=positions, xticklabels=shares.index)
+        axis.legend()
+    axis.set(title="Pesos actuales frente a contribución al riesgo", ylabel="Porcentaje (%)")
+    _numbers(axis.yaxis)
 
 
-def plot_risk_return(analysis, show=True):
+def plot_risk_return(analysis: PortfolioAnalysis) -> Figure:
     """Usa los resultados ya calculados sobre el mismo historial de la cartera."""
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import FuncFormatter
-
     figure, axis = plt.subplots(figsize=(9, 5))
     details = analysis.asset_details
     axis.scatter(
@@ -121,34 +156,14 @@ def plot_risk_return(analysis, show=True):
         ylabel="Rentabilidad anualizada (%)",
     )
     axis.axhline(0, color="grey", linewidth=0.7)
-    axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}".replace(".", ",")))
-    _spanish_axes([axis])
+    _numbers(axis.xaxis, axis.yaxis)
     axis.legend()
     axis.margins(0.15)
     figure.tight_layout()
-    if show:
-        plt.show()
     return figure
 
 
-def _spanish_axes(axes):
-    """Utiliza coma decimal y fechas numéricas sin depender del idioma del sistema."""
-    import matplotlib.dates as mdates
-    from matplotlib.ticker import FuncFormatter
-
-    for axis in axes:
-        if not axis.images:
-            axis.yaxis.set_major_formatter(
-                FuncFormatter(lambda value, _: f"{value:g}".replace(".", ","))
-            )
-        if axis.get_xlabel() == "Fecha":
-            axis.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m/%Y"))
-            axis.tick_params(axis="x", labelrotation=25)
-
-
-def plot_assets(analysis, show=True):
-    import matplotlib.pyplot as plt
-
+def plot_assets(analysis: PortfolioAnalysis) -> Figure:
     figure, axis = plt.subplots(figsize=(11, 5))
     normalized = analysis.asset_prices / analysis.asset_prices.iloc[0] * 100
     for symbol in normalized.columns:
@@ -157,19 +172,15 @@ def plot_assets(analysis, show=True):
         title="Evolución comparada de los activos", xlabel="Fecha", ylabel="Valor inicial = 100"
     )
     axis.legend(title="Activos")
-    _spanish_axes([axis])
+    _numbers(axis.yaxis)
+    _dates(axis)
     figure.autofmt_xdate()
     figure.tight_layout()
-    if show:
-        plt.show()
     return figure
 
 
-def plot_distribution(analysis, show=True):
+def plot_distribution(analysis: PortfolioAnalysis) -> Figure:
     """Compara los incrementos logarítmicos históricos con la normal asumida por el GBM."""
-    import matplotlib.pyplot as plt
-    from matplotlib.ticker import FuncFormatter
-
     values = analysis.values.to_numpy(dtype=float)
     returns = np.log(values[1:] / values[:-1]) * 100
     figure, axis = plt.subplots(figsize=(10, 5))
@@ -186,11 +197,9 @@ def plot_distribution(analysis, show=True):
     if deviation > 0:
         low = min(returns.min(), mean - 4 * deviation)
         high = max(returns.max(), mean + 4 * deviation)
-        values = np.linspace(low, high, 300)
-        density = np.exp(-0.5 * ((values - mean) / deviation) ** 2) / (
-            deviation * np.sqrt(2 * np.pi)
-        )
-        axis.plot(values, density, label="Distribución normal de referencia")
+        grid = np.linspace(low, high, 300)
+        density = np.exp(-0.5 * ((grid - mean) / deviation) ** 2) / (deviation * np.sqrt(2 * np.pi))
+        axis.plot(grid, density, label="Distribución normal de referencia")
     else:
         axis.axvline(mean, label="Rentabilidad constante")
     axis.set(
@@ -198,51 +207,102 @@ def plot_distribution(analysis, show=True):
         xlabel="Rentabilidad logarítmica por período (%)",
         ylabel="Densidad",
     )
-    axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}".replace(".", ",")))
-    _spanish_axes([axis])
+    _numbers(axis.xaxis, axis.yaxis)
     axis.legend()
     figure.tight_layout()
-    if show:
-        plt.show()
     return figure
 
 
-# Nombre de archivo de cada gráfico; el informe Markdown utiliza las mismas claves.
-CHART_FILES = {
-    "portfolio": "analisis_cartera.png",
-    "assets": "evolucion_activos.png",
-    "distribution": "distribucion_rentabilidades.png",
-    "simulation": "simulacion_monte_carlo.png",
-    "risk_return": "riesgo_rentabilidad.png",
+def plot_simulation(simulation: SimulationResult, max_paths: int = 100) -> Figure:
+    """Trayectorias simuladas y distribución del valor final."""
+    validate_positive_int("max_paths", max_paths)
+    figure, axes = plt.subplots(1, 2, figsize=(12, 4))
+    simulation.paths.iloc[:, :max_paths].plot(ax=axes[0], legend=False, alpha=0.25)
+    axes[0].set(
+        title="Trayectorias simuladas",
+        xlabel="Período",
+        ylabel=f"Valor ({simulation.currency})",
+    )
+    axes[1].hist(simulation.paths.iloc[-1], bins=30, edgecolor="white")
+    axes[1].set(
+        title="Distribución del valor final",
+        xlabel=f"Valor ({simulation.currency})",
+        ylabel="Número de simulaciones",
+    )
+    for axis in axes:
+        _numbers(axis.xaxis, axis.yaxis)
+    figure.tight_layout()
+    return figure
+
+
+@dataclass(frozen=True)
+class ChartSpec:
+    """Archivo del gráfico, sección del informe que lo muestra y función que lo crea."""
+
+    file: str
+    section: str
+    build: Callable[..., Figure]
+
+
+# Las claves también nombran los gráficos que devuelve plots_report().
+CHARTS = {
+    "portfolio": ChartSpec("analisis_cartera.png", "performance", plot_analysis),
+    "assets": ChartSpec("evolucion_activos.png", "performance", plot_assets),
+    "risk_return": ChartSpec("riesgo_rentabilidad.png", "performance", plot_risk_return),
+    "distribution": ChartSpec(
+        "distribucion_rentabilidades.png", "diversification", plot_distribution
+    ),
+    "simulation": ChartSpec("simulacion_monte_carlo.png", "simulation", plot_simulation),
 }
 
 
-def plot_report(analysis, keys=None) -> dict:
-    """Crea el conjunto de gráficos históricos sin mostrarlos ni guardarlos."""
-    builders = {
-        "portfolio": plot_analysis,
-        "assets": plot_assets,
-        "distribution": plot_distribution,
-        "risk_return": plot_risk_return,
-    }
-    return {
-        key: build(analysis, show=False)
-        for key, build in builders.items()
-        if keys is None or key in keys
-    }
+def plot_report(
+    analysis: PortfolioAnalysis,
+    simulation: SimulationResult | None = None,
+    sections=None,
+) -> dict[str, Figure]:
+    """Crea los gráficos de las secciones indicadas (todas si es None) sin mostrarlos.
+
+    El gráfico de la simulación solo se crea si se proporciona un resultado.
+    """
+    figures = {}
+    try:
+        for key, chart in CHARTS.items():
+            source = simulation if chart.section == "simulation" else analysis
+            if source is not None and (sections is None or chart.section in sections):
+                figures[key] = chart.build(source)
+    except BaseException:
+        close_figures(figures)
+        raise
+    return figures
 
 
-def save_charts(figures: dict, directory, close: bool = False) -> dict[str, str]:
+def save_charts(figures: dict[str, Figure], directory: Path, close: bool = False) -> dict[str, str]:
     """Guarda cada figura en la carpeta y devuelve el nombre de archivo de cada gráfico."""
-    import matplotlib.pyplot as plt
-
     saved = {}
     try:
         for key, figure in figures.items():
-            figure.savefig(directory / CHART_FILES[key], dpi=150, bbox_inches="tight")
-            saved[key] = CHART_FILES[key]
+            figure.savefig(directory / CHARTS[key].file, dpi=150, bbox_inches="tight")
+            saved[key] = CHARTS[key].file
     finally:
         if close:
-            for figure in figures.values():
-                plt.close(figure)
+            close_figures(figures)
     return saved
+
+
+def charts_by_section(files: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Agrupa los archivos guardados según la sección del informe que los muestra."""
+    grouped: dict[str, dict[str, str]] = {}
+    for key, file in files.items():
+        grouped.setdefault(CHARTS[key].section, {})[key] = file
+    return grouped
+
+
+def close_figures(figures: dict[str, Figure]) -> None:
+    for figure in figures.values():
+        plt.close(figure)
+
+
+def show_figures() -> None:
+    """Muestra en pantalla todas las figuras abiertas."""
+    plt.show()

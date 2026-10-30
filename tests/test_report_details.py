@@ -1,5 +1,6 @@
 """Casos numéricos y contratos de presentación sin descargas."""
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,12 +9,12 @@ from unittest.mock import patch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from test_analysis import buy_and_hold_portfolio, history, indicator
+from fixtures import buy_and_hold, history, indicator
 
 from src.analysis import WarningThresholds
 from src.analysis.metrics import calendar_returns, drawdown_episode
 from src.main import parse_arguments
-from src.models import Asset, ExchangeRate, MarketContext, Portfolio
+from src.models import Asset, ExchangeRate, FxRates, MarketReferences, Portfolio
 from src.reporting.plots import plot_analysis, save_charts
 
 
@@ -81,10 +82,8 @@ class CalendarTests(unittest.TestCase):
 
     def test_only_complete_months_participate_in_best_and_worst(self):
         dates = pd.to_datetime(["2025-01-15", "2025-01-31", "2025-02-28", "2025-03-10"])
-        analysis = buy_and_hold_portfolio(
-            [Asset(history("A", [100, 200, 210, 400], dates=dates))], [1]
-        ).analyze()
-        text = analysis.markdown(sections=["performance"])
+        analysis = buy_and_hold([Asset(history("A", [100, 200, 210, 400], dates=dates))], [1])
+        text = analysis.analyze().markdown(sections=["performance"])
         self.assertIn("| Mejor | 2025-02 | 5,00 % |", text)
         self.assertIn("| Peor | 2025-02 | 5,00 % |", text)
 
@@ -93,30 +92,29 @@ class DiagnosticsTests(unittest.TestCase):
     def test_current_weights_drive_threshold_and_unknown_sector_is_not_a_sector_bet(self):
         portfolio = Portfolio(
             [Asset(history("A", [100, 200, 400])), Asset(history("B", [100, 99, 100]))],
-            [0.25, 0.75],
+            {"A": 0.25, "B": 0.75},
             rebalance=None,
         )
-        analysis = portfolio.analyze(concentration_limit=0.55)
+        analysis = portfolio.analyze(warning_thresholds=WarningThresholds(asset_weight=0.55))
         warnings = {warning.code: warning for warning in analysis.risk_warnings}
         self.assertIn("A:", warnings["asset_concentration"].message)
         self.assertAlmostEqual(warnings["asset_concentration"].observed, 4 / 7)
         self.assertNotIn("sector_concentration", warnings)
-        self.assertNotIn(
-            "asset_concentration",
-            {w.code for w in portfolio.analyze(concentration_limit=0.8).risk_warnings},
-        )
+        relaxed = portfolio.analyze(warning_thresholds=WarningThresholds(asset_weight=0.8))
+        self.assertNotIn("asset_concentration", {w.code for w in relaxed.risk_warnings})
 
     def test_thresholds_are_validated_and_configurable(self):
         for kwargs in (
             {"correlation": 1.1},
             {"drawdown": -0.3},
             {"sector_weight": True},
+            {"asset_weight": 1.5},
             {"volatility": np.nan},
             {"volatility": "high"},
         ):
             with self.assertRaises(ValueError):
                 WarningThresholds(**kwargs)
-        portfolio = Portfolio([Asset(history("A", [100, 80, 85]))], [1], rebalance=None)
+        portfolio = Portfolio([Asset(history("A", [100, 80, 85]))], {"A": 1}, rebalance=None)
         low = portfolio.analyze(warning_thresholds=WarningThresholds(drawdown=0.1))
         high = portfolio.analyze(warning_thresholds=WarningThresholds(drawdown=0.4))
         self.assertIn("large_drawdown", {w.code for w in low.risk_warnings})
@@ -127,7 +125,7 @@ class DiagnosticsTests(unittest.TestCase):
     def test_identical_assets_have_one_pair_and_flat_assets_have_none(self):
         for values, expected_pairs in (([100, 103, 99, 105], 1), ([100, 100, 100, 100], 0)):
             portfolio = Portfolio(
-                [Asset(history("A", values)), Asset(history("B", values))], [0.5, 0.5]
+                [Asset(history("A", values)), Asset(history("B", values))], {"A": 0.5, "B": 0.5}
             )
             analysis = portfolio.analyze()
             self.assertEqual(len(analysis.correlation_pairs), expected_pairs)
@@ -138,33 +136,56 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertNotRegex(text, r"\| -?inf(?: %)? \|")
             if not expected_pairs:
                 self.assertIn("No hay pares", text)
-            figure = plot_analysis(analysis, show=False)
-            plt.close(figure)
+            plt.close(plot_analysis(analysis))
+
+    def test_each_warning_is_formatted_with_its_unit(self):
+        values = [100, 103, 99, 105]
+        correlated = Portfolio(
+            [Asset(history("A", values)), Asset(history("B", values))], {"A": 0.5, "B": 0.5}
+        )
+        self.assertIn("| 1,00 | 0,80 |", correlated.analyze().markdown(sections=["warnings"]))
+        underwater = Portfolio([Asset(history("A", [100, 80, 85]))], {"A": 1})
+        thresholds = WarningThresholds(drawdown=0.1)
+        text = underwater.analyze(warning_thresholds=thresholds).markdown(sections=["warnings"])
+        self.assertIn("| 20,00 % | 10,00 % |", text)
+        self.assertIn("| 2 días naturales | — |", text)
 
     def test_missing_reference_stays_unavailable_and_is_visible_in_warning_only_report(self):
-        analysis = Portfolio([Asset(history("A", [100, 101, 99]))], [1]).analyze()
+        analysis = Portfolio([Asset(history("A", [100, 101, 99]))], {"A": 1}).analyze()
         self.assertTrue(np.isnan(analysis.metrics["sharpe"]))
         text = analysis.markdown(sections=["warnings"])
         self.assertIn("tipo de interés", text)
         self.assertIn("índice de referencia", text)
 
+    def test_warnings_separate_data_problems_from_methodology_notes(self):
+        dates = pd.bdate_range("2025-01-01", periods=5)
+        portfolio = Portfolio(
+            [Asset(history("A", [100, 101, 99, 102, 103], dates=dates))], {"A": 1}
+        )
+        references = MarketReferences(
+            benchmark=history("INDEX", [100, 100, 101, 102, 101], dates=dates)
+        )
+        text = portfolio.analyze(references).markdown(sections=["warnings"])
+        data, method = text.split("### Notas de metodología")
+        self.assertIn("### Datos que revisar", data)
+        self.assertIn("No se ha cargado un tipo de interés de referencia", data)
+        self.assertIn("Comparación con el índice basada en 5 fechas comunes", method)
+
     def test_benchmark_chart_uses_matching_dates_and_converted_currency(self):
         dates = pd.bdate_range("2025-01-01", periods=5)
         asset = Asset(history("A", [100] * 5, dates=dates))
-        context = MarketContext(
-            benchmark=history("INDEX", [100] * 3, dates=dates[[0, 2, 4]]),
-            exchange_rates=[
-                ExchangeRate("EUR", "USD", indicator([1, 1.05, 1.1, 1.15, 1.2], dates))
-            ],
+        fx_rates = FxRates(
+            [ExchangeRate("EUR", "USD", indicator([1, 1.05, 1.1, 1.15, 1.2], dates))]
         )
-        analysis = Portfolio([asset], [1], "EUR", context).analyze()
+        references = MarketReferences(benchmark=history("INDEX", [100] * 3, dates=dates[[0, 2, 4]]))
+        analysis = Portfolio([asset], {"A": 1}, "EUR", fx_rates).analyze(references)
         comparison = analysis.benchmark_comparison
         np.testing.assert_allclose(
             comparison["portfolio"] / comparison["portfolio"].iloc[0],
             comparison["benchmark"] / comparison["benchmark"].iloc[0],
         )
         self.assertEqual(len(comparison), 3)
-        figure = plot_analysis(analysis, show=False)
+        figure = plot_analysis(analysis)
         lines = figure.axes[0].lines
         self.assertEqual(len(lines), 2)
         np.testing.assert_allclose(lines[0].get_ydata(), lines[1].get_ydata())
@@ -174,7 +195,7 @@ class DiagnosticsTests(unittest.TestCase):
 
 class ReportSelectionTests(unittest.TestCase):
     def setUp(self):
-        self.portfolio = Portfolio([Asset(history("A", [100, 95, 102]))], [1])
+        self.portfolio = Portfolio([Asset(history("A", [100, 95, 102]))], {"A": 1})
         self.analysis = self.portfolio.analyze()
 
     def test_default_shows_summary_and_warnings_and_full_has_no_details(self):
@@ -184,11 +205,10 @@ class ReportSelectionTests(unittest.TestCase):
         self.assertNotIn("<details>", self.analysis.markdown(detail="full"))
 
     def test_selective_export_generates_only_referenced_figures(self):
-        with (
-            tempfile.TemporaryDirectory() as folder,
-            patch("src.reporting.export.REPORTS_DIR", Path(folder)),
-        ):
-            path = self.analysis.report(sections=["diversification"], detail="full")
+        with tempfile.TemporaryDirectory() as folder:
+            path = self.analysis.report(
+                sections=["diversification"], detail="full", directory=folder
+            )
             self.assertEqual(
                 {p.name for p in path.parent.glob("*.png")}, {"distribucion_rentabilidades.png"}
             )
@@ -199,10 +219,9 @@ class ReportSelectionTests(unittest.TestCase):
     def test_summary_only_skips_simulation_and_charts(self):
         with (
             tempfile.TemporaryDirectory() as folder,
-            patch("src.reporting.export.REPORTS_DIR", Path(folder)),
-            patch.object(self.portfolio, "monte_carlo") as simulate,
+            patch.object(Portfolio, "monte_carlo") as simulate,
         ):
-            path = self.portfolio.report(sections=["summary", "warnings"])
+            path = self.portfolio.report(sections=["summary", "warnings"], directory=folder)
             self.assertEqual(list(path.parent.glob("*.png")), [])
         simulate.assert_not_called()
 
@@ -214,7 +233,7 @@ class ReportSelectionTests(unittest.TestCase):
             {"detail": "typo"},
         ):
             with (
-                patch.object(self.portfolio, "monte_carlo") as simulate,
+                patch.object(Portfolio, "monte_carlo") as simulate,
                 patch("pathlib.Path.mkdir") as mkdir,
             ):
                 with self.assertRaises(ValueError):
@@ -222,11 +241,29 @@ class ReportSelectionTests(unittest.TestCase):
             simulate.assert_not_called()
             mkdir.assert_not_called()
 
+    def test_failed_export_leaves_no_folder_or_open_figures(self):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch("src.reporting.export.build_report", side_effect=RuntimeError("disco lleno")),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.analysis.report(directory=folder)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+        self.assertEqual(plt.get_fignums(), [])
+
+    def test_reports_default_to_a_folder_in_the_current_directory(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as folder:
+            os.chdir(folder)
+            try:
+                path = self.analysis.report(sections=["summary"])
+                self.assertEqual(path.resolve().parent.parent, Path(folder).resolve() / "informes")
+            finally:
+                os.chdir(previous)
+
     def test_cli_selection_skips_unrequested_simulation(self):
-        with patch(
-            "sys.argv",
+        config = parse_arguments(
             [
-                "main.py",
                 "--assets",
                 "A:1",
                 "--report",
@@ -235,24 +272,14 @@ class ReportSelectionTests(unittest.TestCase):
                 "warnings",
                 "--report-detail",
                 "full",
-            ],
-        ):
-            args = parse_arguments()
-        self.assertFalse(args.run_simulation)
-        self.assertEqual(args.report_detail, "full")
-        with patch(
-            "sys.argv",
-            [
-                "main.py",
-                "--assets",
-                "A:1",
-                "--report",
-                "--report-sections",
-                "summary",
-                "--simulate",
-            ],
-        ):
-            self.assertTrue(parse_arguments().run_simulation)
+            ]
+        )
+        self.assertIsNone(config.simulation)
+        self.assertEqual(config.report_detail, "full")
+        config = parse_arguments(
+            ["--assets", "A:1", "--report", "--report-sections", "summary", "--simulate"]
+        )
+        self.assertIsNotNone(config.simulation)
 
     def test_all_figures_close_when_saving_fails(self):
         figures = {"portfolio": plt.figure(), "assets": plt.figure()}

@@ -1,12 +1,13 @@
-"""Descargas de referencias económicas y tipos de cambio para la cartera."""
+"""Descargas de tipos de cambio y referencias económicas para la cartera."""
 
 from datetime import date, timedelta
 from pathlib import Path
 
-from .models.asset import Asset
-from .models.economic_indicator import EconomicIndicator
-from .models.market_context import MINOR_UNITS, ExchangeRate, MarketContext
-from .providers import FredAPI, ProviderError, YahooFinanceAPI
+from .constants import FX_MAX_AGE_DAYS, MONTHLY_REFERENCE_MAX_AGE_DAYS
+from .errors import ConfigurationError, PortfolioError
+from .models import Asset, EconomicIndicator, ExchangeRate, FxRates, MarketReferences, Notice
+from .models.currency import MINOR_UNITS
+from .providers import ALFRED_KEY, AlfredAPI, PriceProvider, ProviderError, YahooFinanceAPI
 
 # Referencias iniciales que el usuario puede cambiar expresamente.
 REPORT_DEFAULTS = {
@@ -23,96 +24,133 @@ REPORT_DEFAULTS = {
 }
 
 
-def load_currency_context(assets: list[Asset], target: str, start: str, end: str) -> MarketContext:
-    """Obtiene los cambios directos necesarios sin pedir al usuario símbolos de divisas."""
-    provider = YahooFinanceAPI()
+def _days_before(day: str, days: int) -> str:
+    """Incluye datos anteriores para alinear el inicio sin utilizar observaciones futuras."""
+    return (date.fromisoformat(day) - timedelta(days=days)).isoformat()
+
+
+def load_fx_rates(
+    assets: list[Asset],
+    target: str,
+    start: str,
+    end: str,
+    provider: PriceProvider | None = None,
+) -> FxRates:
+    """Obtiene los cambios directos necesarios sin pedir al usuario símbolos de divisas.
+
+    Por defecto consulta pares como USDEUR=X en Yahoo Finance.
+    """
+    provider = provider or YahooFinanceAPI()
     currencies = {MINOR_UNITS.get(asset.currency, asset.currency) for asset in assets}
-    earlier = (date.fromisoformat(start) - timedelta(days=7)).isoformat()
+    earlier = _days_before(start, FX_MAX_AGE_DAYS)
     rates = []
-    for source in sorted(currencies):
-        if source == target:
-            continue
+    for source in sorted(currencies - {target}):
         symbol = f"{source}{target}=X"
         history = provider.get_prices(symbol, earlier, end, adjusted=False)
         indicator = EconomicIndicator(
-            symbol, "yahoo", history.closing_prices(), f"{target} por {source}", "Daily"
+            symbol, history.source, history.closing_prices(), f"{target} por {source}", "Daily"
         )
         rates.append(ExchangeRate(source, target, indicator))
-    return MarketContext(exchange_rates=rates)
+    return FxRates(rates)
 
 
-def load_market_context(
+def load_alfred_fx_rates(
+    series: dict[tuple[str, str], str],
     start: str,
     end: str,
-    price_provider: YahooFinanceAPI | None = None,
-    fred_provider: FredAPI | None = None,
-    benchmark_symbol: str | None = None,
-    inflation_series: str | None = None,
-    risk_free_series: str | None = None,
-    exchange_rate_series: dict[tuple[str, str], str] | None = None,
+    alfred_provider: AlfredAPI | None = None,
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
-) -> MarketContext:
-    """Registra fallos de referencias opcionales y exige los cambios solicitados.
+) -> FxRates:
+    """Cambios publicados en ALFRED; a diferencia de las referencias, un fallo detiene la carga.
 
     El par declara las unidades: {("EUR", "USD"): "DEXUSEU"} indica dólares por euro.
-    La inflación requiere un índice de precios; el tipo de referencia, un porcentaje anual.
-    Consultar solo un índice bursátil no requiere una clave FRED.
     """
-    context = MarketContext()
-    if benchmark_symbol:
-        provider = price_provider or YahooFinanceAPI()
-        try:
-            context.benchmark = provider.get_prices(benchmark_symbol, start, end, adjusted=False)
-        except (ProviderError, ValueError):
-            context.issues.append(
-                f"No se ha podido descargar el índice de referencia {benchmark_symbol}."
+    alfred = alfred_provider or AlfredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+    earlier = _days_before(start, MONTHLY_REFERENCE_MAX_AGE_DAYS)
+    # Un tipo de cambio es un precio de mercado: se conocía en su fecha y no se revisa, así
+    # que se usa por fecha de observación y no por fecha de publicación.
+    return FxRates(
+        [
+            ExchangeRate(
+                base, quote, alfred.get_series(series_id, earlier, end, point_in_time=False)
             )
-
-    if not (inflation_series or risk_free_series or exchange_rate_series):
-        return context
-    try:
-        fred = fred_provider or FredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
-    except ValueError:
-        if exchange_rate_series:
-            raise
-        context.issues.append(
-            "No se han descargado los datos económicos: configura FRED_API_KEY en el archivo .env del proyecto."
-        )
-        return context
-    # Incluye datos anteriores para alinear el inicio sin utilizar observaciones futuras.
-    earlier = (date.fromisoformat(start) - timedelta(days=75)).isoformat()
-    if inflation_series:
-        context.inflation = _optional_series(
-            fred, inflation_series, earlier, end, context, "inflación"
-        )
-    if risk_free_series:
-        context.risk_free_rate = _optional_series(
-            fred, risk_free_series, earlier, end, context, "tipo de interés de referencia"
-        )
-    for (base, quote), series_id in (exchange_rate_series or {}).items():
-        indicator = fred.get_series(series_id, earlier, end)
-        context.exchange_rates.append(ExchangeRate(base, quote, indicator))
-    return MarketContext(
-        benchmark=context.benchmark,
-        inflation=context.inflation,
-        risk_free_rate=context.risk_free_rate,
-        exchange_rates=context.exchange_rates,
-        issues=context.issues,
+            for (base, quote), series_id in series.items()
+        ]
     )
 
 
-def _optional_series(fred, series_id, start, end, context, label):
-    """Registra el fallo de una referencia opcional en lugar de detener el informe."""
-    try:
-        return fred.get_series(series_id, start, end)
-    except (ProviderError, ValueError):
-        context.issues.append(f"No se ha podido descargar la serie de {label} ({series_id}).")
-        return None
+def load_market_references(
+    start: str,
+    end: str,
+    price_provider: PriceProvider | None = None,
+    alfred_provider: AlfredAPI | None = None,
+    benchmark_symbol: str | None = None,
+    inflation_series: str | None = None,
+    risk_free_series: str | None = None,
+    cache_dir: Path | None = None,
+    cache_ttl: float = 86400,
+) -> MarketReferences:
+    """Descarga las referencias opcionales y registra sus fallos sin detener el informe.
+
+    La inflación requiere un índice de precios; el tipo de referencia, un porcentaje anual.
+    La inflación y el tipo de interés se toman de ALFRED tal como se publicaron en cada
+    fecha. Consultar solo un índice bursátil no requiere clave.
+    """
+    notices = []
+
+    def attempt(failure: str, download, *args):
+        try:
+            return download(*args)
+        except (ProviderError, PortfolioError) as error:
+            notices.append(Notice(f"{failure} Motivo: {error}"))
+            return None
+
+    benchmark = inflation = risk_free_rate = None
+    if benchmark_symbol:
+        provider = price_provider or YahooFinanceAPI()
+        benchmark = attempt(
+            f"No se ha podido descargar el índice de referencia {benchmark_symbol}.",
+            provider.get_prices,
+            benchmark_symbol,
+            start,
+            end,
+        )
+    if inflation_series or risk_free_series:
+        try:
+            alfred = alfred_provider or AlfredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+        except ConfigurationError:
+            notices.append(
+                Notice(
+                    "No se han descargado la inflación ni el tipo de interés porque falta "
+                    f"{ALFRED_KEY}. Configúrala en el archivo .env o en el entorno para calcular "
+                    "la rentabilidad real y las ratios de Sharpe y Sortino."
+                )
+            )
+        else:
+            earlier = _days_before(start, MONTHLY_REFERENCE_MAX_AGE_DAYS)
+            if inflation_series:
+                inflation = attempt(
+                    f"No se ha podido descargar la serie de inflación ({inflation_series}).",
+                    alfred.get_series,
+                    inflation_series,
+                    earlier,
+                    end,
+                )
+            if risk_free_series:
+                risk_free_rate = attempt(
+                    "No se ha podido descargar la serie de tipo de interés de referencia "
+                    f"({risk_free_series}).",
+                    alfred.get_series,
+                    risk_free_series,
+                    earlier,
+                    end,
+                )
+    return MarketReferences(benchmark, inflation, risk_free_rate, notices)
 
 
-def load_report_context(
-    portfolio,
+def load_references(
+    currency: str,
     start: str,
     end: str,
     benchmark_symbol: str | None = None,
@@ -120,10 +158,10 @@ def load_report_context(
     risk_free_series: str | None = None,
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
-) -> MarketContext:
-    """Carga las referencias una vez conocida la divisa del informe."""
-    defaults = REPORT_DEFAULTS.get(portfolio.currency, {})
-    context = load_market_context(
+) -> MarketReferences:
+    """Elige las referencias predeterminadas de la divisa del informe; se pueden cambiar."""
+    defaults = REPORT_DEFAULTS.get(currency, {})
+    references = load_market_references(
         start,
         end,
         benchmark_symbol=benchmark_symbol or defaults.get("benchmark_symbol"),
@@ -132,15 +170,20 @@ def load_report_context(
         cache_dir=cache_dir,
         cache_ttl=cache_ttl,
     )
-    if portfolio.market_context is not None:
-        context.exchange_rates = list(portfolio.market_context.exchange_rates)
-        context.issues.extend(portfolio.market_context.issues)
     if defaults:
-        context.issues.append(
-            "Las referencias se han elegido según la divisa del informe. Comprueba si se ajustan al mercado y a la zona geográfica que quieres analizar."
+        note = Notice(
+            "Las referencias se han elegido según la divisa del informe. Comprueba si se ajustan "
+            "al mercado y a la zona geográfica que quieres analizar.",
+            kind="method",
         )
     else:
-        context.issues.append(
-            f"No hay referencias económicas predeterminadas para {portfolio.currency}. Las medidas que necesitan esas referencias quedan sin calcular."
+        note = Notice(
+            f"No hay referencias económicas predeterminadas para {currency}. Las medidas que "
+            "necesitan esas referencias quedan sin calcular."
         )
-    return context
+    return MarketReferences(
+        references.benchmark,
+        references.inflation,
+        references.risk_free_rate,
+        (*references.notices, note),
+    )

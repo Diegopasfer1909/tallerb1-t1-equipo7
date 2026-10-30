@@ -113,6 +113,12 @@ def risk_adjusted(returns: pd.Series, reference: pd.Series, periods_per_year: in
     }
 
 
+def beta(returns: pd.Series, market: pd.Series) -> float:
+    """Sensibilidad frente al índice; NaN si la rentabilidad del índice no varía."""
+    variance = market.var()
+    return float(returns.cov(market) / variance) if variance > 0 else np.nan
+
+
 def risk_contributions(returns: pd.DataFrame, weights: pd.Series) -> pd.Series:
     """Contribuciones a la varianza con pesos actuales y covarianza histórica."""
     weights = weights.reindex(returns.columns)

@@ -8,12 +8,13 @@ version = "0.1.0"
 description = "Extracción y análisis de datos de mercado para el taller MIAX B1-T1"
 readme = "README.MD"
 requires-python = ">=3.10"
+# Versiones mínimas con las que se han ejecutado las pruebas.
 dependencies = [
-    "numpy>=1.17",
-    "pandas>=1.3.0",
-    "matplotlib>=3.0.0",
-    "yfinance>=0.1.70",
-    "requests>=2.25.1",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+    "yfinance>=0.2.40",
+    "requests>=2.31",
     "python-dotenv>=1.0.0",
 ]
 
