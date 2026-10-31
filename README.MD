@@ -7,7 +7,9 @@ Monte Carlo e informes en español.
 
 ## Instalación
 
-Desde la carpeta del proyecto, con Python 3.10 o posterior:
+El proyecto admite Python 3.11 o posterior. El equipo desarrolla y comprueba con
+Python 3.14, indicado en `.python-version`; es la versión recomendada para
+obtener los mismos resultados. Desde la carpeta del proyecto:
 
 ```powershell
 python -m venv .venv
@@ -422,7 +424,8 @@ python -B -m unittest discover -s tests -v
 ```
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
-código, formato y pruebas con Python 3.10 y 3.14. El trabajo «Paquete instalable»
+código y formato con Python 3.14 (la de `.python-version`) y las pruebas con la
+versión mínima (3.11) y con la del equipo (3.14). El trabajo «Paquete instalable»
 construye la distribución, revisa sus metadatos con `twine check` y repite las
 pruebas importando `src` desde la rueda instalada, no desde el repositorio. El
 trabajo «Búsqueda de claves filtradas» revisa todo el historial con gitleaks y las
@@ -447,7 +450,7 @@ consulta siempre. Si la cuota está agotada, la prueba se omite con un aviso en 
 resumen de la ejecución en lugar de fallar.
 
 El trabajo «Comprobaciones completas» resume el resultado: solo se supera si la
-calidad, las pruebas con Python 3.10 y 3.14, el paquete, la búsqueda de claves y la
+calidad, las pruebas con Python 3.11 y 3.14, el paquete, la búsqueda de claves y la
 integración se superan. Es la comprobación obligatoria para integrar en `main`. Las
 ramas se prueban al abrir su pull request; el push solo lanza el pipeline en `main`. En
 local, las pruebas de integración usan las claves de `.env` o del entorno:
@@ -457,10 +460,13 @@ python -B -m unittest tests.integration_apis -v
 ```
 
 `__pycache__` está excluido
-en `.gitignore`. La caché de respuestas de Alpha Vantage y ALFRED se conserva en
-`.cache/market-data`, dentro de la carpeta desde la que ejecutas el programa, para
-evitar consultas repetidas; no contiene las claves en texto y las respuestas de más
-de un día se eliminan automáticamente.
+en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage y ALFRED se
+conserva en `.cache/market-data`, dentro de la carpeta desde la que ejecutas el
+programa, para evitar consultas repetidas; no contiene las claves en texto y las
+respuestas de más de un día se eliminan automáticamente. Yahoo guarda por símbolo la
+ficha y un único historial: cambiar los parámetros de la simulación no descarga nada,
+cambiar un activo solo descarga ese activo y un intervalo de fechas contenido en otro
+ya consultado se reutiliza. Para forzar una descarga nueva, borra esa carpeta.
 
 ## Lectura y selección del informe
 

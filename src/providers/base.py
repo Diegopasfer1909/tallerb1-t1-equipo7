@@ -103,6 +103,57 @@ def drop_missing_closes(prices: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     return prices.loc[~missing], int(missing.sum())
 
 
+# Caché en disco compartida por ApiClient y Yahoo Finance: un archivo JSON por consulta.
+def cache_path(cache_dir: Path | None, key) -> Path | None:
+    """La misma clave produce el mismo nombre de archivo sin exponer su contenido."""
+    if cache_dir is None:
+        return None
+    name = hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
+    return Path(cache_dir) / f"{name}.json"
+
+
+def _is_fresh(path: Path, ttl: float) -> bool:
+    return time.time() - path.stat().st_mtime < ttl
+
+
+def read_cache(cache: Path | None, ttl: float) -> dict | None:
+    """Devuelve una respuesta vigente; una caducada o vacía se elimina."""
+    if cache is None:
+        return None
+    with contextlib.suppress(OSError, ValueError):
+        if _is_fresh(cache, ttl):
+            cached = json.loads(cache.read_text(encoding="utf-8"))
+            if isinstance(cached, dict) and cached:
+                return cached
+        cache.unlink()
+    return None
+
+
+def write_cache(cache: Path | None, payload: dict) -> None:
+    """Guarda la respuesta de forma atómica; un fallo no impide la consulta."""
+    if cache is None:
+        return
+    temporary = cache.with_name(f".{cache.name}.{os.getpid()}.tmp")
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        temporary.write_text(json.dumps(payload), encoding="utf-8")
+        os.replace(temporary, cache)
+    except (OSError, TypeError, ValueError):
+        with contextlib.suppress(OSError):
+            temporary.unlink(missing_ok=True)
+
+
+def prune_cache(cache_dir: Path | None, ttl: float) -> None:
+    """Elimina las respuestas caducadas para que la caché no crezca sin límite."""
+    if cache_dir is None or not cache_dir.is_dir():
+        return
+    for path in cache_dir.iterdir():
+        if CACHE_FILE.fullmatch(path.name):
+            with contextlib.suppress(OSError):
+                if not _is_fresh(path, ttl):
+                    path.unlink()
+
+
 class ApiClient:
     """Descarga JSON y permite reutilizar respuestas guardadas en disco.
 
@@ -140,49 +191,17 @@ class ApiClient:
         self.on_rejection = on_rejection
         self.allow_redirects = allow_redirects
         self._last_request: float | None = None
-        self._prune_cache()
+        prune_cache(self.cache_dir, cache_ttl)
 
     def get_json(self, url: str, params: dict) -> dict:
-        cache = self._cache_path(url, params)
-        cached = self._read_cache(cache)
+        cache = cache_path(self.cache_dir, [url, params])
+        cached = read_cache(cache, self.cache_ttl)
         if cached is not None:
             return cached
         self._wait_for_rate_limit()
         data = self._download(url, params)
-        self._write_cache(cache, data)
+        write_cache(cache, data)
         return data
-
-    def _cache_path(self, url: str, params: dict) -> Path | None:
-        """La misma consulta produce el mismo nombre de archivo sin exponer la clave."""
-        if self.cache_dir is None:
-            return None
-        request = json.dumps([url, params], sort_keys=True)
-        return self.cache_dir / f"{hashlib.sha256(request.encode()).hexdigest()}.json"
-
-    def _is_fresh(self, path: Path) -> bool:
-        return time.time() - path.stat().st_mtime < self.cache_ttl
-
-    def _read_cache(self, cache: Path | None) -> dict | None:
-        """Devuelve una respuesta vigente; una caducada o vacía se elimina."""
-        if cache is None:
-            return None
-        with contextlib.suppress(OSError, ValueError):
-            if self._is_fresh(cache):
-                cached = json.loads(cache.read_text(encoding="utf-8"))
-                if isinstance(cached, dict) and cached:
-                    return cached
-            cache.unlink()
-        return None
-
-    def _prune_cache(self) -> None:
-        """Elimina las respuestas caducadas para que la caché no crezca sin límite."""
-        if self.cache_dir is None or not self.cache_dir.is_dir():
-            return
-        for path in self.cache_dir.iterdir():
-            if CACHE_FILE.fullmatch(path.name):
-                with contextlib.suppress(OSError):
-                    if not self._is_fresh(path):
-                        path.unlink()
 
     def _wait_for_rate_limit(self) -> None:
         """Respeta el intervalo mínimo entre peticiones reales; la caché no cuenta."""
@@ -249,16 +268,3 @@ class ApiClient:
             if key in payload:
                 return str(payload[key]).replace(self.api_key, "[redacted]")
         return None
-
-    def _write_cache(self, cache: Path | None, payload: dict) -> None:
-        """Guarda la respuesta de forma atómica; un fallo no impide la consulta."""
-        if cache is None:
-            return
-        temporary = cache.with_name(f".{cache.name}.{os.getpid()}.tmp")
-        try:
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            temporary.write_text(json.dumps(payload), encoding="utf-8")
-            os.replace(temporary, cache)
-        except OSError:
-            with contextlib.suppress(OSError):
-                temporary.unlink(missing_ok=True)

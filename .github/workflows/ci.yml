@@ -32,7 +32,8 @@ jobs:
       - name: Preparar Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.12"
+          # La misma versión con la que desarrolla el equipo.
+          python-version-file: .python-version
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Instalar herramientas de calidad
@@ -50,7 +51,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.14"]
+        # La versión mínima de pyproject.toml y la de .python-version.
+        python-version: ["3.11", "3.14"]
     steps:
       - name: Obtener el repositorio
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -77,7 +79,7 @@ jobs:
       - name: Preparar Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Construir la distribución
@@ -155,7 +157,7 @@ jobs:
       - name: Preparar Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
-          python-version: "3.12"
+          python-version-file: .python-version
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Instalar dependencias del proyecto

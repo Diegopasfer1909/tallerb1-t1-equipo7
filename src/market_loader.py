@@ -40,7 +40,8 @@ def load_fx_rates(
 
     Por defecto consulta pares como USDEUR=X en Yahoo Finance.
     """
-    provider = provider or YahooFinanceAPI()
+    # De un tipo de cambio solo se usan los precios; la ficha costaría otra petición.
+    provider = provider or YahooFinanceAPI(include_info=False)
     currencies = {MINOR_UNITS.get(asset.currency, asset.currency) for asset in assets}
     earlier = _days_before(start, FX_MAX_AGE_DAYS)
     rates = []
@@ -108,7 +109,7 @@ def load_market_references(
 
     benchmark = inflation = risk_free_rate = None
     if benchmark_symbol:
-        provider = price_provider or YahooFinanceAPI()
+        provider = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
         benchmark = attempt(
             f"No se ha podido descargar el índice de referencia {benchmark_symbol}.",
             provider.get_prices,

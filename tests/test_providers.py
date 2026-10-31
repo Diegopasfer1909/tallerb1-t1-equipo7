@@ -308,6 +308,54 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaises(ProviderError):
                 YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
 
+    def test_yahoo_cache_reuses_each_symbol_and_covered_dates(self):
+        prices = pd.DataFrame(
+            {"Open": [1.0, float("nan"), 2.0], "Close": [1.5, 2.0, 2.5], "Volume": [100, 200, 300]},
+            index=pd.date_range("2026-01-05", periods=3, tz="America/New_York"),
+        )
+        with tempfile.TemporaryDirectory() as tmp, patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.return_value = prices
+            ticker.return_value.get_info.return_value = {"quoteType": "EQUITY", "currency": "USD"}
+            first = YahooFinanceAPI(cache_dir=Path(tmp)).get_prices(
+                "IBM", "2026-01-01", "2026-02-01"
+            )
+            # Otra ejecución con un intervalo contenido no vuelve a descargar nada.
+            second = YahooFinanceAPI(cache_dir=Path(tmp)).get_prices(
+                "IBM", "2026-01-06", "2026-02-01"
+            )
+            self.assertEqual(ticker.return_value.history.call_count, 1)
+            self.assertEqual(ticker.return_value.get_info.call_count, 1)
+            pd.testing.assert_frame_equal(second.prices, first.prices.iloc[1:], check_freq=False)
+            self.assertEqual(second.profile.currency, "USD")
+
+            YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("MSFT", "2026-01-01", "2026-02-01")
+            self.assertEqual(ticker.return_value.history.call_count, 2)
+
+            # Ampliar el intervalo descarga una vez lo guardado y lo nuevo.
+            YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("IBM", "2025-12-01", "2026-01-15")
+            ticker.return_value.history.assert_called_with(
+                start="2025-12-01", end="2026-02-01", auto_adjust=False
+            )
+            YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("IBM", "2025-12-01", "2026-02-01")
+            self.assertEqual(ticker.return_value.history.call_count, 3)
+
+    def test_yahoo_cache_does_not_trust_sessions_that_may_be_open(self):
+        today = pd.Timestamp.today().normalize()
+        prices = pd.DataFrame(
+            {"Close": [1.5, 2.5]}, index=pd.date_range(today - pd.Timedelta(days=1), periods=2)
+        )
+        start = (today - pd.Timedelta(days=5)).date().isoformat()
+        end = (today + pd.Timedelta(days=1)).date().isoformat()
+        with tempfile.TemporaryDirectory() as tmp, patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.return_value = prices
+            api = YahooFinanceAPI(cache_dir=Path(tmp), include_info=False)
+            api.get_prices("IBM", start, end)
+            api.get_prices("IBM", start, end)
+            self.assertEqual(ticker.return_value.history.call_count, 2)
+            api.get_prices("IBM", start, today.date().isoformat())
+            self.assertEqual(ticker.return_value.history.call_count, 2)
+            ticker.return_value.get_info.assert_not_called()
+
     def test_models_reject_duplicate_dates_and_copy_input(self):
         result = AlphaVantageAPI("test-key", session=session_for(alpha_payload())).get_prices(
             "IBM", "2026-10-22", "2026-10-24"

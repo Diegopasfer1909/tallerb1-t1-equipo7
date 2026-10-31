@@ -37,7 +37,8 @@ from src.validation import (
     validate_weights,
 )
 
-# Caché de Alpha Vantage y ALFRED, relativa a la carpeta desde la que se ejecuta el programa.
+# Caché de Yahoo Finance, Alpha Vantage y ALFRED, relativa a la carpeta desde la que se
+# ejecuta el programa. Las respuestas se reutilizan durante un día, por símbolo y serie.
 CACHE_DIR = Path(".cache") / "market-data"
 SIMULATION_OPTIONS = ("steps", "simulations", "seed", "confidence")
 ASSUMPTIONS_FORMAT = (
@@ -56,7 +57,7 @@ class ProviderOption:
 
 
 PROVIDERS = {
-    "yahoo": ProviderOption(lambda: YahooFinanceAPI(), 365),
+    "yahoo": ProviderOption(lambda: YahooFinanceAPI(cache_dir=CACHE_DIR), 365),
     # El modo compact de Alpha Vantage ofrece unas 100 sesiones.
     "alpha_vantage": ProviderOption(
         lambda: AlphaVantageAPI(cache_dir=CACHE_DIR, include_info=True),
@@ -345,6 +346,10 @@ def run(config: RunConfig) -> None:
     """Coordina la carga, la simulación y las salidas solicitadas."""
     for warning in check_api_keys(config):
         print(f"Aviso: {warning}", file=sys.stderr)
+    # Los cambios automáticos solo se consultan, en Yahoo, si hay que convertir divisas.
+    fx_provider = None
+    if config.currency:
+        fx_provider = YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False)
     portfolio = load_portfolio(
         config.weights,
         PROVIDERS[config.provider].create(),
@@ -353,6 +358,7 @@ def run(config: RunConfig) -> None:
         reporting_currency=config.currency,
         initial_capital=config.capital,
         rebalance=config.rebalance,
+        fx_provider=fx_provider,
     )
     print_portfolio(portfolio)
     simulation = None
