@@ -13,14 +13,14 @@ from fixtures import buy_and_hold, history, indicator
 
 from src.errors import ConfigurationError
 from src.market_loader import (
-    load_alfred_fx_rates,
+    load_fred_fx_rates,
     load_fx_rates,
     load_market_references,
     load_references,
 )
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences
 from src.models.backtest import backtest_allocation
-from src.providers import AlfredAPI, ProviderError, YahooFinanceAPI
+from src.providers import FredAPI, ProviderError, YahooFinanceAPI
 
 matplotlib.use("Agg")
 
@@ -377,14 +377,15 @@ class AnalysisTests(unittest.TestCase):
         # September's observation is 56 days old at the end, not an invalid monthly value.
         self.assertTrue(np.isfinite(analysis.metrics["real_annualized_return"]))
 
-    def test_notice_says_whether_economic_data_was_used_as_published(self):
+    def test_notice_explains_economic_data_includes_revisions(self):
         dates = pd.date_range("2026-01-01", periods=3)
         portfolio = buy_and_hold([Asset(history("A", [100, 110, 108], dates=dates))], [1])
-        for point_in_time, text in ((True, "tal como se publicaron"), (False, "anticipación")):
-            rate = indicator([2, 2, 2], dates, point_in_time=point_in_time)
-            notices = portfolio.analyze(MarketReferences(risk_free_rate=rate)).notices
-            methods = [notice.message for notice in notices if notice.kind == "method"]
-            self.assertTrue(any(text in message for message in methods), methods)
+        notices = portfolio.analyze(MarketReferences()).notices
+        self.assertFalse(any("revisiones" in notice.message for notice in notices))
+        rate = indicator([2, 2, 2], dates)
+        notices = portfolio.analyze(MarketReferences(risk_free_rate=rate)).notices
+        methods = [notice.message for notice in notices if notice.kind == "method"]
+        self.assertTrue(any("revisiones" in message for message in methods), methods)
 
     def test_unavailable_metrics_explain_which_data_is_missing(self):
         text = buy_and_hold([Asset(history("A", [100, 120, 96]))], [1]).analyze().markdown()
@@ -447,11 +448,11 @@ class MarketLoaderTests(unittest.TestCase):
 
     def test_no_provider_is_constructed_for_empty_references(self):
         with (
-            patch("src.market_loader.AlfredAPI") as alfred,
+            patch("src.market_loader.FredAPI") as fred,
             patch("src.market_loader.YahooFinanceAPI") as yahoo,
         ):
             references = load_market_references("2026-01-01", "2026-02-01")
-        alfred.assert_not_called()
+        fred.assert_not_called()
         yahoo.assert_not_called()
         self.assertIsNone(references.benchmark)
 
@@ -462,32 +463,29 @@ class MarketLoaderTests(unittest.TestCase):
             "2026-01-01", "2026-02-01", price_provider=yahoo, benchmark_symbol="INDEX"
         )
         self.assertIn("No se ha podido descargar", references.notices[0].message)
-        alfred = Mock(spec=AlfredAPI)
-        alfred.get_series.side_effect = ProviderError("Unavailable")
+        fred = Mock(spec=FredAPI)
+        fred.get_series.side_effect = ProviderError("Unavailable")
         with self.assertRaises(ProviderError):
-            load_alfred_fx_rates(
-                {("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01", alfred_provider=alfred
+            load_fred_fx_rates(
+                {("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01", fred_provider=fred
             )
 
     def test_loader_fetches_earlier_observations_and_declares_fx_direction(self):
-        alfred = Mock(spec=AlfredAPI)
-        alfred.get_series.return_value = indicator([1.1], pd.DatetimeIndex(["2026-01-01"]))
-        fx_rates = load_alfred_fx_rates(
-            {("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01", alfred_provider=alfred
+        fred = Mock(spec=FredAPI)
+        fred.get_series.return_value = indicator([1.1], pd.DatetimeIndex(["2026-01-01"]))
+        fx_rates = load_fred_fx_rates(
+            {("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01", fred_provider=fred
         )
-        alfred.get_series.assert_called_once_with(
-            "DEXUSEU", "2025-10-18", "2026-02-01", point_in_time=False
-        )
+        fred.get_series.assert_called_once_with("DEXUSEU", "2025-10-18", "2026-02-01")
         self.assertEqual(fx_rates.rates[0].base_currency, "EUR")
 
-    def test_economic_references_are_requested_as_published(self):
-        alfred = Mock(spec=AlfredAPI)
-        alfred.get_series.return_value = indicator([300], pd.DatetimeIndex(["2025-12-15"]))
+    def test_economic_references_include_earlier_observations(self):
+        fred = Mock(spec=FredAPI)
+        fred.get_series.return_value = indicator([300], pd.DatetimeIndex(["2025-12-01"]))
         load_market_references(
-            "2026-01-01", "2026-02-01", alfred_provider=alfred, inflation_series="CPIAUCSL"
+            "2026-01-01", "2026-02-01", fred_provider=fred, inflation_series="CPIAUCSL"
         )
-        # Sin point_in_time=False: la inflación se pide tal como se publicó.
-        alfred.get_series.assert_called_once_with("CPIAUCSL", "2025-10-18", "2026-02-01")
+        fred.get_series.assert_called_once_with("CPIAUCSL", "2025-10-18", "2026-02-01")
 
     def test_report_defaults_follow_reporting_currency_and_can_be_overridden(self):
         for currency, benchmark, rate in [
@@ -517,10 +515,10 @@ class MarketLoaderTests(unittest.TestCase):
         )
 
     def test_missing_fred_key_is_an_optional_reference_issue_but_fx_still_requires_it(self):
-        with patch("src.market_loader.AlfredAPI", side_effect=ConfigurationError("Missing key")):
+        with patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Missing key")):
             references = load_market_references(
                 "2026-01-01", "2026-02-01", inflation_series="CPIAUCSL"
             )
             self.assertIn("FRED_API_KEY", references.notices[0].message)
             with self.assertRaises(ConfigurationError):
-                load_alfred_fx_rates({("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01")
+                load_fred_fx_rates({("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01")

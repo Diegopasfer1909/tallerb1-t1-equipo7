@@ -30,11 +30,11 @@ from src.constants import DAILY_REFERENCE_MAX_AGE_DAYS, MONTHLY_REFERENCE_MAX_AG
 from src.main import main
 from src.market_loader import REPORT_DEFAULTS
 from src.providers import (
-    ALFRED_KEY,
     ALPHA_VANTAGE_KEY,
-    AlfredAPI,
+    FRED_KEY,
     AlphaVantageAPI,
     AlphaVantageQuotaError,
+    FredAPI,
     ProviderError,
     YahooFinanceAPI,
     has_api_key,
@@ -50,15 +50,15 @@ ALPHA_VANTAGE_ENABLED = os.getenv("ALPHA_VANTAGE_INTEGRATION", "1") != "0"
 QUOTA_PHRASES = ("rate limit", "requests per day", "call frequency", "sparingly")
 
 
-@unittest.skipUnless(has_api_key(ALFRED_KEY), f"Falta {ALFRED_KEY}")
-class AlfredIntegrationTests(unittest.TestCase):
-    def test_default_references_have_published_versions(self):
-        """Las series predeterminadas deben tener versiones archivadas recientes.
+@unittest.skipUnless(has_api_key(FRED_KEY), f"Falta {FRED_KEY}")
+class FredIntegrationTests(unittest.TestCase):
+    def test_default_references_are_recent(self):
+        """Las series predeterminadas deben tener observaciones recientes.
 
-        Si una serie no las tiene, el informe deja sus medidas sin calcular: esta prueba lo
-        detecta antes de que lo descubra un usuario.
+        Si una serie deja de actualizarse, el informe deja sus medidas sin calcular: esta
+        prueba lo detecta antes de que lo descubra un usuario.
         """
-        alfred = AlfredAPI()
+        fred = FredAPI()
         series = sorted(
             {
                 (currency, kind, series_id)
@@ -69,20 +69,18 @@ class AlfredIntegrationTests(unittest.TestCase):
         )
         for currency, kind, series_id in series:
             with self.subTest(currency=currency, series=series_id):
-                indicator = alfred.get_series(series_id, ONE_YEAR_AGO, END)
-                self.assertTrue(indicator.point_in_time)
+                indicator = fred.get_series(series_id, ONE_YEAR_AGO, END)
                 monthly = indicator.frequency.lower().startswith("month")
                 limit = MONTHLY_REFERENCE_MAX_AGE_DAYS if monthly else DAILY_REFERENCE_MAX_AGE_DAYS
                 latest = indicator.values.dropna().index[-1]
                 self.assertLessEqual(
                     (pd.Timestamp(TODAY) - latest).days,
                     limit,
-                    f"{series_id} ({kind}): última publicación archivada el {latest.date()}",
+                    f"{series_id} ({kind}): última observación el {latest.date()}",
                 )
 
-    def test_exchange_rates_are_read_by_observation_date(self):
-        indicator = AlfredAPI().get_series("DEXUSEU", ONE_YEAR_AGO, END, point_in_time=False)
-        self.assertFalse(indicator.point_in_time)
+    def test_exchange_rates(self):
+        indicator = FredAPI().get_series("DEXUSEU", ONE_YEAR_AGO, END)
         self.assertGreater(indicator.values.notna().sum(), 150)
         self.assertTrue((indicator.values.dropna() > 0).all())
 
@@ -120,9 +118,9 @@ class AlphaVantageIntegrationTests(unittest.TestCase):
         self.assertTrue(np.isfinite(history.prices["Close"]).all())
 
 
-@unittest.skipUnless(has_api_key(ALFRED_KEY), f"Falta {ALFRED_KEY}")
+@unittest.skipUnless(has_api_key(FRED_KEY), f"Falta {FRED_KEY}")
 class ReportIntegrationTests(unittest.TestCase):
-    def test_console_report_includes_references_as_published(self):
+    def test_console_report_includes_economic_references(self):
         with tempfile.TemporaryDirectory() as folder:
             arguments = ["--assets", "IBM:0.6", "MSFT:0.4", "--start", ONE_YEAR_AGO, "--report"]
             arguments += ["--report-detail", "full", "--output-dir", folder, "--simulations", "200"]
@@ -130,8 +128,8 @@ class ReportIntegrationTests(unittest.TestCase):
                 code = main(arguments)
             self.assertEqual(code, 0, errors.getvalue())
             report = next(Path(folder).glob("*/*.md")).read_text(encoding="utf-8")
-        self.assertIn("tal como se publicaron", report)
-        self.assertIn("ALFRED", report)
+        self.assertIn("incluyen las revisiones", report)
+        self.assertIn("FRED", report)
         for metric in ("Ratio de Sharpe", "Inflación anualizada"):
             line = next(line for line in report.splitlines() if line.startswith(f"| {metric} |"))
             self.assertNotIn("No disponible", line, line)

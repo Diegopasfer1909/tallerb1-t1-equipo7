@@ -13,9 +13,9 @@ import requests
 from src.models.economic_indicator import EconomicIndicator
 from src.models.price_history import PriceHistory
 from src.providers import (
-    AlfredAPI,
     AlphaVantageAPI,
     DataCoverageError,
+    FredAPI,
     ProviderError,
     YahooFinanceAPI,
 )
@@ -208,35 +208,38 @@ class ProviderTests(unittest.TestCase):
             api.get_prices("IBM", "2026-10-22", "2026-10-24")
         sleep.assert_called_once_with(1.1)
 
-    def test_alfred_retains_missing_values_and_metadata(self):
+    def test_fred_retains_missing_values_and_metadata(self):
         session = session_for(METADATA, OBSERVATIONS)
-        result = AlfredAPI("test-key", session=session).get_series(
-            "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
+        result = FredAPI("test-key", session=session).get_series(
+            "DGS10", "2026-10-22", "2026-10-25"
         )
         self.assertEqual(result.units, "Percent")
         self.assertEqual(result.frequency, "Daily")
         self.assertEqual(result.missing_count, 1)
         self.assertTrue(pd.isna(result.values.iloc[1]))
         self.assertAlmostEqual(result.mean, 4.1)
+        self.assertEqual(result.source, "fred")
         params = session.get.call_args.kwargs["params"]
         self.assertEqual(params["observation_end"], "2026-10-24")
+        # Última versión de la serie, sin consultar el archivo de versiones (ALFRED).
+        self.assertNotIn("realtime_start", params)
 
-    def test_alfred_pagination(self):
+    def test_fred_pagination(self):
         first = {"count": 3, "observations": OBSERVATIONS["observations"][:2]}
         second = {"count": 3, "observations": OBSERVATIONS["observations"][2:]}
         session = session_for(METADATA, first, second)
-        result = AlfredAPI("test-key", session=session).get_series(
-            "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
+        result = FredAPI("test-key", session=session).get_series(
+            "DGS10", "2026-10-22", "2026-10-25"
         )
         self.assertEqual(len(result.values), 3)
         self.assertEqual(session.get.call_args.kwargs["params"]["offset"], 2)
 
-    def test_alfred_rejects_malformed_and_all_missing_values(self):
+    def test_fred_rejects_malformed_and_all_missing_values(self):
         for value in ("bad-number", "."):
             observations = {"count": 1, "observations": [{"date": "2026-10-22", "value": value}]}
             with self.assertRaises((ProviderError, ValueError)):
-                AlfredAPI("test-key", session=session_for(METADATA, observations)).get_series(
-                    "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
+                FredAPI("test-key", session=session_for(METADATA, observations)).get_series(
+                    "DGS10", "2026-10-22", "2026-10-25"
                 )
 
     def test_yahoo_preserves_extras_and_normalizes_local_dates(self):
@@ -371,66 +374,7 @@ class ProviderTests(unittest.TestCase):
     def test_missing_key_is_actionable(self):
         with patch.dict("os.environ", {}, clear=True):
             with self.assertRaisesRegex(ValueError, "FRED_API_KEY"):
-                AlfredAPI()
-
-    def test_alfred_uses_values_as_published_without_later_revisions(self):
-        def version(date, value, published, replaced="9999-12-31"):
-            return {
-                "date": date,
-                "value": value,
-                "realtime_start": published,
-                "realtime_end": replaced,
-            }
-
-        observations = {
-            "count": 4,
-            "observations": [
-                # Publicado antes del periodo: se conoce desde su primer día.
-                version("2026-07-01", "99", "2026-08-12"),
-                version("2026-08-01", "100", "2026-09-12", "2026-10-14"),
-                # Revisión de agosto publicada a la vez que el dato de septiembre.
-                version("2026-08-01", "101", "2026-10-15"),
-                version("2026-09-01", "102", "2026-10-15"),
-            ],
-        }
-        session = session_for(METADATA, observations)
-        result = AlfredAPI("test-key", session=session).get_series(
-            "CPIAUCSL", "2026-09-01", "2026-11-01"
-        )
-        self.assertTrue(result.point_in_time)
-        self.assertEqual(result.source, "alfred")
-        self.assertEqual(
-            result.values.to_dict(),
-            {
-                pd.Timestamp("2026-09-01"): 99.0,
-                pd.Timestamp("2026-09-12"): 100.0,
-                pd.Timestamp("2026-10-15"): 102.0,
-            },
-        )
-        # A 1 de octubre se conocía el primer dato de agosto, no su revisión posterior.
-        self.assertEqual(result.as_of(pd.DatetimeIndex(["2026-10-01"]), 45).iloc[0], 100)
-        params = session.get.call_args.kwargs["params"]
-        self.assertEqual(params["realtime_start"], "2026-09-01")
-        self.assertEqual(params["realtime_end"], "2026-10-31")
-        expected_start = pd.Timestamp("2026-09-01") - pd.Timedelta(days=120)
-        self.assertEqual(params["observation_start"], expected_start.date().isoformat())
-
-    def test_alfred_without_published_values_is_a_data_error(self):
-        observations = {
-            "count": 1,
-            "observations": [
-                {
-                    "date": "2026-09-01",
-                    "value": ".",
-                    "realtime_start": "2026-10-15",
-                    "realtime_end": "9999-12-31",
-                }
-            ],
-        }
-        with self.assertRaises(ValueError):
-            AlfredAPI("test-key", session=session_for(METADATA, observations)).get_series(
-                "CPIAUCSL", "2026-09-01", "2026-11-01"
-            )
+                FredAPI()
 
     def test_rejected_key_shows_the_provider_reason_without_the_key(self):
         response = Mock()
@@ -442,9 +386,7 @@ class ProviderTests(unittest.TestCase):
         session = Mock(spec=requests.Session)
         session.get.return_value = response
         with self.assertRaises(ProviderError) as caught:
-            AlfredAPI("bad-key", session=session).get_series(
-                "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
-            )
+            FredAPI("bad-key", session=session).get_series("DGS10", "2026-10-22", "2026-10-25")
         self.assertIn("HTTP 400", str(caught.exception))
         self.assertIn("not registered", str(caught.exception))
         self.assertNotIn("bad-key", str(caught.exception))
@@ -499,12 +441,10 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaisesRegex(DataCoverageError, "IBM"):
                 YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
 
-    def test_alfred_rejects_incomplete_metadata_before_downloading_observations(self):
+    def test_fred_rejects_incomplete_metadata_before_downloading_observations(self):
         session = session_for({"seriess": [{"id": "DGS10", "units": "Percent"}]}, OBSERVATIONS)
         with self.assertRaises(ProviderError):
-            AlfredAPI("test-key", session=session).get_series(
-                "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
-            )
+            FredAPI("test-key", session=session).get_series("DGS10", "2026-10-22", "2026-10-25")
         self.assertEqual(session.get.call_count, 1)
 
 

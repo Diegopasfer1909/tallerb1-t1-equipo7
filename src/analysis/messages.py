@@ -6,7 +6,7 @@ NO_RISK_FREE_RATE = (
 )
 NO_RISK_FREE_RATE_NOTE = (
     "No se ha cargado un tipo de interés de referencia. Consulta las incidencias de descarga y "
-    "la clave FRED_API_KEY, que también da acceso a ALFRED."
+    "la clave FRED_API_KEY."
 )
 RATE_UNITS = (
     "El tipo de interés de referencia debe ser una tasa anual expresada en porcentaje. No se "
@@ -32,7 +32,7 @@ SORTINO_UNDEFINED = (
 
 NO_INFLATION_NOTE = (
     "No se ha cargado un índice de precios de consumo. Consulta las incidencias de descarga y "
-    "la clave FRED_API_KEY, que también da acceso a ALFRED."
+    "la clave FRED_API_KEY."
 )
 INFLATION_UNITS = (
     "Para calcular la inflación se necesita un índice de precios de consumo, no una tasa de "
@@ -92,12 +92,7 @@ UNKNOWN_ADJUSTMENT = (
 )
 DROPPED_ROWS = "{symbol}: se han descartado {rows} fechas sin precio de cierre."
 ECONOMIC_DATA_TIMING = (
-    "Algunos datos económicos se sitúan en la fecha a la que corresponden, aunque se publicaran "
-    "más tarde, y pueden incluir revisiones posteriores: el resultado puede usar información que "
-    "entonces no se conocía (sesgo de anticipación)."
-)
-ECONOMIC_DATA_POINT_IN_TIME = (
-    "Los datos económicos se usan tal como se publicaron: en cada fecha se toma el último dato "
-    "conocido entonces, sin revisiones posteriores ni cifras aún no publicadas. Así se evita el "
-    "sesgo de anticipación (look-ahead bias)."
+    "Los datos económicos se sitúan en la fecha a la que corresponden e incluyen las revisiones "
+    "posteriores: miden lo que ocurrió en el período, no lo que se conocía en cada fecha. Es lo "
+    "adecuado para estas medidas, que se calculan al final y no intervienen en decisiones."
 )

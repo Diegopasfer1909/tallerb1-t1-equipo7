@@ -27,7 +27,7 @@ amplían lo que se puede hacer. Para añadirlas, copia `.env.example` a `.env` y
 completa las que quieras; el programa busca `.env` en la carpeta desde la que lo
 ejecutas y en las superiores.
 
-| Sin clave | Con `ALPHA_VANTAGE_API_KEY` | Con `FRED_API_KEY` (ALFRED) |
+| Sin clave | Con `ALPHA_VANTAGE_API_KEY` | Con `FRED_API_KEY` |
 | --- | --- | --- |
 | Precios y fichas de Yahoo Finance, conversión de divisas, Monte Carlo, gráficos e informe con el índice de referencia | `--provider alpha_vantage` | El informe añade inflación, rentabilidad real, tipo de interés y las ratios de Sharpe y Sortino |
 
@@ -305,30 +305,28 @@ si una descarga falla.
 
 Las fuentes auxiliares se mantienen separadas: el índice de referencia y los
 cambios de divisa automáticos se consultan en Yahoo Finance; la inflación y el
-tipo de interés se consultan en ALFRED. Elegir Alpha Vantage para los activos no
+tipo de interés se consultan en FRED. Elegir Alpha Vantage para los activos no
 cambia estas referencias. El informe identifica la fuente de cada activo y de
 cada referencia utilizada.
 
-### Datos económicos tal como se publicaron (ALFRED)
+### Datos económicos: FRED y no ALFRED
 
-FRED ofrece la última versión de cada serie: incluye revisiones posteriores y sitúa
-cada dato en el periodo al que corresponde, aunque se publicara semanas después. Usar
-esa serie en un análisis del pasado introduce un sesgo de anticipación (look-ahead
-bias): el resultado utiliza cifras que entonces no se conocían.
+La inflación y el tipo de interés se consultan en FRED, que ofrece la última versión de
+cada serie con cada dato en la fecha a la que corresponde. Solo intervienen en medidas que
+se calculan al final del periodo (rentabilidad real, Sharpe, Sortino) para describir lo
+que ocurrió, y para eso la cifra revisada es la mejor estimación. Ninguna decisión de la
+cartera depende de ellas (los pesos son fijos), así que no hay sesgo de anticipación que
+corregir.
 
-Por eso la inflación y el tipo de interés se consultan en ALFRED, el archivo histórico
-de FRED, que guarda cada versión publicada. En cada fecha del análisis se usa el
-último dato que se había publicado hasta ese día, sin revisiones posteriores. Por
-ejemplo, el IPC de agosto no se tiene en cuenta hasta su publicación en septiembre,
-y si se revisa en octubre, la revisión solo cuenta desde octubre. ALFRED utiliza la
-misma clave que FRED (`FRED_API_KEY`).
+ALFRED, el archivo de versiones de FRED, solo aportaría algo si una regla de inversión
+usara el dato macro disponible en cada fecha. Para estas medidas no mejora el resultado y
+tiene inconvenientes: las series predeterminadas apenas se revisan (los tipos de mercado,
+nunca), el IPC entraría con la primera publicación y desfasado un mes, el €STR solo tiene
+versiones archivadas desde 2022 y la API rechaza más de 2000 versiones por consulta, lo que
+impide pedir el tipo diario de más de unos ocho años.
 
-Los tipos de cambio que se descargan de ALFRED (`load_alfred_fx_rates()`) se usan por
-fecha de observación: son precios de mercado que se conocían ese mismo día y no se
-revisan. Desde Python, `AlfredAPI().get_series(serie, inicio, fin)` devuelve la serie
-tal como se publicó; con `point_in_time=False` devuelve la última versión por fecha de
-observación. Si una serie no tiene versiones archivadas para el periodo, sus medidas
-quedan sin calcular y el informe lo explica.
+Desde Python, `FredAPI().get_series(serie, inicio, fin)` devuelve la serie; los tipos de
+cambio de FRED se descargan con `load_fred_fx_rates()`.
 
 Desde Python, las referencias se cargan con `load_references(divisa, inicio, fin)`
 (o con `load_market_references()` para elegir cada serie) y se pasan al análisis:
@@ -433,7 +431,7 @@ reglas de `.gitleaks.toml`: el escaneo de secretos de GitHub no reconoce las cla
 de Alpha Vantage ni de FRED.
 
 Las pruebas de integración (`tests/integration_apis.py`) consultan las API reales:
-comprueban que las series predeterminadas tienen versiones publicadas en ALFRED, que
+comprueban que las series predeterminadas de FRED siguen actualizándose, que
 Alpha Vantage y Yahoo Finance responden y que el informe incluye inflación y Sharpe.
 No forman parte de la suite anterior. En GitHub Actions las ejecuta el trabajo
 «Integración con las API reales» en cada pull request, tras integrar en `main`, cada
@@ -460,7 +458,7 @@ python -B -m unittest tests.integration_apis -v
 ```
 
 `__pycache__` está excluido
-en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage y ALFRED se
+en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage y FRED se
 conserva en `.cache/market-data`, dentro de la carpeta desde la que ejecutas el
 programa, para evitar consultas repetidas; no contiene las claves en texto y las
 respuestas de más de un día se eliminan automáticamente. Yahoo guarda por símbolo la

@@ -7,7 +7,7 @@ from .constants import FX_MAX_AGE_DAYS, MONTHLY_REFERENCE_MAX_AGE_DAYS
 from .errors import ConfigurationError, PortfolioError
 from .models import Asset, EconomicIndicator, ExchangeRate, FxRates, MarketReferences, Notice
 from .models.currency import MINOR_UNITS
-from .providers import ALFRED_KEY, AlfredAPI, PriceProvider, ProviderError, YahooFinanceAPI
+from .providers import FRED_KEY, FredAPI, PriceProvider, ProviderError, YahooFinanceAPI
 
 # Referencias iniciales que el usuario puede cambiar expresamente.
 REPORT_DEFAULTS = {
@@ -55,27 +55,23 @@ def load_fx_rates(
     return FxRates(rates)
 
 
-def load_alfred_fx_rates(
+def load_fred_fx_rates(
     series: dict[tuple[str, str], str],
     start: str,
     end: str,
-    alfred_provider: AlfredAPI | None = None,
+    fred_provider: FredAPI | None = None,
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
 ) -> FxRates:
-    """Cambios publicados en ALFRED; a diferencia de las referencias, un fallo detiene la carga.
+    """Cambios publicados en FRED; a diferencia de las referencias, un fallo detiene la carga.
 
     El par declara las unidades: {("EUR", "USD"): "DEXUSEU"} indica dólares por euro.
     """
-    alfred = alfred_provider or AlfredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+    fred = fred_provider or FredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
     earlier = _days_before(start, MONTHLY_REFERENCE_MAX_AGE_DAYS)
-    # Un tipo de cambio es un precio de mercado: se conocía en su fecha y no se revisa, así
-    # que se usa por fecha de observación y no por fecha de publicación.
     return FxRates(
         [
-            ExchangeRate(
-                base, quote, alfred.get_series(series_id, earlier, end, point_in_time=False)
-            )
+            ExchangeRate(base, quote, fred.get_series(series_id, earlier, end))
             for (base, quote), series_id in series.items()
         ]
     )
@@ -85,7 +81,7 @@ def load_market_references(
     start: str,
     end: str,
     price_provider: PriceProvider | None = None,
-    alfred_provider: AlfredAPI | None = None,
+    fred_provider: FredAPI | None = None,
     benchmark_symbol: str | None = None,
     inflation_series: str | None = None,
     risk_free_series: str | None = None,
@@ -95,8 +91,8 @@ def load_market_references(
     """Descarga las referencias opcionales y registra sus fallos sin detener el informe.
 
     La inflación requiere un índice de precios; el tipo de referencia, un porcentaje anual.
-    La inflación y el tipo de interés se toman de ALFRED tal como se publicaron en cada
-    fecha. Consultar solo un índice bursátil no requiere clave.
+    La inflación y el tipo de interés se toman de FRED. Consultar solo un índice bursátil
+    no requiere clave.
     """
     notices = []
 
@@ -119,12 +115,12 @@ def load_market_references(
         )
     if inflation_series or risk_free_series:
         try:
-            alfred = alfred_provider or AlfredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+            fred = fred_provider or FredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
         except ConfigurationError:
             notices.append(
                 Notice(
                     "No se han descargado la inflación ni el tipo de interés porque falta "
-                    f"{ALFRED_KEY}. Configúrala en el archivo .env o en el entorno para calcular "
+                    f"{FRED_KEY}. Configúrala en el archivo .env o en el entorno para calcular "
                     "la rentabilidad real y las ratios de Sharpe y Sortino."
                 )
             )
@@ -133,7 +129,7 @@ def load_market_references(
             if inflation_series:
                 inflation = attempt(
                     f"No se ha podido descargar la serie de inflación ({inflation_series}).",
-                    alfred.get_series,
+                    fred.get_series,
                     inflation_series,
                     earlier,
                     end,
@@ -142,7 +138,7 @@ def load_market_references(
                 risk_free_rate = attempt(
                     "No se ha podido descargar la serie de tipo de interés de referencia "
                     f"({risk_free_series}).",
-                    alfred.get_series,
+                    fred.get_series,
                     risk_free_series,
                     earlier,
                     end,

@@ -37,16 +37,9 @@ def asset(symbol, closes, currency="USD", **options) -> Asset:
     return Asset(history(symbol, closes, currency, **options))
 
 
-def indicator(
-    values, dates, units="Percent", name="TEST", frequency="Daily", point_in_time=False
-) -> EconomicIndicator:
+def indicator(values, dates, units="Percent", name="TEST", frequency="Daily") -> EconomicIndicator:
     return EconomicIndicator(
-        name,
-        "test",
-        pd.Series(values, index=dates, dtype=float),
-        units,
-        frequency,
-        point_in_time=point_in_time,
+        name, "test", pd.Series(values, index=dates, dtype=float), units, frequency
     )
 
 

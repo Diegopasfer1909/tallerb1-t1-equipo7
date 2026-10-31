@@ -47,7 +47,7 @@ COUNTRIES = {
 SOURCES = {
     "yahoo": "Yahoo Finance",
     "alpha_vantage": "Alpha Vantage",
-    "alfred": "ALFRED (archivo de FRED)",
+    "fred": "FRED",
 }
 PRICE_BASES = {
     "unadjusted": "Sin ajustar, según el proveedor",

@@ -11,16 +11,12 @@ from ..validation import is_numeric_data, validate_dates
 
 @dataclass(frozen=True)
 class EconomicIndicator:
-    """point_in_time indica que cada fecha muestra el último dato publicado hasta entonces,
-    sin revisiones posteriores; si es False, los valores están en su fecha de observación."""
-
     series_id: str
     source: str
     values: pd.Series
     units: str
     frequency: str
     info: dict = field(default_factory=dict)
-    point_in_time: bool = False
 
     def __post_init__(self) -> None:
         """Valida las observaciones y conserva los datos ausentes en una copia ordenada."""
