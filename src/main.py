@@ -12,7 +12,7 @@ from dotenv import find_dotenv, load_dotenv
 from src.analysis import PortfolioAnalysis
 from src.constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
 from src.errors import ConfigurationError, PortfolioError
-from src.market_loader import load_references
+from src.market_loader import REPORT_DEFAULTS, load_market_references, load_references
 from src.models import Portfolio
 from src.portfolio_loader import load_portfolio
 from src.providers import (
@@ -84,6 +84,7 @@ class RunConfig:
     report_sections: list[str] | None
     report_detail: str
     output_dir: Path | None
+    benchmark: str | None = None
 
 
 def parse_values(items: list[str]) -> dict[str, float]:
@@ -207,6 +208,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Carpeta de los informes. Por defecto: informes, dentro de la carpeta actual",
     )
     options.add_argument(
+        "--benchmark",
+        metavar="SÍMBOLO",
+        help="Índice o fondo de Yahoo Finance contra el que comparar la cartera, por ejemplo "
+        "^IXIC, ^IBEX o URTH. Por defecto, según la divisa: "
+        + ", ".join(f"{code} {item['benchmark_symbol']}" for code, item in REPORT_DEFAULTS.items())
+        + ". Requiere --report o --plots-report",
+    )
+    options.add_argument(
         "--currency",
         metavar="DIVISA",
         default="",
@@ -298,6 +307,12 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
             "Los parámetros de Monte Carlo requieren --simulate o la sección simulation de "
             "--report."
         )
+    benchmark = None
+    if args.benchmark is not None:
+        if not (args.report or args.plots_report):
+            raise PortfolioError("--benchmark requiere --report o --plots-report.")
+        validate_symbols([args.benchmark])
+        benchmark = args.benchmark.strip()
     validate_capital(args.capital)
     currency = args.currency.strip().upper()
     if currency:
@@ -316,6 +331,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         report_sections=args.report_sections,
         report_detail=detail,
         output_dir=args.output_dir,
+        benchmark=benchmark,
     )
 
 
@@ -368,12 +384,27 @@ def run(config: RunConfig) -> None:
         print_simulation(simulation)
     if not (config.report or config.plots_report):
         return
-    # Las referencias económicas solo se descargan para el informe.
+    # Las referencias económicas solo se descargan para el informe; los gráficos solo
+    # necesitan el índice, y únicamente si se elige uno.
     references = None
     if config.report:
         references = load_references(
-            portfolio.currency, config.start, config.end, cache_dir=CACHE_DIR
+            portfolio.currency,
+            config.start,
+            config.end,
+            benchmark_symbol=config.benchmark,
+            cache_dir=CACHE_DIR,
         )
+    elif config.benchmark:
+        references = load_market_references(
+            config.start,
+            config.end,
+            benchmark_symbol=config.benchmark,
+            cache_dir=CACHE_DIR,
+            currency=portfolio.currency,
+        )
+        for notice in references.notices:
+            print(f"Aviso: {notice.message}", file=sys.stderr)
     analysis = portfolio.analyze(references)
     if config.report:
         path = analysis.report(

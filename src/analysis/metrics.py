@@ -1,12 +1,31 @@
-"""Cálculos con rentabilidades expresadas como fracción (0.05 equivale al 5 %)."""
+"""Cálculos con rentabilidades expresadas como fracción (0.05 equivale al 5 %).
+
+Contrato temporal: el crecimiento se anualiza con los días naturales transcurridos, por lo que
+perder fechas intermedias no lo altera. Las medidas de dispersión (volatilidad, Sharpe, Sortino)
+se escalan con periods_per_year y suponen observaciones con esa frecuencia.
+"""
 
 from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
 
+from ..constants import DAYS_PER_YEAR
+
+
+def annualized_growth(values: pd.Series) -> float:
+    """Crecimiento compuesto entre la primera y la última fecha, expresado por año natural.
+
+    Solo depende de los extremos y del tiempo que los separa, no del número de observaciones.
+    """
+    days = (values.index[-1] - values.index[0]).days
+    if days <= 0:
+        return np.nan
+    return float((values.iloc[-1] / values.iloc[0]) ** (DAYS_PER_YEAR / days) - 1)
+
 
 def annualized_return(returns: pd.Series, periods_per_year: int) -> float:
+    """Compone rentabilidades por período, como las de un tipo de interés, a una tasa anual."""
     return float((1 + returns).prod() ** (periods_per_year / len(returns)) - 1)
 
 
@@ -90,7 +109,7 @@ def performance(values: pd.Series, periods_per_year: int) -> pd.Series:
     return pd.Series(
         {
             "total_return": values.iloc[-1] / values.iloc[0] - 1,
-            "annualized_return": annualized_return(returns, periods_per_year),
+            "annualized_return": annualized_growth(values),
             "annualized_volatility": returns.std() * np.sqrt(periods_per_year),
             "max_drawdown": drawdown.min(),
             "period_var_95_return": threshold,

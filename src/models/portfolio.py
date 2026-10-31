@@ -25,6 +25,7 @@ from .asset import Asset
 from .backtest import backtest_allocation
 from .currency import FxRates
 from .price_history import period_returns
+from .snapshot import read_only
 
 if TYPE_CHECKING:
     from ..analysis.result import PortfolioAnalysis
@@ -36,9 +37,11 @@ if TYPE_CHECKING:
 class Portfolio:
     """target_weights asigna a cada símbolo su peso objetivo; los pesos deben sumar 1.
 
-    Los pesos se guardan como una Series en el orden de los activos. Sin reporting_currency,
-    todos los activos deben compartir divisa. La cartera no cambia después de crearse, por lo
-    que la valoración se calcula una sola vez por columna de precios.
+    Los pesos se guardan como una Series de solo lectura en el orden de los activos. Sin
+    reporting_currency, todos los activos deben compartir divisa. La cartera no cambia después
+    de crearse: los historiales, los tipos de cambio y los pesos no se pueden modificar, por lo
+    que la valoración se calcula una sola vez por columna de precios. Para otra composición,
+    crea otra cartera, por ejemplo con dataclasses.replace().
     """
 
     assets: Sequence[Asset]
@@ -112,7 +115,7 @@ class Portfolio:
         values = [weights[symbol] for symbol in symbols]
         validate_weights(values)
         ordered = pd.Series(values, index=symbols, dtype=float)
-        return ordered / ordered.sum()
+        return read_only(ordered / ordered.sum())
 
     @property
     def currency(self) -> str:

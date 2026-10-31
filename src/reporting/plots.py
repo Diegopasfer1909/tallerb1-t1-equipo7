@@ -56,7 +56,11 @@ def _plot_value(axis, analysis: PortfolioAnalysis) -> None:
     else:
         normalized = comparison / comparison.iloc[0] * 100
         axis.plot(normalized.index, normalized["portfolio"], label="Cartera")
-        axis.plot(normalized.index, normalized["benchmark"], label="Índice de referencia")
+        axis.plot(
+            normalized.index,
+            normalized["benchmark"],
+            label=f"Índice de referencia ({analysis.benchmark_symbol})",
+        )
         title = "Evolución en fechas comunes"
     axis.set(title=title, ylabel=f"Base 100 ({analysis.currency})", xlabel="Fecha")
     axis.legend()

@@ -62,8 +62,9 @@ BENCHMARK_COVERAGE_NOTE = (
     "Faltan precios comparables o tipos de cambio del índice para algunas fechas."
 )
 BENCHMARK_COMPARISON = (
-    "Comparación con el índice basada en {dates} fechas comunes, con la misma divisa y columna "
-    "de precios. Revisa si el índice incorpora dividendos."
+    "Comparación con el índice {symbol} basada en {dates} fechas comunes, con la misma divisa y "
+    "columna de precios. Ambas rentabilidades se anualizan por los días naturales entre las "
+    "mismas fechas extremas. Revisa si el índice incorpora dividendos."
 )
 BETA_UNDEFINED = (
     "La rentabilidad del índice de referencia no varía durante el período. No se puede "
@@ -76,8 +77,15 @@ ANNUALIZATION_GAP = (
     "mensuales)."
 )
 SHORT_HISTORY = (
-    "El historial contiene menos de un año de datos. Las estimaciones anuales pueden variar "
-    "mucho según el período elegido."
+    "El historial cubre {days} días naturales, menos de un año. Las estimaciones anuales pueden "
+    "variar mucho según el período elegido."
+)
+SPARSE_SAMPLE = (
+    "Hay {returns} rentabilidades en {days} días naturales; con {periods} períodos por año se "
+    "esperarían unas {expected:.0f}. Faltan fechas comunes entre los activos, y la volatilidad, "
+    "las ratios de Sharpe y Sortino y los parámetros de Monte Carlo suponen observaciones con "
+    "esa frecuencia. La rentabilidad anualizada no se ve afectada: depende del tiempo "
+    "transcurrido."
 )
 PARTIAL_HISTORY = "Al menos un proveedor ha devuelto solo una parte del historial solicitado."
 UNADJUSTED_PRICES = (

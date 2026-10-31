@@ -43,6 +43,8 @@ class RiskWarning:
     observed: float
     threshold: float | None = None
     unit: Unit = "percent"
+    # Activo o sector afectado, tal como lo publica el proveedor; la presentación lo traduce.
+    subject: str | None = None
 
 
 def evaluate_risk(
@@ -64,6 +66,7 @@ def evaluate_risk(
                 f"{largest}: una posición supera el umbral de concentración.",
                 float(weights[largest]),
                 thresholds.asset_weight,
+                subject=largest,
             )
         )
     for sector, weight in sectors.items():
@@ -75,6 +78,7 @@ def evaluate_risk(
                     f"Concentración sectorial: {sector}.",
                     float(weight),
                     thresholds.sector_weight,
+                    subject=sector,
                 )
             )
     pairs = pairs[[weights[a] > 0 and weights[b] > 0 for a, b in pairs.index]]
