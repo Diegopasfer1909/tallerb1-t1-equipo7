@@ -169,7 +169,7 @@ class DiagnosticsTests(unittest.TestCase):
         data, method = text.split("### Notas de metodología")
         self.assertIn("### Datos que revisar", data)
         self.assertIn("No se ha cargado un tipo de interés de referencia", data)
-        self.assertIn("Comparación con el índice basada en 5 fechas comunes", method)
+        self.assertIn("Comparación con el índice INDEX basada en 5 fechas comunes", method)
 
     def test_benchmark_chart_uses_matching_dates_and_converted_currency(self):
         dates = pd.bdate_range("2025-01-01", periods=5)

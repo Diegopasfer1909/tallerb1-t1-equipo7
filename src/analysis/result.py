@@ -72,6 +72,11 @@ class PortfolioAnalysis:
         return correlation_pairs(self.correlations)
 
     @property
+    def benchmark_symbol(self) -> str | None:
+        """Símbolo del índice con el que se compara la cartera, si la comparación fue posible."""
+        return None if self.benchmark_prices is None else str(self.benchmark_prices.name)
+
+    @property
     def benchmark_comparison(self) -> pd.DataFrame:
         """Valores comparables: misma divisa, fechas y base de precios."""
         if self.benchmark_prices is None:

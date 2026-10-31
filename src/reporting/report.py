@@ -13,6 +13,7 @@ from . import texts
 from .formatting import format_date, format_number, format_points
 from .labels import (
     ASSET_TYPES,
+    CHART_TITLES,
     COUNTRIES,
     HOLDINGS_COLUMNS,
     PERCENT_RESULTS,
@@ -202,7 +203,8 @@ def _quality(analysis: PortfolioAnalysis) -> str:
             for symbol, row in quality.iterrows()
         ],
     )
-    parts = [coverage, "### Precios utilizados", prices, texts.PRICE_BASIS_NOTE]
+    note = texts.PRICE_BASIS_NOTES[analysis.price_column]
+    parts = [coverage, "### Precios utilizados", prices, note]
     missing = quality.loc[quality["missing_optional_cells"] > 0, "missing_optional_cells"]
     parts.extend(
         f"- {symbol}: {cells} datos ausentes en columnas opcionales."
@@ -265,13 +267,17 @@ def _simulation_summary(simulation: SimulationResult) -> str:
 def _summary(report: ReportContext) -> str:
     analysis = report.analysis
     metrics = analysis.metrics
+    symbol = analysis.benchmark_symbol
+    benchmark_label = "Diferencia anual frente al índice"
+    if symbol:
+        benchmark_label += f" ({symbol})"
     rows = [
         [
             f"Valor de la cartera hipotética ({analysis.currency})",
             format_number(analysis.values.iloc[-1]),
         ],
         ["Rentabilidad anualizada", format_number(metrics["annualized_return"], True)],
-        ["Diferencia anual frente al índice", format_points(metrics["difference_from_benchmark"])],
+        [benchmark_label, format_points(metrics["difference_from_benchmark"])],
         ["Caída máxima", format_number(metrics["max_drawdown"], True)],
         ["Ratio de Sharpe", format_number(metrics["sharpe"])],
     ]
@@ -280,6 +286,7 @@ def _summary(report: ReportContext) -> str:
         coverage = texts.NO_BENCHMARK_COVERAGE
     else:
         coverage = texts.BENCHMARK_COVERAGE.format(
+            symbol=symbol,
             start=format_date(comparison.index[0]),
             end=format_date(comparison.index[-1]),
             dates=len(comparison),
@@ -298,12 +305,21 @@ def _observed(value: float, unit: str) -> str:
     return format_number(value, percentage=unit == "percent")
 
 
+def _warning_message(warning) -> str:
+    """El análisis conserva el sector del proveedor; el informe lo muestra en español."""
+    if warning.code == "sector_concentration" and warning.subject:
+        return texts.SECTOR_CONCENTRATION.format(
+            sector=SECTORS.get(warning.subject, warning.subject)
+        )
+    return warning.message
+
+
 def _warnings(report: ReportContext) -> str:
     analysis = report.analysis
     rows = [
         [
             SEVERITIES[warning.severity],
-            warning.message,
+            _warning_message(warning),
             _observed(warning.observed, warning.unit),
             _observed(warning.threshold, warning.unit) if warning.threshold is not None else "—",
         ]
@@ -411,6 +427,7 @@ def _performance(report: ReportContext) -> str:
         [
             _portfolio_metrics(analysis),
             texts.PERFORMANCE_NOTE,
+            texts.RETURN_MEASURES_NOTE,
             "### Análisis de cada activo",
             _asset_performance(analysis),
             "### Estimaciones a partir del historial",
@@ -543,7 +560,7 @@ def build_report(
     for number, key in enumerate(selected, 1):
         body = _BUILDERS[key](report)
         for chart, file in charts.get(key, {}).items():
-            body += f"\n\n![{SECTION_TITLES[key]}: {chart}]({file})"
+            body += f"\n\n![{CHART_TITLES.get(chart, chart)}]({file})"
         title = f"{number}. {SECTION_TITLES[key]}"
         if detail == "compact" and key not in ALWAYS_OPEN:
             blocks.append(f"<details>\n<summary>{title}</summary>\n\n{body}\n\n</details>")

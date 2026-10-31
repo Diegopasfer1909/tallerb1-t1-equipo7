@@ -6,10 +6,11 @@ SUMMARY_CAPITAL = (
     "{total_return}. El valor mostrado corresponde a la última fecha común y no representa el "
     "saldo real de una cuenta."
 )
-BENCHMARK_COVERAGE = "Comparación con el índice: {start} – {end}, {dates} fechas comunes."
+BENCHMARK_COVERAGE = "Comparación con el índice {symbol}: {start} – {end}, {dates} fechas comunes."
 NO_BENCHMARK_COVERAGE = "Comparación con el índice no disponible; consulta las advertencias."
 
 # Advertencias
+SECTOR_CONCENTRATION = "Concentración sectorial: {sector}."
 NO_RISK_WARNINGS = "No se superan los umbrales de riesgo configurados."
 THRESHOLDS_NOTE = (
     "Los umbrales son orientativos. La ausencia de avisos no implica ausencia de riesgo."
@@ -33,6 +34,15 @@ PERFORMANCE_NOTE = (
     "la cartera con el índice se utilizan las fechas en las que hay datos de ambos. La "
     "rentabilidad del tipo de interés de referencia se aproxima mediante capitalización; no "
     "representa la rentabilidad real de invertir en un bono."
+)
+RETURN_MEASURES_NOTE = (
+    "**Por qué las medidas de rentabilidad pueden discrepar:** la rentabilidad anualizada es el "
+    "crecimiento compuesto entre la primera y la última fecha, repartido por los días naturales "
+    "transcurridos. Las ratios de Sharpe y Sortino y la μ histórica usan la media aritmética de "
+    "las rentabilidades por período, que no es menor que el crecimiento compuesto equivalente: "
+    "con +20 % y −19 %, la media es +0,5 %, pero el valor cae un 2,8 % (1,20 × 0,81 − 1). Por "
+    "eso un Sharpe positivo puede convivir con una rentabilidad anualizada negativa. En Monte "
+    "Carlo, μ es además la deriva del GBM, no el crecimiento esperado exacto."
 )
 ESTIMATES_NOTE = (
     "Las estimaciones históricas utilizan la media de las rentabilidades simples por período "
@@ -110,11 +120,20 @@ SIMULATION_LIMITATIONS = (
 )
 
 # Datos y referencias
-PRICE_BASIS_NOTE = (
-    "La valoración usa Close. Adj Close incorpora además dividendos y otras distribuciones; la "
-    "columna «Ajuste de los precios» indica cómo ajusta cada proveedor sus cierres. Tener Adj "
-    "Close disponible no significa que se haya usado en este análisis."
-)
+# Explicación de la base de precios según la columna utilizada en el análisis.
+PRICE_BASIS_NOTES = {
+    "Close": (
+        "La valoración usa Close. Adj Close incorpora además dividendos y otras distribuciones; "
+        "la columna «Ajuste de los precios» indica cómo ajusta cada proveedor sus cierres. Tener "
+        "Adj Close disponible no significa que se haya usado en este análisis."
+    ),
+    "Adj Close": (
+        "El análisis usa Adj Close, que incorpora dividendos y otras distribuciones: los valores "
+        "de la cartera estiman su crecimiento con reinversión y pueden diferir del valor de "
+        "mercado de las posiciones. La columna «Ajuste de los precios» indica cómo ajusta cada "
+        "proveedor sus cierres."
+    ),
+}
 CONFIGURATION = (
     "**Configuración utilizada:** las rentabilidades se calculan con los precios de la columna "
     "{price_column}, tomando {periods_per_year} períodos por año. La información de los activos "
@@ -132,7 +151,8 @@ CALCULATION_CRITERIA = (
 GLOSSARY = "\n".join(
     [
         "- **Rentabilidad anualizada:** rentabilidad anual equivalente al crecimiento del "
-        "período analizado.",
+        "período analizado, según los días naturales transcurridos (365,25 por año); no depende "
+        "del número de observaciones.",
         "- **Rentabilidad real:** rentabilidad después de descontar la inflación.",
         "- **Volatilidad:** mide cuánto fluctúan las rentabilidades; no indica cuánto se puede "
         "llegar a perder.",

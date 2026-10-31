@@ -57,6 +57,14 @@ PRICE_BASES = {
     "adjusted_growth": "Crecimiento con cierre ajustado por desdoblamientos y distribuciones",
 }
 SEVERITIES = {"high": "Alta", "medium": "Media"}
+# Texto alternativo de cada gráfico del informe, con las claves de CHARTS.
+CHART_TITLES = {
+    "portfolio": "Evolución, caídas, correlaciones y contribución al riesgo de la cartera",
+    "assets": "Evolución comparada de los activos",
+    "risk_return": "Riesgo y rentabilidad histórica de cada activo",
+    "distribution": "Rentabilidades logarítmicas frente a una distribución normal",
+    "simulation": "Trayectorias simuladas y distribución del valor final",
+}
 
 # Columnas de Portfolio.holdings() en el orden en que se presentan.
 HOLDINGS_COLUMNS = {

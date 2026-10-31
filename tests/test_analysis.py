@@ -86,17 +86,19 @@ class AnalysisTests(unittest.TestCase):
         )
 
     def test_compounding_drawdown_and_current_concentration(self):
-        portfolio = buy_and_hold([Asset(history("A", [100, 120, 96]))], [10])
+        # Cuatro años exactos de 365,25 días: el crecimiento se reparte por tiempo transcurrido.
+        dates = pd.to_datetime(["2024-01-01", "2026-01-01", "2028-01-01"])
+        portfolio = buy_and_hold([Asset(history("A", [100, 120, 96], dates=dates))], [10])
         analysis = portfolio.analyze(periods_per_year=2)
         self.assertAlmostEqual(analysis.metrics["total_return"], -0.04)
-        self.assertAlmostEqual(analysis.metrics["annualized_return"], -0.04)
+        self.assertAlmostEqual(analysis.metrics["annualized_return"], 0.96**0.25 - 1)
         self.assertAlmostEqual(analysis.metrics["max_drawdown"], -0.2)
         self.assertAlmostEqual(analysis.metrics["effective_asset_count"], 1)
         self.assertAlmostEqual(analysis.risk_contributions["A"], 1)
         self.assertTrue(np.isnan(analysis.metrics["sharpe"]))
 
     def test_inflation_reference_and_benchmark_use_consistent_periods(self):
-        dates = pd.to_datetime(["2026-01-01", "2026-02-01", "2026-03-01"])
+        dates = pd.to_datetime(["2024-01-01", "2026-01-01", "2028-01-01"])
         references = MarketReferences(
             benchmark=history("INDEX", [100, 102, 104], dates=dates),
             inflation=indicator([100, 101, 103], dates, "Index 2020=100"),
@@ -104,11 +106,11 @@ class AnalysisTests(unittest.TestCase):
         )
         portfolio = buy_and_hold([Asset(history("A", [100, 110, 108], dates=dates))], [1])
         metrics = portfolio.analyze(references, periods_per_year=2).metrics
-        self.assertAlmostEqual(metrics["annualized_return"], 0.08)
-        self.assertAlmostEqual(metrics["annualized_inflation"], 0.03)
-        self.assertAlmostEqual(metrics["real_annualized_return"], 1.08 / 1.03 - 1)
+        self.assertAlmostEqual(metrics["annualized_return"], 1.08**0.25 - 1)
+        self.assertAlmostEqual(metrics["annualized_inflation"], 1.03**0.25 - 1)
+        self.assertAlmostEqual(metrics["real_annualized_return"], (1.08 / 1.03) ** 0.25 - 1)
         self.assertAlmostEqual(metrics["reference_annualized_return"], 0.02)
-        self.assertAlmostEqual(metrics["difference_from_benchmark"], 0.04)
+        self.assertAlmostEqual(metrics["difference_from_benchmark"], 1.08**0.25 - 1.04**0.25)
         self.assertTrue(np.isfinite(metrics["sharpe"]))
 
     def test_bad_or_stale_economic_data_omits_metrics_instead_of_assuming_zero(self):
@@ -360,7 +362,7 @@ class AnalysisTests(unittest.TestCase):
         self.assertTrue(any("periods_per_year" in notice.message for notice in daily.notices))
         monthly = portfolio.analyze(periods_per_year=12)
         self.assertFalse(any("periods_per_year" in notice.message for notice in monthly.notices))
-        self.assertAlmostEqual(monthly.metrics["annualized_return"], 1.1**12 - 1)
+        self.assertAlmostEqual(monthly.metrics["annualized_return"], 1.21 ** (365.25 / 59) - 1)
 
     def test_monthly_inflation_allows_normal_publication_lag(self):
         dates = pd.to_datetime(["2026-09-01", "2026-10-01", "2026-10-27"])

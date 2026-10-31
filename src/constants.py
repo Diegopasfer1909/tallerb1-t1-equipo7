@@ -3,6 +3,11 @@
 from typing import Literal
 
 PERIODS_PER_YEAR = 252
+# Días naturales por año con los que se anualiza el crecimiento entre dos fechas.
+DAYS_PER_YEAR = 365.25
+# Duración mínima de un historial «de un año»: el margen absorbe fines de semana y festivos
+# en los extremos del período pedido.
+ONE_YEAR_MIN_DAYS = 350
 DEFAULT_CAPITAL = 10_000
 DEFAULT_SEED = 42
 
