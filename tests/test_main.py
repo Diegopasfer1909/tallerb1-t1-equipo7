@@ -464,7 +464,7 @@ class MainTests(unittest.TestCase):
                 patch("src.main.load_dotenv"),
                 patch("src.main.YahooFinanceAPI") as yahoo,
                 patch("src.market_loader.YahooFinanceAPI") as index_provider,
-                patch("src.providers.alfred.AlfredAPI._query") as alfred_requests,
+                patch("src.providers.fred.FredAPI._query") as fred_requests,
                 redirect_stdout(io.StringIO()),
                 redirect_stderr(io.StringIO()) as errors,
             ):
@@ -473,7 +473,7 @@ class MainTests(unittest.TestCase):
                 arguments = ["--assets", "IBM:1", "--report", "--report-sections", "summary"]
                 self.assertEqual(main([*arguments, "warnings", "--output-dir", str(reports)]), 0)
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
-        alfred_requests.assert_not_called()
+        fred_requests.assert_not_called()
         self.assertIn("Aviso: FRED_API_KEY no está configurada", errors.getvalue())
         self.assertIn("porque falta FRED_API_KEY", report)
         self.assertIn("Comparación con el índice", report)

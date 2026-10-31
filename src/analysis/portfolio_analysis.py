@@ -271,13 +271,8 @@ def _quality_notices(
         notices.append(Notice(messages.UNKNOWN_ADJUSTMENT))
     for symbol, rows in quality.loc[quality["dropped_rows"] > 0, "dropped_rows"].items():
         notices.append(Notice(messages.DROPPED_ROWS.format(symbol=symbol, rows=rows)))
-    indicators = [i for i in (references.inflation, references.risk_free_rate) if i is not None]
-    if indicators:
-        point_in_time = all(indicator.point_in_time for indicator in indicators)
-        timing = (
-            messages.ECONOMIC_DATA_POINT_IN_TIME if point_in_time else messages.ECONOMIC_DATA_TIMING
-        )
-        notices.append(Notice(timing, kind="method"))
+    if references.inflation is not None or references.risk_free_rate is not None:
+        notices.append(Notice(messages.ECONOMIC_DATA_TIMING, kind="method"))
     return notices
 
 

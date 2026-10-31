@@ -13,7 +13,7 @@ keywords = ["alpha_vantage", "alphavantage", "apikey", "api_key"]
 
 [[rules]]
 id = "fred-api-key"
-description = "Clave de FRED o ALFRED (32 caracteres hexadecimales)"
+description = "Clave de FRED (32 caracteres hexadecimales)"
 regex = '''(?i)(?:fred\w*key|api_key)\W{0,5}([a-f0-9]{32})\b'''
 secretGroup = 1
 keywords = ["fred", "api_key"]

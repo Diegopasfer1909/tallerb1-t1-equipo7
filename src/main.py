@@ -16,8 +16,8 @@ from src.market_loader import load_references
 from src.models import Portfolio
 from src.portfolio_loader import load_portfolio
 from src.providers import (
-    ALFRED_KEY,
     ALPHA_VANTAGE_KEY,
+    FRED_KEY,
     AlphaVantageAPI,
     PriceProvider,
     ProviderError,
@@ -37,7 +37,7 @@ from src.validation import (
     validate_weights,
 )
 
-# Caché de Yahoo Finance, Alpha Vantage y ALFRED, relativa a la carpeta desde la que se
+# Caché de Yahoo Finance, Alpha Vantage y FRED, relativa a la carpeta desde la que se
 # ejecuta el programa. Las respuestas se reutilizan durante un día, por símbolo y serie.
 CACHE_DIR = Path(".cache") / "market-data"
 SIMULATION_OPTIONS = ("steps", "simulations", "seed", "confidence")
@@ -198,7 +198,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--report",
         action="store_true",
         help="Guardar el informe en formato Markdown con sus gráficos. Con "
-        f"{ALFRED_KEY} incluye además inflación y tipo de interés de ALFRED",
+        f"{FRED_KEY} incluye además inflación y tipo de interés de FRED",
     )
     options.add_argument(
         "--output-dir",
@@ -333,9 +333,9 @@ def check_api_keys(config: RunConfig) -> list[str]:
             "el entorno. Sin clave puedes usar --provider yahoo, que no la necesita."
         )
     warnings = []
-    if config.report and not has_api_key(ALFRED_KEY):
+    if config.report and not has_api_key(FRED_KEY):
         warnings.append(
-            f"{ALFRED_KEY} no está configurada: el informe se generará sin inflación ni tipo de "
+            f"{FRED_KEY} no está configurada: el informe se generará sin inflación ni tipo de "
             "interés de referencia, por lo que no incluirá la rentabilidad real ni las ratios "
             "de Sharpe y Sortino. El índice de referencia (Yahoo Finance) sí se incluye."
         )

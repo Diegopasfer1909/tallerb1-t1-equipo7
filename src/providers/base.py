@@ -1,4 +1,4 @@
-"""Contrato común de los proveedores y cliente HTTP compartido por Alpha Vantage y ALFRED."""
+"""Contrato común de los proveedores y cliente HTTP compartido por Alpha Vantage y FRED."""
 
 import contextlib
 import hashlib
