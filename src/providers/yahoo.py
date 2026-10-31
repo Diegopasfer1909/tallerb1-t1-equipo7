@@ -1,12 +1,24 @@
 """Precios históricos y ficha del activo en Yahoo Finance."""
 
 import json
+from pathlib import Path
 
 import pandas as pd
 import yfinance as yf
 
+from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
-from .base import ProviderError, cache_path, date_range, normalize_info, read_cache, write_cache
+from ..validation import date_range
+from .base import (
+    DataCoverageError,
+    ProviderError,
+    build_profile,
+    cache_path,
+    drop_missing_closes,
+    prune_cache,
+    read_cache,
+    write_cache,
+)
 
 FIELDS = {
     "currency": ("currency",),
@@ -19,6 +31,11 @@ FIELDS = {
     "pe_ratio": ("trailingPE",),
 }
 ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": "fund"}
+PROFILE_ISSUE = (
+    "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya "
+    "alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los "
+    "datos de la empresa; indica la divisa expresamente."
+)
 
 
 class YahooFinanceAPI:
@@ -26,14 +43,22 @@ class YahooFinanceAPI:
 
     Con cache_dir, cada símbolo guarda su ficha y un único historial que cubre todas las
     fechas ya consultadas, de modo que cambiar otros activos, los parámetros de la
-    simulación o acortar el intervalo no repite descargas. include_info=False omite la
-    ficha cuando solo se necesitan precios, como en los tipos de cambio.
+    simulación o acortar el intervalo no repite descargas. Con cache_ttl igual a cero no se
+    utiliza la caché. include_info=False omite la ficha cuando solo se necesitan precios,
+    como en los tipos de cambio.
     """
 
-    def __init__(self, cache_dir=None, cache_ttl: float = 86400, *, include_info: bool = True):
-        self.cache_dir = cache_dir
+    def __init__(
+        self,
+        cache_dir: Path | None = None,
+        cache_ttl: float = 86400,
+        *,
+        include_info: bool = True,
+    ):
+        self.cache_dir = Path(cache_dir) if cache_dir is not None and cache_ttl > 0 else None
         self.cache_ttl = cache_ttl
         self.include_info = include_info
+        prune_cache(self.cache_dir, cache_ttl)
 
     def get_info(self, symbol: str) -> dict:
         """Consulta la ficha del activo; yfinance la obtiene con una petición adicional."""
@@ -59,22 +84,29 @@ class YahooFinanceAPI:
         first, last = date_range(start, end)
         history = self._history(symbol, first, last, adjusted)
         history = history.loc[(history.index >= first) & (history.index < last)]
+        prices, dropped = drop_missing_closes(history)
+        if prices.empty:
+            raise DataCoverageError(
+                f"Yahoo no ha devuelto precios de {symbol} dentro de las fechas solicitadas."
+            )
+        return PriceHistory(
+            symbol,
+            "yahoo",
+            prices,
+            profile=self._profile(symbol),
+            # Yahoo ajusta Close por desdoblamientos incluso con auto_adjust=False.
+            price_basis="adjusted" if adjusted else "split_adjusted",
+            dropped_rows=dropped,
+        )
 
-        # La ficha es complementaria: si falla, se conservan los precios ya descargados.
-        raw = {}
-        issue = None
-        if self.include_info:
-            try:
-                raw = self.get_info(symbol)
-            except ProviderError:
-                issue = "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los datos de la empresa; indica la divisa expresamente."
-        info = normalize_info(raw, FIELDS, ASSET_TYPES)
-        if issue:
-            info["metadata_issue"] = issue
-        # Yahoo ajusta Close por desdoblamientos incluso con auto_adjust=False.
-        info["price_adjustment"] = "adjusted" if adjusted else "split_adjusted"
-        info["auto_adjust"] = adjusted
-        return PriceHistory(symbol, "yahoo", history, info=info)
+    def _profile(self, symbol: str) -> AssetProfile:
+        """La ficha es complementaria: si falla, se conservan los precios ya descargados."""
+        if not self.include_info:
+            return build_profile({}, FIELDS, ASSET_TYPES)
+        try:
+            return build_profile(self.get_info(symbol), FIELDS, ASSET_TYPES)
+        except ProviderError:
+            return build_profile({}, FIELDS, ASSET_TYPES, issue=PROFILE_ISSUE)
 
     def _history(
         self, symbol: str, first: pd.Timestamp, last: pd.Timestamp, adjusted: bool

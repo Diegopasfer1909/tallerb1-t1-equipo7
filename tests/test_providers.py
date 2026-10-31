@@ -1,6 +1,8 @@
 """Offline contract tests: no API keys, network requests, or paid endpoints."""
 
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -11,12 +13,13 @@ import requests
 from src.models.economic_indicator import EconomicIndicator
 from src.models.price_history import PriceHistory
 from src.providers import (
+    AlfredAPI,
     AlphaVantageAPI,
     DataCoverageError,
-    FredAPI,
     ProviderError,
     YahooFinanceAPI,
 )
+from src.providers.base import ApiClient, has_api_key
 
 
 def session_for(*payloads):
@@ -68,6 +71,15 @@ OBSERVATIONS = {
 
 
 class ProviderTests(unittest.TestCase):
+    def setUp(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        usage = patch.dict(
+            os.environ, {"ALPHA_VANTAGE_USAGE_DB": str(Path(folder.name) / "usage.sqlite3")}
+        )
+        usage.start()
+        self.addCleanup(usage.stop)
+
     def test_economic_indicator_rejects_booleans(self):
         dates = pd.date_range("2026-10-01", periods=2)
         with self.assertRaisesRegex(TypeError, "no booleanos"):
@@ -89,7 +101,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(series.prices["Close"].tolist(), [102, 104])
         self.assertEqual(series.mean["Close"], 103)
         self.assertAlmostEqual(series.std["Close"], 2**0.5)
-        self.assertEqual(series.info["price_adjustment"], "unadjusted")
+        self.assertEqual(series.price_basis, "unadjusted")
         self.assertEqual(session.get.call_args.kwargs["timeout"], 30)
 
     def test_end_date_is_exclusive(self):
@@ -106,7 +118,7 @@ class ProviderTests(unittest.TestCase):
             "test-key", session=session_for(alpha_payload()), allow_partial=True
         )
         result = partial.get_prices("IBM", "2026-01-01", "2026-10-24")
-        self.assertTrue(result.info["partial_history"])
+        self.assertTrue(result.partial_history)
 
     def test_alpha_rejects_adjusted_and_invalid_dates_before_request(self):
         session = session_for()
@@ -134,13 +146,13 @@ class ProviderTests(unittest.TestCase):
         result = AlphaVantageAPI("test-key", session=session, include_info=True).get_prices(
             "IBM", "2026-10-22", "2026-10-24"
         )
-        self.assertEqual(result.info["name"], "IBM Corp")
-        self.assertEqual(result.info["currency"], "USD")
-        self.assertEqual(result.info["asset_type"], "stock")
-        self.assertEqual(result.info["beta"], 0)
-        self.assertEqual(result.info["market_cap"], 1000000)
-        self.assertTrue(pd.isna(result.info["pe_ratio"]))
-        self.assertEqual(result.info["raw"], overview)
+        self.assertEqual(result.profile.name, "IBM Corp")
+        self.assertEqual(result.profile.currency, "USD")
+        self.assertEqual(result.profile.asset_type, "stock")
+        self.assertEqual(result.profile.beta, 0)
+        self.assertEqual(result.profile.market_cap, 1000000)
+        self.assertTrue(pd.isna(result.profile.pe_ratio))
+        self.assertEqual(result.profile.raw, overview)
         self.assertEqual(session.get.call_count, 2)
 
     def test_provider_errors_in_http_200_are_not_cached(self):
@@ -158,7 +170,7 @@ class ProviderTests(unittest.TestCase):
             "IBM", "2026-10-22", "2026-10-24"
         )
         self.assertEqual(len(result.prices), 2)
-        self.assertIn("metadata_issue", result.info)
+        self.assertIn("Alpha Vantage", result.profile.issue)
 
     def test_network_errors_do_not_leak_keys(self):
         session = Mock(spec=requests.Session)
@@ -196,10 +208,10 @@ class ProviderTests(unittest.TestCase):
             api.get_prices("IBM", "2026-10-22", "2026-10-24")
         sleep.assert_called_once_with(1.1)
 
-    def test_fred_retains_missing_values_and_metadata(self):
+    def test_alfred_retains_missing_values_and_metadata(self):
         session = session_for(METADATA, OBSERVATIONS)
-        result = FredAPI("test-key", session=session).get_series(
-            "DGS10", "2026-10-22", "2026-10-25"
+        result = AlfredAPI("test-key", session=session).get_series(
+            "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
         )
         self.assertEqual(result.units, "Percent")
         self.assertEqual(result.frequency, "Daily")
@@ -209,22 +221,22 @@ class ProviderTests(unittest.TestCase):
         params = session.get.call_args.kwargs["params"]
         self.assertEqual(params["observation_end"], "2026-10-24")
 
-    def test_fred_pagination(self):
+    def test_alfred_pagination(self):
         first = {"count": 3, "observations": OBSERVATIONS["observations"][:2]}
         second = {"count": 3, "observations": OBSERVATIONS["observations"][2:]}
         session = session_for(METADATA, first, second)
-        result = FredAPI("test-key", session=session).get_series(
-            "DGS10", "2026-10-22", "2026-10-25"
+        result = AlfredAPI("test-key", session=session).get_series(
+            "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
         )
         self.assertEqual(len(result.values), 3)
         self.assertEqual(session.get.call_args.kwargs["params"]["offset"], 2)
 
-    def test_fred_rejects_malformed_and_all_missing_values(self):
+    def test_alfred_rejects_malformed_and_all_missing_values(self):
         for value in ("bad-number", "."):
             observations = {"count": 1, "observations": [{"date": "2026-10-22", "value": value}]}
             with self.assertRaises((ProviderError, ValueError)):
-                FredAPI("test-key", session=session_for(METADATA, observations)).get_series(
-                    "DGS10", "2026-10-22", "2026-10-25"
+                AlfredAPI("test-key", session=session_for(METADATA, observations)).get_series(
+                    "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
                 )
 
     def test_yahoo_preserves_extras_and_normalizes_local_dates(self):
@@ -252,15 +264,14 @@ class ProviderTests(unittest.TestCase):
             result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
         self.assertEqual(len(result.prices.columns), 7)
         self.assertIsNone(result.prices.index.tz)
-        self.assertEqual(result.info["name"], "Example")
-        self.assertEqual(result.info["currency"], "USD")
-        self.assertEqual(result.info["asset_type"], "index")
-        self.assertEqual(result.info["pe_ratio"], 12.5)
-        self.assertIsNone(result.info["sector"])
-        self.assertEqual(result.info["raw"]["longName"], "Example")
+        self.assertEqual(result.profile.name, "Example")
+        self.assertEqual(result.profile.currency, "USD")
+        self.assertEqual(result.profile.asset_type, "index")
+        self.assertEqual(result.profile.pe_ratio, 12.5)
+        self.assertIsNone(result.profile.sector)
+        self.assertEqual(result.profile.raw["longName"], "Example")
         self.assertEqual(result.prices.index[0], pd.Timestamp("2026-10-22"))
-        self.assertEqual(result.info["price_adjustment"], "split_adjusted")
-        self.assertFalse(result.info["auto_adjust"])
+        self.assertEqual(result.price_basis, "split_adjusted")
         ticker.return_value.history.assert_called_once_with(
             start="2026-10-22", end="2026-10-24", auto_adjust=False
         )
@@ -279,9 +290,9 @@ class ProviderTests(unittest.TestCase):
                 ticker.return_value.get_info.configure_mock(**behaviour)
                 result = YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
                 self.assertEqual(len(result.prices), 2)
-                self.assertIn("metadata_issue", result.info)
-                self.assertIsNone(result.info["currency"])
-                self.assertEqual(result.info["raw"], {})
+                self.assertIn("Yahoo Finance", result.profile.issue)
+                self.assertIsNone(result.profile.currency)
+                self.assertEqual(result.profile.raw, {})
 
     def test_yahoo_info_raises_provider_error_without_a_profile(self):
         with patch("src.providers.yahoo.yf.Ticker") as ticker:
@@ -315,7 +326,7 @@ class ProviderTests(unittest.TestCase):
             self.assertEqual(ticker.return_value.history.call_count, 1)
             self.assertEqual(ticker.return_value.get_info.call_count, 1)
             pd.testing.assert_frame_equal(second.prices, first.prices.iloc[1:], check_freq=False)
-            self.assertEqual(second.info["currency"], "USD")
+            self.assertEqual(second.profile.currency, "USD")
 
             YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("MSFT", "2026-01-01", "2026-02-01")
             self.assertEqual(ticker.return_value.history.call_count, 2)
@@ -360,7 +371,141 @@ class ProviderTests(unittest.TestCase):
     def test_missing_key_is_actionable(self):
         with patch.dict("os.environ", {}, clear=True):
             with self.assertRaisesRegex(ValueError, "FRED_API_KEY"):
-                FredAPI()
+                AlfredAPI()
+
+    def test_alfred_uses_values_as_published_without_later_revisions(self):
+        def version(date, value, published, replaced="9999-12-31"):
+            return {
+                "date": date,
+                "value": value,
+                "realtime_start": published,
+                "realtime_end": replaced,
+            }
+
+        observations = {
+            "count": 4,
+            "observations": [
+                # Publicado antes del periodo: se conoce desde su primer día.
+                version("2026-07-01", "99", "2026-08-12"),
+                version("2026-08-01", "100", "2026-09-12", "2026-10-14"),
+                # Revisión de agosto publicada a la vez que el dato de septiembre.
+                version("2026-08-01", "101", "2026-10-15"),
+                version("2026-09-01", "102", "2026-10-15"),
+            ],
+        }
+        session = session_for(METADATA, observations)
+        result = AlfredAPI("test-key", session=session).get_series(
+            "CPIAUCSL", "2026-09-01", "2026-11-01"
+        )
+        self.assertTrue(result.point_in_time)
+        self.assertEqual(result.source, "alfred")
+        self.assertEqual(
+            result.values.to_dict(),
+            {
+                pd.Timestamp("2026-09-01"): 99.0,
+                pd.Timestamp("2026-09-12"): 100.0,
+                pd.Timestamp("2026-10-15"): 102.0,
+            },
+        )
+        # A 1 de octubre se conocía el primer dato de agosto, no su revisión posterior.
+        self.assertEqual(result.as_of(pd.DatetimeIndex(["2026-10-01"]), 45).iloc[0], 100)
+        params = session.get.call_args.kwargs["params"]
+        self.assertEqual(params["realtime_start"], "2026-09-01")
+        self.assertEqual(params["realtime_end"], "2026-10-31")
+        expected_start = pd.Timestamp("2026-09-01") - pd.Timedelta(days=120)
+        self.assertEqual(params["observation_start"], expected_start.date().isoformat())
+
+    def test_alfred_without_published_values_is_a_data_error(self):
+        observations = {
+            "count": 1,
+            "observations": [
+                {
+                    "date": "2026-09-01",
+                    "value": ".",
+                    "realtime_start": "2026-10-15",
+                    "realtime_end": "9999-12-31",
+                }
+            ],
+        }
+        with self.assertRaises(ValueError):
+            AlfredAPI("test-key", session=session_for(METADATA, observations)).get_series(
+                "CPIAUCSL", "2026-09-01", "2026-11-01"
+            )
+
+    def test_rejected_key_shows_the_provider_reason_without_the_key(self):
+        response = Mock()
+        response.status_code = 400
+        response.json.return_value = {
+            "error_message": "Bad Request. The value for variable api_key is not registered: bad-key"
+        }
+        response.raise_for_status.side_effect = requests.HTTPError(response=response)
+        session = Mock(spec=requests.Session)
+        session.get.return_value = response
+        with self.assertRaises(ProviderError) as caught:
+            AlfredAPI("bad-key", session=session).get_series(
+                "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
+            )
+        self.assertIn("HTTP 400", str(caught.exception))
+        self.assertIn("not registered", str(caught.exception))
+        self.assertNotIn("bad-key", str(caught.exception))
+
+    def test_has_api_key_ignores_empty_values(self):
+        with patch.dict(os.environ, {"TEST_KEY": "  "}):
+            self.assertFalse(has_api_key("TEST_KEY"))
+        with patch.dict(os.environ, {"TEST_KEY": "abc"}):
+            self.assertTrue(has_api_key("TEST_KEY"))
+
+    def test_cache_prunes_expired_responses_and_keeps_unrelated_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            expired = folder / f"{'a' * 64}.json"
+            fresh = folder / f"{'b' * 64}.json"
+            unrelated = folder / "notas.json"
+            for path in (expired, fresh, unrelated):
+                path.write_text('{"cached": true}', encoding="utf-8")
+            two_days_ago = time.time() - 2 * 86400
+            for path in (expired, unrelated):
+                os.utime(path, (two_days_ago, two_days_ago))
+            ApiClient("test-key", "TEST_KEY", cache_dir=folder, session=session_for())
+            self.assertFalse(expired.exists())
+            self.assertTrue(fresh.exists())
+            self.assertTrue(unrelated.exists())
+
+    def test_cache_writes_leave_no_temporary_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            session = session_for(alpha_payload())
+            api = AlphaVantageAPI("test-key", session=session, cache_dir=Path(tmp))
+            api.get_prices("IBM", "2026-10-22", "2026-10-24")
+            names = [path.name for path in Path(tmp).iterdir()]
+            self.assertEqual(len(names), 1)
+            self.assertTrue(names[0].endswith(".json"))
+
+    def test_yahoo_drops_dates_without_close_and_counts_them(self):
+        index = pd.date_range("2026-10-21", periods=3, tz="America/New_York")
+        prices = pd.DataFrame({"Close": [1.5, float("nan"), 2.5]}, index=index)
+        with patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.return_value = prices
+            ticker.return_value.get_info.return_value = {"quoteType": "EQUITY", "currency": "USD"}
+            result = YahooFinanceAPI().get_prices("IBM", "2026-10-21", "2026-10-24")
+        self.assertEqual(result.prices["Close"].tolist(), [1.5, 2.5])
+        self.assertEqual(result.dropped_rows, 1)
+
+    def test_yahoo_prices_outside_the_requested_dates_name_the_symbol(self):
+        prices = pd.DataFrame(
+            {"Close": [1.5]}, index=pd.date_range("2026-09-01", periods=1, tz="UTC")
+        )
+        with patch("src.providers.yahoo.yf.Ticker") as ticker:
+            ticker.return_value.history.return_value = prices
+            with self.assertRaisesRegex(DataCoverageError, "IBM"):
+                YahooFinanceAPI().get_prices("IBM", "2026-10-22", "2026-10-24")
+
+    def test_alfred_rejects_incomplete_metadata_before_downloading_observations(self):
+        session = session_for({"seriess": [{"id": "DGS10", "units": "Percent"}]}, OBSERVATIONS)
+        with self.assertRaises(ProviderError):
+            AlfredAPI("test-key", session=session).get_series(
+                "DGS10", "2026-10-22", "2026-10-25", point_in_time=False
+            )
+        self.assertEqual(session.get.call_count, 1)
 
 
 if __name__ == "__main__":

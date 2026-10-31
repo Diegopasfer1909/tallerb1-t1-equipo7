@@ -1,56 +1,65 @@
 """Informes en español a partir de los resultados del análisis, sin descargas."""
 
+from __future__ import annotations
+
+from dataclasses import dataclass
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .formatting import format_number
+from ..constants import MONTHLY
+from . import texts
+from .formatting import format_date, format_number, format_points
+from .labels import (
+    ASSET_TYPES,
+    COUNTRIES,
+    HOLDINGS_COLUMNS,
+    PERCENT_RESULTS,
+    PRICE_BASES,
+    SECTORS,
+    SEVERITIES,
+    SOURCES,
+    WEIGHT_COLUMNS,
+    simulation_labels,
+)
+from .sections import ALWAYS_OPEN, SECTION_TITLES, select_sections
 
-ASSET_TYPES = {
-    "stock": "Acción",
-    "fund": "Fondo de inversión",
-    "etf": "Fondo cotizado (ETF)",
-    "index": "Índice",
-    "unknown": "No disponible",
-}
-SECTORS = {
-    "Technology": "Tecnología",
-    "Financial Services": "Servicios financieros",
-    "Financials": "Finanzas",
-    "Healthcare": "Salud",
-    "Health Care": "Salud",
-    "Consumer Cyclical": "Consumo cíclico",
-    "Consumer Defensive": "Consumo defensivo",
-    "Consumer Discretionary": "Consumo discrecional",
-    "Consumer Staples": "Productos de primera necesidad",
-    "Communication Services": "Servicios de comunicación",
-    "Industrials": "Industria",
-    "Energy": "Energía",
-    "Utilities": "Servicios públicos",
-    "Real Estate": "Sector inmobiliario",
-    "Basic Materials": "Materias primas",
-    "Materials": "Materiales",
-    "Unknown": "No disponible",
-}
-COUNTRIES = {
-    "United States": "Estados Unidos",
-    "USA": "Estados Unidos",
-    "Spain": "España",
-    "United Kingdom": "Reino Unido",
-    "Germany": "Alemania",
-    "France": "Francia",
-    "Italy": "Italia",
-    "Portugal": "Portugal",
-    "Netherlands": "Países Bajos",
-    "Switzerland": "Suiza",
-    "Japan": "Japón",
-    "China": "China",
-    "Canada": "Canadá",
-    "Australia": "Australia",
-    "Ireland": "Irlanda",
-    "Unknown": "No disponible",
-}
-SOURCES = {"yahoo": "Yahoo Finance", "alpha_vantage": "Alpha Vantage", "fred": "FRED"}
+if TYPE_CHECKING:
+    from ..analysis.result import PortfolioAnalysis
+    from ..simulation.result import SimulationResult
+
+# Medida, etiqueta y unidad: % para rentabilidades, pp para diferencias y vacío para ratios.
+PORTFOLIO_METRICS = [
+    ("annualized_return", "Rentabilidad anualizada", "%"),
+    ("real_annualized_return", "Rentabilidad real anualizada", "%"),
+    ("annualized_volatility", "Volatilidad anual", "%"),
+    (
+        "comparison_portfolio_annualized_return",
+        "Cartera: rentabilidad anualizada en las fechas comunes",
+        "%",
+    ),
+    ("benchmark_annualized_return", "Índice: rentabilidad anualizada en las fechas comunes", "%"),
+    ("difference_from_benchmark", "Diferencia frente al índice", "pp"),
+    ("beta", "Beta calculada de la cartera", ""),
+    ("reference_annualized_return", "Rentabilidad equivalente del tipo de referencia", "%"),
+    ("excess_annualized_return", "Diferencia frente al tipo de referencia", "pp"),
+    ("sharpe", "Ratio de Sharpe", ""),
+    ("sortino", "Ratio de Sortino", ""),
+    ("annualized_inflation", "Inflación anualizada", "%"),
+    ("period_var_95_return", "Rentabilidad en el percentil 5", "%"),
+    ("period_cvar_95_return", "Rentabilidad media de los peores resultados", "%"),
+    ("concentration_hhi", "Índice de concentración (HHI)", ""),
+    ("effective_asset_count", "Número efectivo de activos", ""),
+]
+
+
+@dataclass(frozen=True)
+class ReportContext:
+    """Resultados que puede necesitar cada sección del informe."""
+
+    analysis: PortfolioAnalysis
+    simulation: SimulationResult | None = None
 
 
 def _table(headers, rows) -> str:
@@ -63,7 +72,20 @@ def _table(headers, rows) -> str:
     return "\n".join(lines)
 
 
-def _asset_information(analysis) -> str:
+def _bullets(items) -> str:
+    return "\n".join(f"- {item}" for item in items)
+
+
+def holdings_table(holdings: pd.DataFrame) -> pd.DataFrame:
+    """Posiciones con etiquetas en español y números con coma decimal."""
+    table = pd.DataFrame(index=holdings.index.rename("Activo"))
+    for column, label in HOLDINGS_COLUMNS.items():
+        percentage = column in WEIGHT_COLUMNS
+        table[label] = [format_number(value, percentage) for value in holdings[column]]
+    return table
+
+
+def _asset_information(analysis: PortfolioAnalysis) -> str:
     profiles = []
     for symbol, asset in analysis.asset_details.iterrows():
         kind = ASSET_TYPES.get(asset["asset_type"], asset["asset_type"])
@@ -72,28 +94,13 @@ def _asset_information(analysis) -> str:
         source = SOURCES.get(asset["source"], asset["source"])
         profiles.append(
             f"**{symbol} · {asset['name']}**  \n"
-            f"{kind} · {sector} · {country} · Cotización en {asset['quote_currency']} · Fuente: {source}."
+            f"{kind} · {sector} · {country} · Cotización en {asset['quote_currency']} · "
+            f"Fuente: {source}."
         )
     return "\n\n".join(profiles)
 
 
-def _holdings(analysis) -> str:
-    return _table(
-        ["Activo", "Peso objetivo", "Precio de cierre", "Valor hipotético", "Peso actual"],
-        [
-            [
-                symbol,
-                format_number(row["target_weight"], True),
-                format_number(row["price"]),
-                format_number(row["value"]),
-                format_number(row["weight"], True),
-            ]
-            for symbol, row in analysis.holdings.iterrows()
-        ],
-    )
-
-
-def _asset_performance(analysis) -> str:
+def _asset_performance(analysis: PortfolioAnalysis) -> str:
     keys = ["total_return", "annualized_return", "annualized_volatility", "max_drawdown"]
     return _table(
         [
@@ -110,15 +117,16 @@ def _asset_performance(analysis) -> str:
     )
 
 
-def _asset_fundamentals(analysis) -> str:
+def _asset_fundamentals(analysis: PortfolioAnalysis) -> str:
     rows = []
     for symbol, asset in analysis.asset_details.iterrows():
-        capital = (
-            "No aplicable" if asset["asset_type"] == "index" else format_number(asset["market_cap"])
-        )
-        if pd.notna(asset["market_cap"]) and asset["asset_type"] != "index":
-            capital += f" {asset['quote_currency']}"
-        pe = "No aplicable" if asset["asset_type"] == "index" else format_number(asset["pe_ratio"])
+        if asset["asset_type"] == "index":
+            capital = pe = "No aplicable"
+        else:
+            capital = format_number(asset["market_cap"])
+            if pd.notna(asset["market_cap"]):
+                capital += f" {asset['quote_currency']}"
+            pe = format_number(asset["pe_ratio"])
         rows.append(
             [
                 symbol,
@@ -134,7 +142,7 @@ def _asset_fundamentals(analysis) -> str:
     )
 
 
-def _estimated_parameters(analysis) -> str:
+def _estimated_parameters(analysis: PortfolioAnalysis) -> str:
     return _table(
         ["Activo", "Retorno anual μ (histórico)", "Volatilidad anual σ (histórica)"],
         [
@@ -148,61 +156,27 @@ def _estimated_parameters(analysis) -> str:
     )
 
 
-def _portfolio_metrics(analysis) -> str:
-    definitions = [
-        ("annualized_return", "Rentabilidad anualizada", "%"),
-        ("real_annualized_return", "Rentabilidad real anualizada", "%"),
-        ("annualized_volatility", "Volatilidad anual", "%"),
-        (
-            "comparison_portfolio_annualized_return",
-            "Cartera: rentabilidad anualizada en las fechas comunes",
-            "%",
-        ),
-        (
-            "benchmark_annualized_return",
-            "Índice: rentabilidad anualizada en las fechas comunes",
-            "%",
-        ),
-        ("difference_from_benchmark", "Diferencia frente al índice", "pp"),
-        ("beta", "Beta calculada de la cartera", ""),
-        ("reference_annualized_return", "Rentabilidad equivalente del tipo de referencia", "%"),
-        ("excess_annualized_return", "Diferencia frente al tipo de referencia", "pp"),
-        ("sharpe", "Ratio de Sharpe", ""),
-        ("sortino", "Ratio de Sortino", ""),
-        ("annualized_inflation", "Inflación anualizada", "%"),
-        ("period_var_95_return", "Rentabilidad en el percentil 5", "%"),
-        ("period_cvar_95_return", "Rentabilidad media de los peores resultados", "%"),
-        ("concentration_hhi", "Índice de concentración (HHI)", ""),
-        ("effective_asset_count", "Número efectivo de activos", ""),
-    ]
+def _portfolio_metrics(analysis: PortfolioAnalysis) -> str:
     rows, missing = [], []
-    for key, label, unit in definitions:
+    for key, label, unit in PORTFOLIO_METRICS:
         value = analysis.metrics[key]
-        formatted = format_number(value, unit == "%")
-        if unit == "pp" and pd.notna(value):
-            formatted = format_number(value * 100) + " p. p."
+        formatted = format_points(value) if unit == "pp" else format_number(value, unit == "%")
+        rows.append([label, formatted])
         if pd.isna(value):
             reason = analysis.metric_notes.get(
                 key, "No hay datos suficientes para calcular esta medida."
             )
-            missing.append("- Motivo: " + reason)
-        rows.append([label, formatted])
-    sections = [_table(["Medida", "Resultado"], rows)]
+            missing.append("Motivo: " + reason)
+    parts = [_table(["Medida", "Resultado"], rows)]
     if missing:
-        sections.append(
-            "**Medidas que no se han podido calcular**\n\n" + "\n".join(dict.fromkeys(missing))
+        parts.append(
+            "**Medidas que no se han podido calcular**\n\n" + _bullets(dict.fromkeys(missing))
         )
-    return "\n\n".join(sections)
+    return "\n\n".join(parts)
 
 
-def _quality(analysis) -> str:
-    basis = {
-        "unadjusted": "Sin ajustar, según el proveedor",
-        "split_adjusted": "Yahoo: ajustado por desdoblamientos; sin ajuste por dividendos",
-        "adjusted": "Ajustado por desdoblamientos y distribuciones",
-        "unknown": "No consta",
-        "adjusted growth proxy": "Crecimiento con cierre ajustado por desdoblamientos y distribuciones",
-    }
+def _quality(analysis: PortfolioAnalysis) -> str:
+    quality = analysis.data_quality
     coverage = _table(
         ["Activo", "Datos disponibles", "Datos utilizados", "Datos excluidos", "Historial parcial"],
         [
@@ -213,7 +187,7 @@ def _quality(analysis) -> str:
                 row["excluded_observations"],
                 "Sí" if row["partial_history"] else "No",
             ]
-            for symbol, row in analysis.data_quality.iterrows()
+            for symbol, row in quality.iterrows()
         ],
     )
     prices = _table(
@@ -222,56 +196,26 @@ def _quality(analysis) -> str:
             [
                 symbol,
                 row["price_column"],
-                basis.get(row["price_basis"], "No consta"),
+                PRICE_BASES.get(row["price_basis"], "No consta"),
                 "Sí" if row["adjusted_close_available"] else "No",
             ]
-            for symbol, row in analysis.data_quality.iterrows()
+            for symbol, row in quality.iterrows()
         ],
     )
-    sections = [
-        coverage,
-        "### Precios utilizados",
-        prices,
-        "La valoración usa Close. En Yahoo, Close se ajusta por desdoblamientos; Adj Close incorpora "
-        "además dividendos y otras distribuciones. Los precios diarios de Alpha Vantage se reciben sin ajustar. "
-        "Tener Adj Close disponible no significa que se haya usado en este análisis.",
-    ]
-    for symbol, row in analysis.data_quality.iterrows():
-        if row["missing_optional_cells"]:
-            sections.append(
-                f"- {symbol}: {row['missing_optional_cells']} datos ausentes en columnas opcionales."
-            )
-        if row["filled_asset_prices"]:
-            sections.append(f"- {symbol}: {row['filled_asset_prices']} precios completados.")
-    return "\n\n".join(sections)
+    parts = [coverage, "### Precios utilizados", prices, texts.PRICE_BASIS_NOTE]
+    missing = quality.loc[quality["missing_optional_cells"] > 0, "missing_optional_cells"]
+    parts.extend(
+        f"- {symbol}: {cells} datos ausentes en columnas opcionales."
+        for symbol, cells in missing.items()
+    )
+    return "\n\n".join(parts)
 
 
-def _simulation_summary(simulation) -> str:
-    summary = simulation.summary()
-    lower_percentile = 100 * (1 - simulation.confidence)
-    upper_percentile = 100 * simulation.confidence
+def _simulation_summary(simulation: SimulationResult) -> str:
+    labels = simulation_labels(simulation.confidence)
     rows = [
-        ["Valor inicial", format_number(summary["initial_value"])],
-        ["Valor final medio", format_number(summary["mean_final_value"])],
-        ["Mediana del valor final", format_number(summary["median_final_value"])],
-        [
-            f"Percentil {lower_percentile:g} del valor final",
-            format_number(summary["lower_percentile"]),
-        ],
-        [
-            f"Percentil {upper_percentile:g} del valor final",
-            format_number(summary["upper_percentile"]),
-        ],
-        ["Rentabilidad media simulada", format_number(summary["mean_return"], True)],
-        ["Probabilidad estimada de pérdida", format_number(summary["probability_of_loss"], True)],
-        [
-            f"VaR al {simulation.confidence * 100:g} % al final del horizonte",
-            format_number(summary["value_at_risk"]),
-        ],
-        [
-            f"CVaR al {simulation.confidence * 100:g} % al final del horizonte",
-            format_number(summary["conditional_value_at_risk"]),
-        ],
+        [labels[key], format_number(value, key in PERCENT_RESULTS)]
+        for key, value in simulation.summary().items()
     ]
     assumptions = _table(
         ["Activo", "Retorno anual μ", "Origen de μ", "Volatilidad anual σ", "Origen de σ"],
@@ -286,113 +230,214 @@ def _simulation_summary(simulation) -> str:
             for symbol, row in simulation.assumptions.iterrows()
         ],
     )
-    seed = simulation.seed if simulation.seed is not None else "sin fijar"
+    if simulation.rebalance_interval:
+        rebalance = texts.SIMULATED_REBALANCE.format(interval=simulation.rebalance_interval)
+    else:
+        rebalance = texts.SIMULATED_BUY_AND_HOLD
+    confidence = simulation.confidence
     return "\n\n".join(
         [
-            f"**{len(simulation.paths.columns)} escenarios** · Horizonte: **{len(simulation.paths) - 1} períodos** · Divisa: **{simulation.currency}**.",
+            texts.SIMULATION_HEADER.format(
+                simulations=len(simulation.paths.columns),
+                steps=len(simulation.paths) - 1,
+                currency=simulation.currency,
+            ),
             _table(["Resultado", "Importe o porcentaje"], rows),
             "### Supuestos de la simulación",
             assumptions,
-            f"Fecha de valoración inicial: {simulation.valuation_date:%d/%m/%Y}. "
-            f"Cálculos anuales basados en {simulation.periods_per_year} períodos por año. "
-            f"Semilla aleatoria: {seed} (permite reproducir la simulación cuando se fija un valor).",
-            f"Rebalanceo mensual a los pesos objetivo cada {simulation.periods_per_year // 12} sesiones "
-            "simuladas. Es una aproximación por sesiones, no por meses de calendario."
-            if simulation.rebalance == "monthly"
-            else "Las posiciones evolucionan sin rebalanceo durante la simulación.",
-            f"Los percentiles {lower_percentile:g} y {upper_percentile:g} delimitan el "
-            f"{(2 * simulation.confidence - 1) * 100:g} % central de los valores finales. "
-            "La confianza se utiliza para medir la cola de pérdidas del VaR y del CVaR, "
-            "no como probabilidad de que el valor real quede en ese intervalo.",
-            f"**Modelo:** movimiento browniano geométrico por activos. Método de correlación: {simulation.correlation_method}. "
-            "Se mantienen las correlaciones históricas al cambiar la volatilidad. "
-            "μ es la deriva anual del GBM: con μ = 0,08, el crecimiento esperado a un año es exp(0,08) − 1, "
-            "aproximadamente un 8,33 %, no un 8 % exacto.",
-            "**Limitaciones:** los incrementos logarítmicos se suponen normales y μ y σ se mantienen constantes. "
-            "El modelo puede subestimar las caídas extremas. No incluye aportaciones, retiradas, comisiones ni impuestos. "
-            "El VaR y el CVaR son pérdidas respecto al valor inicial de la simulación; pueden ser negativos si la cola "
-            "considerada todavía presenta ganancias. Los escenarios no son una predicción.",
+            texts.SIMULATION_SETTINGS.format(
+                date=format_date(simulation.valuation_date),
+                periods_per_year=simulation.periods_per_year,
+                seed=simulation.seed if simulation.seed is not None else "sin fijar",
+            ),
+            rebalance,
+            texts.CONFIDENCE_NOTE.format(
+                lower=100 * (1 - confidence),
+                upper=100 * confidence,
+                central=(2 * confidence - 1) * 100,
+            ),
+            texts.MODEL_NOTE.format(method=simulation.correlation_method),
+            texts.SIMULATION_LIMITATIONS,
         ]
     )
 
 
-def build_report(
-    analysis,
-    generated_on: datetime | None = None,
-    charts: dict[str, str] | None = None,
-    simulation=None,
-) -> str:
-    generated_on = generated_on or datetime.now().astimezone()
-    charts = charts or {}
+def _summary(report: ReportContext) -> str:
+    analysis = report.analysis
     metrics = analysis.metrics
-    total = analysis.holdings["value"].sum()
-    sections = [
-        "# Informe de cartera",
-        f"**Período:** {analysis.values.index[0]:%d/%m/%Y} — {analysis.values.index[-1]:%d/%m/%Y} · "
-        f"**Divisa:** {analysis.currency}  \n"
-        f"*Elaborado el {generated_on:%d/%m/%Y a las %H:%M:%S %z}*",
-        "## 1. Resumen",
-        _table(
-            [
-                f"Valor de la cartera hipotética ({analysis.currency})",
-                "Rentabilidad acumulada",
-                "Caída máxima",
-            ],
-            [
-                [
-                    format_number(total),
-                    format_number(metrics["total_return"], True),
-                    format_number(metrics["max_drawdown"], True),
-                ]
-            ],
-        ),
-        f"Cartera hipotética con un capital inicial de {format_number(analysis.initial_capital)} "
-        f"{analysis.currency}, repartido según los pesos objetivo en la primera fecha común. "
-        "El valor mostrado corresponde a la última fecha con precios para todos los activos. "
-        "No representa el saldo real de una cuenta de inversión.",
-        "## 2. Composición de la cartera",
-        _holdings(analysis),
-        f"Precios e importes expresados en {analysis.currency}. Los pesos objetivo son los indicados "
-        "al definir la cartera; los pesos actuales reflejan su evolución hasta la última fecha.",
-        "La cartera vuelve a los pesos objetivo al cierre de cada mes, usando la última fecha "
-        "disponible. Durante el mes los pesos pueden variar. Se permite invertir en fracciones de "
-        "cada activo y no se incluyen costes de compraventa."
-        if analysis.rebalance == "monthly"
-        else "La cartera mantiene las posiciones iniciales sin rebalanceo.",
-        "### Información de los activos seleccionados",
-        _asset_information(analysis),
-        "## 3. Resultados históricos",
-        _portfolio_metrics(analysis),
-        "Las diferencias de rentabilidad se expresan en puntos porcentuales (p. p.). Para comparar la "
-        "cartera con el índice se utilizan las fechas en las que hay datos de ambos. La rentabilidad "
-        "del tipo de interés de referencia se aproxima mediante capitalización; no representa "
-        "la rentabilidad real de invertir en un bono.",
-        "### Análisis de cada activo",
-        _asset_performance(analysis),
-        "### Estimaciones a partir del historial",
-        _estimated_parameters(analysis),
-        "Las estimaciones históricas utilizan la media de las rentabilidades simples por período "
-        "multiplicada por los períodos anuales para μ, y su desviación típica multiplicada por la raíz "
-        "de los períodos anuales para σ. Los supuestos personalizados se muestran en la sección de Monte Carlo "
-        "y no modifican los resultados históricos. No son previsiones publicadas por las empresas.",
-    ]
-    if "assets" in charts:
-        sections.extend(
-            [
-                f"![Evolución de los activos]({charts['assets']})",
-                "*Todos los activos parten de un valor de 100 para facilitar la comparación. Su evolución se expresa en la divisa del informe.*",
-            ]
-        )
-    sections.extend(
+    rows = [
         [
+            f"Valor de la cartera hipotética ({analysis.currency})",
+            format_number(analysis.values.iloc[-1]),
+        ],
+        ["Rentabilidad anualizada", format_number(metrics["annualized_return"], True)],
+        ["Diferencia anual frente al índice", format_points(metrics["difference_from_benchmark"])],
+        ["Caída máxima", format_number(metrics["max_drawdown"], True)],
+        ["Ratio de Sharpe", format_number(metrics["sharpe"])],
+    ]
+    comparison = analysis.benchmark_comparison
+    if comparison.empty:
+        coverage = texts.NO_BENCHMARK_COVERAGE
+    else:
+        coverage = texts.BENCHMARK_COVERAGE.format(
+            start=format_date(comparison.index[0]),
+            end=format_date(comparison.index[-1]),
+            dates=len(comparison),
+        )
+    capital = texts.SUMMARY_CAPITAL.format(
+        capital=format_number(analysis.initial_capital),
+        currency=analysis.currency,
+        total_return=format_number(metrics["total_return"], True),
+    )
+    return "\n\n".join([_table(["Medida", "Resultado"], rows), capital, coverage])
+
+
+def _observed(value: float, unit: str) -> str:
+    if unit == "days":
+        return f"{value:.0f} días naturales"
+    return format_number(value, percentage=unit == "percent")
+
+
+def _warnings(report: ReportContext) -> str:
+    analysis = report.analysis
+    rows = [
+        [
+            SEVERITIES[warning.severity],
+            warning.message,
+            _observed(warning.observed, warning.unit),
+            _observed(warning.threshold, warning.unit) if warning.threshold is not None else "—",
+        ]
+        for warning in analysis.risk_warnings
+    ]
+    parts = [
+        _table(["Nivel", "Riesgo observado", "Valor", "Umbral"], rows)
+        if rows
+        else texts.NO_RISK_WARNINGS,
+        texts.THRESHOLDS_NOTE,
+    ]
+    # Los problemas de los datos se separan de los criterios que solo conviene conocer.
+    data = [notice.message for notice in analysis.notices if notice.kind == "data"]
+    method = [notice.message for notice in analysis.notices if notice.kind == "method"]
+    for title, notes in (
+        ("### Datos que revisar", [*data, *analysis.metric_notes.values()]),
+        ("### Notas de metodología", method),
+    ):
+        if notes:
+            parts.extend([title, _bullets(dict.fromkeys(notes))])
+    return "\n\n".join(parts)
+
+
+def _drawdown_details(analysis: PortfolioAnalysis) -> str:
+    episode = analysis.drawdown_episode
+    if episode.peak is None:
+        return texts.NO_DRAWDOWN
+    recovery = format_date(episode.recovery) if episode.recovery is not None else "Sin recuperar"
+    table = _table(
+        ["Pico anterior", "Valle", "Recuperación", "Días naturales desde el pico"],
+        [
+            [
+                format_date(episode.peak),
+                format_date(episode.trough),
+                recovery,
+                episode.underwater_days,
+            ]
+        ],
+    )
+    return f"{table}\n\n{texts.DRAWDOWN_DURATION}"
+
+
+def _calendar_details(analysis: PortfolioAnalysis) -> str:
+    monthly = analysis.monthly_returns
+    complete = monthly.loc[~monthly["partial"], "return"].dropna()
+    parts = ["### Rentabilidades por calendario"]
+    if complete.empty:
+        parts.append(texts.NO_COMPLETE_MONTHS)
+    else:
+        parts.append(
+            _table(
+                ["Mes completo", "Período", "Rentabilidad"],
+                [
+                    ["Mejor", str(complete.idxmax()), format_number(complete.max(), True)],
+                    ["Peor", str(complete.idxmin()), format_number(complete.min(), True)],
+                ],
+            )
+        )
+    coverage = {True: "Parcial", False: "Completa"}
+    parts.extend(
+        [
+            _table(
+                ["Año", "Rentabilidad", "Cobertura"],
+                [
+                    [str(period), format_number(row["return"], True), coverage[row["partial"]]]
+                    for period, row in analysis.annual_returns.iterrows()
+                ],
+            ),
+            "### Rentabilidades mensuales\n\n"
+            + _table(
+                ["Mes", "Rentabilidad", "Observaciones", "Cobertura"],
+                [
+                    [
+                        str(period),
+                        format_number(row["return"], True),
+                        row["observations"],
+                        coverage[row["partial"]],
+                    ]
+                    for period, row in monthly.iterrows()
+                ],
+            ),
+            texts.CALENDAR_NOTE,
+        ]
+    )
+    return "\n\n".join(parts)
+
+
+def _composition(report: ReportContext) -> str:
+    analysis = report.analysis
+    holdings = holdings_table(analysis.holdings)
+    return "\n\n".join(
+        [
+            _table([holdings.index.name, *holdings.columns], holdings.itertuples(name=None)),
+            texts.COMPOSITION_NOTE.format(currency=analysis.currency),
+            texts.MONTHLY_REBALANCE if analysis.rebalance == MONTHLY else texts.BUY_AND_HOLD,
+            "### Información de los activos seleccionados",
+            _asset_information(analysis),
+        ]
+    )
+
+
+def _performance(report: ReportContext) -> str:
+    analysis = report.analysis
+    return "\n\n".join(
+        [
+            _portfolio_metrics(analysis),
+            texts.PERFORMANCE_NOTE,
+            "### Análisis de cada activo",
+            _asset_performance(analysis),
+            "### Estimaciones a partir del historial",
+            _estimated_parameters(analysis),
+            texts.ESTIMATES_NOTE,
+            "### Recuperación de la mayor caída",
+            _drawdown_details(analysis),
+            _calendar_details(analysis),
             "### Datos publicados y beta",
             _asset_fundamentals(analysis),
-            "La beta publicada es la que facilita el proveedor. La beta calculada utiliza el índice "
-            "de referencia y el período de este informe, por lo que ambas pueden diferir. El PER "
-            "relaciona el precio de la acción con el beneficio por acción. Los datos de la ficha "
-            "corresponden a la consulta realizada, no a cada fecha del historial. La capitalización "
-            "bursátil se muestra en la divisa de cotización original.",
-            "## 4. Diversificación",
+            texts.FUNDAMENTALS_NOTE,
+        ]
+    )
+
+
+def _diversification(report: ReportContext) -> str:
+    analysis = report.analysis
+    pairs = analysis.correlation_pairs
+    pair_note = "No hay pares de activos con correlación definida."
+    if not pairs.empty:
+        a, b = pairs.index[0]
+        pair_note = (
+            f"Mayor correlación: {a} / {b} ({format_number(pairs.iloc[0])}). "
+            f"Media de los pares definidos: {format_number(pairs.mean())}."
+        )
+    return "\n\n".join(
+        [
             _table(
                 ["Activo", "Peso en la cartera", "Contribución al riesgo"],
                 [
@@ -411,9 +456,7 @@ def build_report(
                     for sector, weight in analysis.sector_weights.items()
                 ],
             ),
-            "La contribución al riesgo se calcula con los pesos actuales y la covarianza histórica "
-            "de las rentabilidades. Puede ser negativa si un activo compensa parte de las "
-            "fluctuaciones de los demás.",
+            texts.RISK_CONTRIBUTION_NOTE,
             "### Correlaciones",
             _table(
                 ["Activo", *analysis.correlations.columns],
@@ -422,62 +465,88 @@ def build_report(
                     for symbol, row in analysis.correlations.iterrows()
                 ],
             ),
+            pair_note,
+            texts.CONCENTRATION_NOTE,
+            texts.DISTRIBUTION_NOTE,
         ]
     )
-    if "distribution" in charts:
-        sections.extend(
-            [
-                "### Distribución de las rentabilidades",
-                f"![Rentabilidades históricas y distribución normal]({charts['distribution']})",
-                "La curva normal tiene la misma media y desviación típica que las rentabilidades logarítmicas históricas. "
-                "Las diferencias en los extremos ayudan a apreciar las limitaciones del supuesto de normalidad. "
-                "Con pocos datos esta comparación es poco concluyente.",
-            ]
-        )
-    if "portfolio" in charts:
-        sections.append(f"![Evolución y riesgo de la cartera]({charts['portfolio']})")
-    if simulation is not None:
-        sections.extend(["## 5. Simulación de Monte Carlo", _simulation_summary(simulation)])
-        if "simulation" in charts:
-            sections.append(
-                f"![Escenarios simulados y distribución del valor final]({charts['simulation']})"
-            )
-    quality_number = 6 if simulation is not None else 5
-    sections.extend([f"## {quality_number}. Datos y referencias", _quality(analysis)])
-    if analysis.reference_names:
-        sections.extend(
+
+
+def _simulation(report: ReportContext) -> str:
+    if report.simulation is None:
+        return "No se ha proporcionado una simulación."
+    return _simulation_summary(report.simulation)
+
+
+def _data(report: ReportContext) -> str:
+    analysis = report.analysis
+    parts = [_quality(analysis)]
+    if not analysis.reference_table.empty:
+        parts.extend(
             [
                 "### Referencias utilizadas",
-                _table(["Referencia", "Serie"], analysis.reference_names.items()),
-                "Las fuentes de los precios de cada activo figuran en sus fichas. En la ejecución "
-                "desde consola, el índice de referencia y los cambios de divisa automáticos se "
-                "consultan en Yahoo Finance. La inflación y el tipo de interés se consultan en FRED, "
-                "independientemente del proveedor de precios elegido.",
+                _table(
+                    ["Referencia", "Serie", "Fuente"],
+                    [
+                        [label, row["series"], SOURCES.get(row["source"], row["source"])]
+                        for label, row in analysis.reference_table.iterrows()
+                    ],
+                ),
             ]
         )
-    sections.extend(
+    parts.extend(
         [
-            "### Observaciones",
-            "\n".join(f"- {warning}" for warning in dict.fromkeys(analysis.warnings))
-            or "Sin incidencias adicionales.",
-            f"**Configuración utilizada:** las rentabilidades se calculan con los precios de la "
-            f"columna {analysis.price_column}, tomando {analysis.periods_per_year} períodos por año. "
-            "La información de los activos y las referencias económicas se consultan automáticamente. "
-            "Si se ha realizado una simulación, sus parámetros se detallan en la sección correspondiente.",
-            "**Criterios de cálculo:** solo se utilizan fechas con precios para todos los activos. "
-            "Para convertir divisas puede utilizarse el último tipo de cambio disponible, siempre que "
-            "no supere el límite de antigüedad indicado. Las rentabilidades calculadas con Close no "
-            "incluyen dividendos. Con Adj Close se estima el crecimiento con reinversión de las "
-            "distribuciones, que puede diferir del valor de las posiciones. Los cálculos no incluyen "
-            "comisiones, impuestos, aportaciones ni retiradas de dinero.",
+            texts.CONFIGURATION.format(
+                price_column=analysis.price_column, periods_per_year=analysis.periods_per_year
+            ),
+            texts.CALCULATION_CRITERIA,
             "### Cómo leer las medidas",
-            "- **Rentabilidad anualizada:** rentabilidad anual equivalente al crecimiento del período analizado.\n"
-            "- **Rentabilidad real:** rentabilidad después de descontar la inflación.\n"
-            "- **Volatilidad:** mide cuánto fluctúan las rentabilidades; no indica cuánto se puede llegar a perder.\n"
-            "- **Caída máxima:** mayor descenso respecto a un máximo anterior durante el período analizado.\n"
-            "- **Sharpe y Sortino:** relacionan la rentabilidad por encima de la referencia con el riesgo asumido.\n"
-            "- **Percentil 5 y media de los peores resultados:** muestran el umbral de las rentabilidades más bajas y la media de las que quedan en ese umbral o por debajo de él. Se calculan por período de observación.\n"
-            "- **HHI y número efectivo de activos:** indican cómo se reparte el valor de la cartera entre sus posiciones; no tienen en cuenta las correlaciones.",
+            texts.GLOSSARY,
         ]
     )
-    return "\n\n".join(sections) + "\n"
+    return "\n\n".join(parts)
+
+
+_BUILDERS = {
+    "summary": _summary,
+    "warnings": _warnings,
+    "composition": _composition,
+    "performance": _performance,
+    "diversification": _diversification,
+    "simulation": _simulation,
+    "data": _data,
+}
+
+
+def build_report(
+    analysis: PortfolioAnalysis,
+    generated_on: datetime | None = None,
+    charts: dict[str, dict[str, str]] | None = None,
+    simulation: SimulationResult | None = None,
+    *,
+    sections=None,
+    detail: str = "compact",
+) -> str:
+    """Compone el Markdown; charts agrupa por sección los archivos de imagen ya guardados."""
+    selected = select_sections(sections, detail, has_simulation=simulation is not None)
+    generated_on = generated_on or datetime.now().astimezone()
+    charts = charts or {}
+    report = ReportContext(analysis, simulation)
+    dates = analysis.values.index
+    strategy = "Rebalanceo mensual" if analysis.rebalance == MONTHLY else "Sin rebalanceo"
+    blocks = [
+        "# Informe de cartera",
+        f"**Período:** {format_date(dates[0])} — {format_date(dates[-1])} · "
+        f"**Divisa:** {analysis.currency} · **Precios:** {analysis.price_column} · {strategy}  \n"
+        f"*Elaborado el {generated_on:%d/%m/%Y a las %H:%M:%S %z}*",
+    ]
+    for number, key in enumerate(selected, 1):
+        body = _BUILDERS[key](report)
+        for chart, file in charts.get(key, {}).items():
+            body += f"\n\n![{SECTION_TITLES[key]}: {chart}]({file})"
+        title = f"{number}. {SECTION_TITLES[key]}"
+        if detail == "compact" and key not in ALWAYS_OPEN:
+            blocks.append(f"<details>\n<summary>{title}</summary>\n\n{body}\n\n</details>")
+        else:
+            blocks.append(f"## {title}\n\n{body}")
+    return "\n\n".join(blocks) + "\n"
