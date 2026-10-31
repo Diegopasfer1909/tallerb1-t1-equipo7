@@ -110,13 +110,6 @@ def lee_vix(x):
     return _tramos(x, [(15, "calma"), (25, "normal"), (30, "nerviosismo")], "estrés")
 
 
-def lee_sentimiento(score, n):
-    if n < 5:
-        return "pocas noticias: no fiable"
-    return _tramos(score, [(-0.35, "claramente negativo"), (-0.2, "algo negativo"), (0.2, "neutro")],
-                   "positivo")
-
-
 def lee_signo(x, positivo: str, negativo: str):
     return "" if _nd(x) else (positivo if x > 0 else negativo)
 
@@ -258,20 +251,7 @@ def _mercado(c, **_) -> str:
             [[t, c.info[t]["divisa"], pts(e) + " · " + lee_signo(e, "el tipo de cambio sumó", "restó")]
              for t, e in efecto.items()]))
 
-    if "sentimiento" in m:
-        s = m["sentimiento"]
-        partes.append("**Noticias y sentimiento de la prensa** (últimos 30 días; de −1 negativo a +1 positivo):\n\n"
-                      + tabla(["Ticker", "Noticias", "Tono medio", "Tendencia 7 días", "Lectura"],
-                              [[t, int(f["noticias"]), num(f["score"]), num(f["tendencia"]),
-                                lee_sentimiento(f["score"], f["noticias"]) if not _nd(f["score"]) else "sin puntuar"]
-                               for t, f in s.iterrows()]))
-        recientes = c.mercado.noticias.sort_values("fecha", ascending=False).groupby("ticker").head(3)
-        lineas = [f"- **{f['ticker']}** · {fecha(f['fecha'])} · {f['titular']}"
-                  + ("" if _nd(f["score"]) else f" ({num(f['score'])})") for _, f in recientes.iterrows()]
-        partes.append("**Últimos titulares:**\n\n" + "\n".join(lineas))
-
-    ausentes = [f for f in c.mercado.fallos
-                if f in ("Índice", "VIX", "Brent", "Oro", "ETF de Bunds", "Sentimiento") or f.startswith("Noticias")]
+    ausentes = [f for f in c.mercado.fallos if f in ("Índice", "VIX", "Brent", "Oro", "ETF de Bunds")]
     if ausentes:
         partes.append(f"_Sin datos de: {', '.join(ausentes)}._")
     return "\n\n".join(partes)

@@ -1,9 +1,7 @@
 """DataClass con lo que rodea a la cartera: índice de referencia, tipo libre de riesgo,
-inflación, materias primas, tipos de cambio y noticias. Todo es opcional: la cartera calcula lo que
+inflación, materias primas y tipos de cambio. Todo es opcional: la cartera calcula lo que
 puede con lo que haya."""
 from dataclasses import dataclass, field
-
-import pandas as pd
 
 from .series import MacroSeries, PriceSeries, Serie
 
@@ -18,7 +16,6 @@ class ContextoMercado:
     oro: Serie | None = None
     etf_bund: PriceSeries | None = None
     tipos_cambio: dict[str, Serie] = field(default_factory=dict)   # divisa → unidades por 1 EUR
-    noticias: pd.DataFrame | None = None     # columnas: ticker, fecha, titular, score (−1 a +1)
     fallos: list[str] = field(default_factory=list)                # fuentes que no se pudieron bajar
 
     def series(self) -> dict[str, Serie]:

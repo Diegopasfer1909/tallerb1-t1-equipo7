@@ -22,32 +22,6 @@ def test_report_se_guarda_automaticamente(cartera, tmp_path):
     assert cartera.report(ruta=None, graficos=False).archivo is None
 
 
-def test_noticias_en_contexto_de_mercado(activos, datos):
-    import numpy as np
-    import pandas as pd
-
-    from toolkit import Cartera
-    from toolkit.modelos import ContextoMercado
-
-    hoy = pd.Timestamp.now().normalize()
-    noticias = pd.DataFrame({
-        "ticker": ["AAA"] * 6 + ["BBB"] * 2,
-        "fecha": [hoy - pd.Timedelta(days=d) for d in (1, 2, 3, 10, 20, 25, 1, 2)],
-        "titular": [f"Titular {i}" for i in range(8)],
-        "score": [0.5, 0.5, 0.5, -0.5, -0.5, -0.5, np.nan, np.nan],
-    })
-    c = Cartera(activos, datos["pesos"], mercado=ContextoMercado(noticias=noticias))
-    s = c.contexto["sentimiento"]
-    assert s.loc["AAA", "noticias"] == 6 and s.loc["AAA", "score"] == pytest.approx(0)
-    assert s.loc["AAA", "tendencia"] == pytest.approx(0.5)            # última semana más positiva
-    assert s.loc["BBB", "noticias"] == 2 and np.isnan(s.loc["BBB", "score"])
-
-    texto = c.report(["mercado"], graficos=False)
-    assert "Noticias y sentimiento" in texto and "| BBB | 2 | n/d |" in texto and "sin puntuar" in texto
-    assert "**AAA** · " in texto and "Titular 0" in texto              # últimos titulares
-    assert "Google News" in c.report(["calidad"], graficos=False)
-
-
 def test_aviso_si_no_hay_simulacion(cartera):
     assert AVISO_MC in cartera.report(["montecarlo"])
     cartera.montecarlo(n_simulaciones=500)

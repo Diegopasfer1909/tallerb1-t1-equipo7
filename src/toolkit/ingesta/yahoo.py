@@ -38,7 +38,7 @@ class YahooFinance(FuentePrecios):
         except Exception:
             return {}
         return {
-            "nombre": info.get("shortName") or info.get("longName"),
+            "nombre": info.get("longName") or info.get("shortName"),   # el corto llega a veces truncado
             "divisa": info.get("currency"),
             "tipo": TIPOS.get(info.get("quoteType"), "otro"),
             "sector": info.get("sector"),

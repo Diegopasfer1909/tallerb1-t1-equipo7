@@ -32,7 +32,6 @@ class Cartera:
     fecha_inicio: primera fecha de los datos, "AAAA-MM-DD" (por defecto, hace 5 años).
     fecha_fin:    última fecha de los datos, "AAAA-MM-DD" (por defecto, hoy).
     capital_inicial: euros invertidos al inicio; lo usan el report y Monte Carlo.
-    noticias:     descarga los titulares de los últimos 30 días y su sentimiento (tarda unos segundos).
     fuente:       de dónde se descargan los precios: YahooFinance() por defecto, AlphaVantage()...
     nombre:       título del report.
     mercado:      contexto ya descargado; si no se da, se descarga solo.
@@ -44,7 +43,6 @@ class Cartera:
     fecha_inicio: str | None = None
     fecha_fin: str | None = None
     capital_inicial: float = 10_000
-    noticias: bool = True
     fuente: object | None = field(default=None, repr=False)
     nombre: str = "Cartera"
     mercado: ContextoMercado | None = field(default=None, repr=False)
@@ -134,10 +132,8 @@ class Cartera:
         from ..ingesta import descargar_contexto
 
         inicio = min(a.inicio for a in self.activos).strftime("%Y-%m-%d")
-        empresas = ({a.symbol: (a.nombre, "es" if a.pais == "Spain" else "en") for a in self.activos}
-                    if self.noticias else None)
         return descargar_contexto(inicio, self.fecha_fin, divisas={a.divisa for a in self.activos},
-                                  indice=self.benchmark, fuente=self.fuente, empresas=empresas)
+                                  indice=self.benchmark, fuente=self.fuente)
 
     def _a_eur(self, activo: PriceSeries) -> PriceSeries:
         if activo.divisa == "EUR":
@@ -196,16 +192,12 @@ class Cartera:
         salida["efecto_divisa"] = pd.Series({
             a.symbol: metricas.efecto_divisa(a.datos.loc[desde:hasta], self.precios[a.symbol])
             for a in self.activos if a.divisa != "EUR"}, dtype=float)
-        if m.noticias is not None and not m.noticias.empty:
-            salida["sentimiento"] = metricas.sentimiento_por_activo(m.noticias, pd.Timestamp.now())
         return salida
 
     @cached_property
     def calidad(self) -> dict:
         fuentes = {a.symbol: f"{a.source} ({a.symbol})" for a in self.activos}
         fuentes.update({k: f"{s.source} ({s.symbol})" for k, s in self.mercado.series().items()})
-        if self.mercado.noticias is not None:
-            fuentes["Noticias"] = "Google News RSS + pysentimiento / FinBERT"
         sin_ajustar = [a.symbol for a in self.activos if not a.ajustado]
         return metricas.calidad(self.limpieza, self.rp, fuentes, self.mercado.fallos, sin_ajustar)
 

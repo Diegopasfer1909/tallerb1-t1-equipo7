@@ -1,21 +1,17 @@
 """Descarga del contexto de mercado de una cartera: índice, Bund, inflación, VIX, Brent,
-oro, ETF de Bunds, noticias y los tipos de cambio necesarios para pasar a EUR."""
+oro, ETF de Bunds y los tipos de cambio necesarios para pasar a EUR."""
 from ..modelos.mercado import ContextoMercado
 from .base import ErrorDescarga, FuentePrecios
 from .fred import Fred
-from .noticias import GoogleNews
 from .yahoo import YahooFinance
 
 ETF_BUND = "EXX6.DE"
 
 
 def descargar_contexto(inicio: str, fin: str | None = None, *, divisas: set[str] = frozenset(),
-                       indice: str | None = "^STOXX50E", fuente: FuentePrecios | None = None,
-                       empresas: dict[str, tuple[str, str]] | None = None) -> ContextoMercado:
+                       indice: str | None = "^STOXX50E", fuente: FuentePrecios | None = None) -> ContextoMercado:
     """Los tipos de cambio son obligatorios (sin ellos no se puede pasar a EUR); el resto es
-    opcional y, si falla, se anota en `fallos` y la métrica correspondiente sale "n/d".
-
-    empresas: {ticker: (nombre, idioma)} cuyas noticias se descargan; None = sin noticias."""
+    opcional y, si falla, se anota en `fallos` y la métrica correspondiente sale "n/d"."""
     fuente = fuente or YahooFinance()
     fred = Fred()
     mercado = ContextoMercado()
@@ -40,6 +36,4 @@ def descargar_contexto(inicio: str, fin: str | None = None, *, divisas: set[str]
             setattr(mercado, campo, origen.descargar(symbol, inicio, fin))
         except ErrorDescarga:
             mercado.fallos.append(nombre)
-    if empresas:
-        mercado.noticias = GoogleNews().descargar(empresas, mercado.fallos)
     return mercado

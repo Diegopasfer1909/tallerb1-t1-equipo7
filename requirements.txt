@@ -3,8 +3,4 @@ pandas>=2.2
 matplotlib>=3.7
 yfinance>=0.2.40
 curl_cffi>=0.6
-feedparser>=6.0
 pytest>=8.0
-# Opcional, para puntuar el sentimiento de las noticias (paquetes pesados):
-# pysentimiento
-# transformers

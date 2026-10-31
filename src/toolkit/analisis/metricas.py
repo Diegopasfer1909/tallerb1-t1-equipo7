@@ -197,18 +197,6 @@ def mercado(rp: pd.Series, vix: pd.Series | None, rent_externas: dict[str, pd.Se
     return salida
 
 
-def sentimiento_por_activo(noticias: pd.DataFrame, hoy: pd.Timestamp) -> pd.DataFrame:
-    """Nº de titulares, tono medio de los últimos 30 días y tendencia = media de 7 días − media de 30."""
-    ultimos7 = noticias[noticias["fecha"] >= hoy - pd.Timedelta(days=7)]
-    tabla = pd.DataFrame({
-        "noticias": noticias.groupby("ticker").size(),
-        "score": noticias.groupby("ticker")["score"].mean(),        # ignora titulares sin puntuar
-        "media_7d": ultimos7.groupby("ticker")["score"].mean(),
-    })
-    tabla["tendencia"] = tabla["media_7d"] - tabla["score"]
-    return tabla.drop(columns="media_7d")
-
-
 # ---------------------------------------------------------------- 10. Calidad de los datos
 
 def calidad(limpieza, rp: pd.Series, fuentes: dict, fallos: list, sin_ajustar: list[str]) -> dict:
