@@ -3,27 +3,38 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "toolkit"
-version = "1.0.0"
-description = "Toolkit de extracción, análisis bursátil y gestión de carteras (MIAX, Taller B1-T1, equipo 7)"
+name = "miax-b1-t1-equipo7-toolkit"
+version = "0.1.0"
+description = "Extracción y análisis de datos de mercado para el taller MIAX B1-T1"
 readme = "README.MD"
-requires-python = ">=3.10"
+# Versión mínima admitida; el equipo desarrolla con la indicada en .python-version.
+requires-python = ">=3.11"
+# Versiones mínimas con las que se han ejecutado las pruebas.
 dependencies = [
-    "numpy>=1.24",
+    "numpy>=1.26",
     "pandas>=2.2",
-    "matplotlib>=3.7",
+    "matplotlib>=3.8",
     "yfinance>=0.2.40",
-    "curl_cffi>=0.6",
+    "requests>=2.31",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["ruff==0.17.2"]
+
+[tool.setuptools]
+# Excluye datos descargados y credenciales del paquete instalado.
+include-package-data = false
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["src", "src.*"]
+namespaces = false
 
-[tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests"]
-markers = ["red: tests que descargan datos de internet (se ejecutan con: pytest -m red)"]
-addopts = "-m 'not red'"
+[tool.ruff]
+# Sin target-version: Ruff toma la versión mínima de requires-python.
+line-length = 100
+
+[tool.ruff.lint]
+# Errores de sintaxis, nombres sin usar y orden de las importaciones.
+select = ["E4", "E7", "E9", "F", "I", "B"]
