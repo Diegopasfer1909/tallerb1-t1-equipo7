@@ -86,6 +86,41 @@ def date_range(start: str, end: str) -> tuple[pd.Timestamp, pd.Timestamp]:
     return first, last
 
 
+def cache_path(cache_dir: Path | None, key) -> Path | None:
+    """La misma clave produce el mismo nombre de archivo sin exponer su contenido."""
+    if cache_dir is None:
+        return None
+    name = hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
+    return Path(cache_dir) / f"{name}.json"
+
+
+def read_cache(cache: Path | None, ttl: float) -> dict | None:
+    """Devuelve una respuesta vigente o None si se necesita descargarla."""
+    if cache is None or ttl <= 0:
+        return None
+    try:
+        age = time.time() - cache.stat().st_mtime
+        if age < ttl:
+            cached = json.loads(cache.read_text(encoding="utf-8"))
+            if isinstance(cached, dict) and cached:
+                return cached
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def write_cache(cache: Path | None, payload: dict) -> None:
+    """Guarda la respuesta si se ha activado la caché, sin impedir la consulta si falla."""
+    if cache is None:
+        return
+    try:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps(payload), encoding="utf-8")
+    except (OSError, TypeError, ValueError):
+        # Un fallo al guardar la caché no debe impedir una descarga correcta.
+        pass
+
+
 class ApiClient:
     """Descarga JSON y permite reutilizar respuestas guardadas en disco."""
 
@@ -115,13 +150,8 @@ class ApiClient:
         self._last_request: float | None = None
 
     def get_json(self, url: str, params: dict) -> dict:
-        cache = None
-        if self.cache_dir is not None:
-            # La misma consulta produce el mismo nombre de archivo sin exponer la clave.
-            request = json.dumps([url, params], sort_keys=True)
-            name = hashlib.sha256(request.encode()).hexdigest()
-            cache = self.cache_dir / f"{name}.json"
-        cached = self._read_cache(cache)
+        cache = cache_path(self.cache_dir, [url, params])
+        cached = read_cache(cache, self.cache_ttl)
         if cached is not None:
             return cached
 
@@ -132,22 +162,8 @@ class ApiClient:
         self._last_request = time.monotonic()
 
         data = self._download(url, params)
-        self._write_cache(cache, data)
+        write_cache(cache, data)
         return data
-
-    def _read_cache(self, cache: Path | None) -> dict | None:
-        """Devuelve una respuesta vigente o None si se necesita descargarla."""
-        if cache is None or self.cache_ttl <= 0:
-            return None
-        try:
-            age = time.time() - cache.stat().st_mtime
-            if age < self.cache_ttl:
-                cached = json.loads(cache.read_text(encoding="utf-8"))
-                if isinstance(cached, dict) and cached:
-                    return cached
-        except (OSError, ValueError):
-            pass
-        return None
 
     def _download(self, url: str, params: dict) -> dict:
         try:
@@ -177,14 +193,3 @@ class ApiClient:
                     f"El proveedor ha rechazado la consulta. Mensaje original: {message}"
                 )
         return payload
-
-    def _write_cache(self, cache: Path | None, payload: dict) -> None:
-        """Guarda la respuesta si se ha activado la caché, sin impedir la consulta si falla."""
-        if cache is None:
-            return
-        try:
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            cache.write_text(json.dumps(payload), encoding="utf-8")
-        except OSError:
-            # Un fallo al guardar la caché no debe impedir una descarga correcta.
-            pass

@@ -7,7 +7,9 @@ Monte Carlo e informes en español.
 
 ## Instalación
 
-Desde la carpeta del proyecto, con Python 3.10 o posterior:
+El proyecto admite Python 3.11 o posterior. El equipo desarrolla y comprueba con
+Python 3.14, indicado en `.python-version`; es la versión recomendada para
+obtener los mismos resultados. Desde la carpeta del proyecto:
 
 ```powershell
 python -m venv .venv
@@ -285,6 +287,11 @@ python -B -m unittest discover -s tests -v
 ```
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
-código, formato y pruebas con Python 3.10 y 3.14. `__pycache__` está excluido
-en `.gitignore`. La caché de respuestas de Alpha Vantage y FRED se conserva
-para evitar consultas repetidas; no contiene las claves en texto.
+código y formato con Python 3.14, y ejecuta las pruebas con la versión mínima
+(3.11) y con la del equipo (3.14). `__pycache__` está excluido
+en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage y FRED
+se conserva un día en `.cache/market-data` para evitar consultas repetidas; no
+contiene las claves en texto. Se guarda por símbolo: cambiar los parámetros de la
+simulación no descarga nada y cambiar un activo solo descarga ese activo. En Yahoo
+también se reutiliza un intervalo de fechas contenido en otro ya consultado. Para
+forzar una descarga nueva, borra esa carpeta.

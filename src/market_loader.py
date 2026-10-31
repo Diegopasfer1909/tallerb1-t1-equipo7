@@ -23,9 +23,17 @@ REPORT_DEFAULTS = {
 }
 
 
-def load_currency_context(assets: list[Asset], target: str, start: str, end: str) -> MarketContext:
+def load_currency_context(
+    assets: list[Asset],
+    target: str,
+    start: str,
+    end: str,
+    cache_dir: Path | None = None,
+    cache_ttl: float = 86400,
+) -> MarketContext:
     """Obtiene los cambios directos necesarios sin pedir al usuario símbolos de divisas."""
-    provider = YahooFinanceAPI()
+    # De un tipo de cambio solo se usan los precios; la ficha costaría otra petición.
+    provider = YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl, include_info=False)
     currencies = {MINOR_UNITS.get(asset.currency, asset.currency) for asset in assets}
     earlier = (date.fromisoformat(start) - timedelta(days=7)).isoformat()
     rates = []
@@ -61,7 +69,7 @@ def load_market_context(
     """
     context = MarketContext()
     if benchmark_symbol:
-        provider = price_provider or YahooFinanceAPI()
+        provider = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
         try:
             context.benchmark = provider.get_prices(benchmark_symbol, start, end, adjusted=False)
         except (ProviderError, ValueError):

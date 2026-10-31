@@ -7,7 +7,8 @@ name = "miax-b1-t1-equipo7-toolkit"
 version = "0.1.0"
 description = "Extracción y análisis de datos de mercado para el taller MIAX B1-T1"
 readme = "README.MD"
-requires-python = ">=3.10"
+# Versión mínima admitida; el equipo desarrolla con la indicada en .python-version.
+requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.17",
     "pandas>=1.3.0",
@@ -30,7 +31,7 @@ include = ["src", "src.*"]
 namespaces = false
 
 [tool.ruff]
-target-version = "py310"
+# Sin target-version: Ruff toma la versión mínima de requires-python.
 line-length = 100
 
 [tool.ruff.lint]

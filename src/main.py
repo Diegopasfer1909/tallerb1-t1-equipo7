@@ -13,6 +13,8 @@ from src.reporting.formatting import format_number
 from src.validation import validate_symbols, validate_weights
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Respuestas reutilizables entre ejecuciones durante un día, por símbolo y serie.
+CACHE_DIR = PROJECT_ROOT / ".cache" / "market-data"
 # Yahoo admite historiales largos; el modo compact de Alpha Vantage, unas 100 sesiones.
 DEFAULT_HISTORY_DAYS = {"yahoo": 365, "alpha_vantage": 120}
 
@@ -207,11 +209,9 @@ def parse_assumptions(items: list[str] | None, weights: dict[str, float]):
 def run_portfolio(args) -> None:
     """Coordina la carga, la simulación y las salidas solicitadas."""
     if args.provider == "alpha_vantage":
-        provider = AlphaVantageAPI(
-            cache_dir=PROJECT_ROOT / ".cache" / "market-data", include_info=True
-        )
+        provider = AlphaVantageAPI(cache_dir=CACHE_DIR, include_info=True)
     else:
-        provider = YahooFinanceAPI()
+        provider = YahooFinanceAPI(cache_dir=CACHE_DIR)
     portfolio = load_portfolio(
         args.weights,
         provider,
@@ -220,13 +220,11 @@ def run_portfolio(args) -> None:
         reporting_currency=args.currency,
         initial_capital=args.capital,
         rebalance=args.rebalance,
+        cache_dir=CACHE_DIR,
     )
     if args.report:
         portfolio.market_context = load_report_context(
-            portfolio,
-            args.start,
-            args.end,
-            cache_dir=PROJECT_ROOT / ".cache" / "market-data",
+            portfolio, args.start, args.end, cache_dir=CACHE_DIR
         )
     print_portfolio(portfolio)
     simulation = None
