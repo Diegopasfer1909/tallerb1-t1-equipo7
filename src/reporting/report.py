@@ -101,20 +101,26 @@ def _asset_information(analysis: PortfolioAnalysis) -> str:
     return "\n\n".join(profiles)
 
 
-def _asset_performance(analysis: PortfolioAnalysis) -> str:
-    keys = ["total_return", "annualized_return", "annualized_volatility", "max_drawdown"]
+def _asset_percentages(analysis: PortfolioAnalysis, columns: dict[str, str]) -> str:
+    """Una fila por activo con las medidas de asset_details indicadas, en porcentaje."""
     return _table(
+        ["Activo", *columns],
         [
-            "Activo",
-            "Rentabilidad total",
-            "Rentabilidad anualizada",
-            "Volatilidad anual",
-            "Caída máxima",
-        ],
-        [
-            [symbol, *[format_number(row[key], True) for key in keys]]
+            [symbol, *(format_number(row[key], True) for key in columns.values())]
             for symbol, row in analysis.asset_details.iterrows()
         ],
+    )
+
+
+def _asset_performance(analysis: PortfolioAnalysis) -> str:
+    return _asset_percentages(
+        analysis,
+        {
+            "Rentabilidad total": "total_return",
+            "Rentabilidad anualizada": "annualized_return",
+            "Volatilidad anual": "annualized_volatility",
+            "Caída máxima": "max_drawdown",
+        },
     )
 
 
@@ -144,16 +150,12 @@ def _asset_fundamentals(analysis: PortfolioAnalysis) -> str:
 
 
 def _estimated_parameters(analysis: PortfolioAnalysis) -> str:
-    return _table(
-        ["Activo", "Retorno anual μ (histórico)", "Volatilidad anual σ (histórica)"],
-        [
-            [
-                symbol,
-                format_number(row["expected_annual_return"], True),
-                format_number(row["expected_annual_volatility"], True),
-            ]
-            for symbol, row in analysis.asset_details.iterrows()
-        ],
+    return _asset_percentages(
+        analysis,
+        {
+            "Retorno anual μ (histórico)": "expected_annual_return",
+            "Volatilidad anual σ (histórica)": "expected_annual_volatility",
+        },
     )
 
 

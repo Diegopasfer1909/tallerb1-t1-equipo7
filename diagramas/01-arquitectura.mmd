@@ -1,0 +1,62 @@
+%% Componentes y responsabilidades: flechas de llamada/entrega, no de importación.
+%% Las fuentes auxiliares son las predeterminadas de CLI; Python admite inyección.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B","clusterBkg":"#F8FAFC","clusterBorder":"#CBD5E1"},"flowchart":{"curve":"basis","nodeSpacing":35,"rankSpacing":55}}}%%
+flowchart TB
+    accTitle: B1-T1 · Arquitectura del sistema
+    accDescr: Orquestación, adaptadores, dominio, cálculo y presentación.
+    CLI["main.py · entrada CLI<br/>RunConfig · registro PROVIDERS"]:::navy
+    PY["API Python<br/>objetos y proveedores inyectables"]:::navy
+    subgraph LOAD["01 · CARGA Y NORMALIZACIÓN"]
+        PL["portfolio_loader<br/>load_portfolio()"]:::blue
+        ML["market_loader<br/>load_fx_rates() · load_references()"]:::blue
+    end
+    subgraph ADAPTERS["02 · ADAPTADORES EXTERNOS"]
+        PRICE["PriceProvider<br/>YahooFinanceAPI · AlphaVantageAPI"]:::teal
+        FRED["FredAPI<br/>series económicas"]:::teal
+        SUPPORT["Infraestructura compartida<br/>ApiClient · caché · cuota Alpha"]:::teal
+    end
+    subgraph DOMAIN["03 · DOMINIO Y DATOS VALIDADOS"]
+        MARKET["PriceHistory · AssetProfile<br/>EconomicIndicator · FxRates"]:::blue
+        PORT["Asset · Portfolio<br/>alineación · conversión · valoración"]:::blue
+        REF["MarketReferences<br/>benchmark · inflación · tipo · avisos"]:::blue
+    end
+    subgraph COMPUTE["04 · CÁLCULO LOCAL"]
+        SIM["simulation<br/>GBM correlacionado · Monte Carlo"]:::violet
+        ANA["analysis<br/>métricas · referencias · avisos"]:::violet
+    end
+    REP["reporting<br/>tablas · Markdown · gráficos"]:::violet
+    NET["Servicios web<br/>Yahoo Finance · Alpha Vantage · FRED"]:::external
+    DISK[("Caché JSON · SQLite<br/>persistencia local")]:::external
+    OUTPUT[("informes/<br/>Markdown + PNG · pantalla")]:::amber
+    CLI -->|"opciones validadas"| PL
+    CLI -->|"solo con --report"| ML
+    PY -->|"carga programática"| PL
+    PY -->|"modelos ya cargados"| PORT
+    PL -->|"FX necesarios"| ML
+    PL -->|"get_prices()"| PRICE
+    ML -->|"benchmark / FX: Yahoo por defecto"| PRICE
+    ML -->|"get_series()"| FRED
+    PRICE -->|"transporte y caché"| SUPPORT
+    FRED -->|"ApiClient"| SUPPORT
+    SUPPORT -->|"consultas"| NET
+    SUPPORT -->|"lee / escribe"| DISK
+    PRICE -->|"PriceHistory con ficha"| MARKET
+    FRED -->|"EconomicIndicator"| MARKET
+    PL -->|"construye activos y cartera"| PORT
+    MARKET -->|"historiales y FX"| PORT
+    ML -->|"compone referencias opcionales"| REF
+    PORT -->|"SimulationInputs"| SIM
+    PORT -->|"Portfolio"| ANA
+    REF -->|"referencias + Notice"| ANA
+    SIM -->|"SimulationResult"| REP
+    ANA -->|"PortfolioAnalysis"| REP
+    REP -->|"exporta / muestra"| OUTPUT
+    classDef navy fill:#14233D,stroke:#14233D,color:#FFFFFF,stroke-width:2px;
+    classDef blue fill:#EAF2FF,stroke:#356CC9,color:#14233D;
+    classDef teal fill:#E4F7F3,stroke:#168575,color:#14233D;
+    classDef violet fill:#F0EBFF,stroke:#7953BF,color:#14233D;
+    classDef amber fill:#FFF3D9,stroke:#BF861B,color:#14233D;
+    classDef external fill:#F8FAFC,stroke:#64748B,color:#334155,stroke-dasharray:5 4;
+%% Yahoo usa yfinance y las funciones de caché, no ApiClient.
+%% Alpha y FRED usan ApiClient; solo Alpha instala callbacks de cuota.
+%% El cálculo no descarga; reporting sí realiza E/S al exportar o mostrar.

@@ -76,24 +76,20 @@ def _new_report_folder(reports: Path, generated_on: datetime) -> Path:
 
 
 def _check_simulation_matches(analysis: PortfolioAnalysis, simulation: SimulationResult) -> None:
-    """Una simulación proporcionada debe partir de la misma cartera que el informe."""
-    if (
-        simulation.currency != analysis.currency
-        or simulation.valuation_date != analysis.values.index[-1]
-    ):
-        raise PortfolioError(
-            "La simulación debe utilizar la misma divisa y fecha de valoración que el informe."
-        )
+    """Una simulación proporcionada debe partir de la misma cartera que el informe.
+
+    Se comprueba en orden: fecha y divisa, posiciones iniciales y criterios de cálculo.
+    """
     holdings = analysis.holdings
+    same_start = (
+        simulation.currency == analysis.currency
+        and simulation.valuation_date == analysis.values.index[-1]
+    )
     same_positions = (
         set(simulation.assumptions.index) == set(holdings.index)
         and np.allclose(simulation.starting_values.reindex(holdings.index), holdings["value"])
         and np.allclose(simulation.paths.iloc[0], holdings["value"].sum())
     )
-    if not same_positions:
-        raise PortfolioError(
-            "La simulación debe corresponder a los mismos activos y valor inicial del informe."
-        )
     same_weights = simulation.rebalance is None or (
         simulation.target_weights is not None
         and np.allclose(
@@ -101,12 +97,14 @@ def _check_simulation_matches(analysis: PortfolioAnalysis, simulation: Simulatio
             analysis.target_weights,
         )
     )
-    if (
-        simulation.price_column != analysis.price_column
-        or simulation.periods_per_year != analysis.periods_per_year
-        or simulation.rebalance != analysis.rebalance
-        or not same_weights
+    same_criteria = same_weights and (
+        (simulation.price_column, simulation.periods_per_year, simulation.rebalance)
+        == (analysis.price_column, analysis.periods_per_year, analysis.rebalance)
+    )
+    for matches, problem in (
+        (same_start, "la misma divisa y fecha de valoración"),
+        (same_positions, "los mismos activos y valor inicial"),
+        (same_criteria, "los mismos criterios de cálculo"),
     ):
-        raise PortfolioError(
-            "La simulación debe utilizar los mismos criterios de cálculo del informe."
-        )
+        if not matches:
+            raise PortfolioError(f"La simulación debe utilizar {problem} que el informe.")

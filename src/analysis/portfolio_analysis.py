@@ -19,6 +19,7 @@ from ..constants import (
 )
 from ..errors import PortfolioError
 from ..models import EconomicIndicator, FxRates, MarketReferences, Notice, PriceHistory
+from ..models.price_history import period_returns
 from ..simulation import estimate_parameters
 from ..validation import validate_positive_int
 from . import messages
@@ -126,23 +127,6 @@ def _inflation(
     )
 
 
-def _comparable_benchmark(
-    benchmark: PriceHistory,
-    dates: pd.DatetimeIndex,
-    target: str,
-    fx_rates: FxRates,
-    price_column: PriceColumn,
-) -> pd.Series | None:
-    """Precios del índice en las fechas de la cartera y en su divisa, o None si no bastan."""
-    try:
-        prices = benchmark.closing_prices(price_column).reindex(dates).dropna()
-        if len(prices) < 3:
-            return None
-        return fx_rates.convert(prices, benchmark.profile.currency, target)
-    except PortfolioError:
-        return None
-
-
 def _benchmark(
     benchmark: PriceHistory | None,
     values: pd.Series,
@@ -162,22 +146,25 @@ def _benchmark(
             BENCHMARK_METRICS, messages.BENCHMARK_CURRENCY_NOTE, messages.BENCHMARK_CURRENCY
         )
         return measures, None
-    prices = _comparable_benchmark(benchmark, values.index, currency, fx_rates, price_column)
-    if prices is None:
+    # Fechas de la cartera en las que cotiza el índice, sin rellenar, en la divisa de la cartera.
+    try:
+        prices = benchmark.closing_prices(price_column).reindex(values.index).dropna()
+        prices = fx_rates.convert(prices, benchmark.profile.currency, currency)
+    except PortfolioError:
+        prices = None
+    if prices is None or len(prices) < 3:
         measures = _Measures.missing(
             BENCHMARK_METRICS, messages.BENCHMARK_COVERAGE_NOTE, messages.BENCHMARK_COVERAGE
         )
         return measures, None
-    on_benchmark_dates = values.reindex(prices.index)
-    market = prices.pct_change(fill_method=None).dropna()
-    returns = on_benchmark_dates.pct_change(fill_method=None).dropna()
-    portfolio_return = annualized_growth(on_benchmark_dates)
+    portfolio = values.reindex(prices.index)
+    portfolio_return = annualized_growth(portfolio)
     benchmark_return = annualized_growth(prices)
     measured = {
         "comparison_portfolio_annualized_return": portfolio_return,
         "benchmark_annualized_return": benchmark_return,
         "difference_from_benchmark": portfolio_return - benchmark_return,
-        "beta": beta(returns, market),
+        "beta": beta(period_returns(portfolio), period_returns(prices)),
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
     notice = Notice(
@@ -221,10 +208,10 @@ def _asset_details(
     benchmark_prices: pd.Series | None,
 ) -> pd.DataFrame:
     """Reúne la ficha y los resultados de cada activo para su presentación."""
-    estimates = estimate_parameters(prices.pct_change(fill_method=None).iloc[1:], periods_per_year)
+    estimates = estimate_parameters(period_returns(prices), periods_per_year)
     market = None
     if benchmark_prices is not None:
-        market = benchmark_prices.pct_change(fill_method=None).dropna()
+        market = period_returns(benchmark_prices)
     records = []
     for asset in portfolio.assets:
         profile = asset.history.profile
@@ -232,7 +219,7 @@ def _asset_details(
         calculated_beta = np.nan
         if market is not None:
             on_benchmark_dates = prices[asset.symbol].reindex(benchmark_prices.index)
-            calculated_beta = beta(on_benchmark_dates.pct_change(fill_method=None).dropna(), market)
+            calculated_beta = beta(period_returns(on_benchmark_dates), market)
         records.append(
             {
                 "asset": asset.symbol,
@@ -267,23 +254,24 @@ def _quality_notices(
     notices = []
     # pct_change no sabe cuánto tiempo separa dos filas: la anualización depende de este dato.
     typical_gap = pd.Series(dates).diff().dt.days.median()
+    days = (dates[-1] - dates[0]).days
+    returns = len(dates) - 1
+    # Duración y tamaño de muestra son cosas distintas: un año puede tener pocas fechas comunes.
+    expected = days / DAYS_PER_YEAR * periods_per_year
     if periods_per_year >= PERIODS_PER_YEAR and typical_gap > 5:
         notices.append(
             Notice(messages.ANNUALIZATION_GAP.format(gap=typical_gap, periods=periods_per_year))
         )
-    days = (dates[-1] - dates[0]).days
-    if days < ONE_YEAR_MIN_DAYS:
-        notices.append(Notice(messages.SHORT_HISTORY.format(days=days)))
-    # Duración y tamaño de muestra son cosas distintas: un año puede tener pocas fechas comunes.
-    expected = days / DAYS_PER_YEAR * periods_per_year
-    if typical_gap <= 5 and len(dates) - 1 < MIN_SAMPLE_COVERAGE * expected:
+    elif returns < MIN_SAMPLE_COVERAGE * expected:
         notices.append(
             Notice(
                 messages.SPARSE_SAMPLE.format(
-                    returns=len(dates) - 1, days=days, expected=expected, periods=periods_per_year
+                    returns=returns, days=days, expected=expected, periods=periods_per_year
                 )
             )
         )
+    if days < ONE_YEAR_MIN_DAYS:
+        notices.append(Notice(messages.SHORT_HISTORY.format(days=days)))
     if quality["partial_history"].any():
         notices.append(Notice(messages.PARTIAL_HISTORY))
     unadjusted = quality.index[quality["price_basis"] == "unadjusted"]
@@ -346,8 +334,8 @@ def analyze_portfolio(
     values = portfolio.position_values(price_column).sum(axis=1).rename("portfolio_value")
     if not np.isfinite(values).all() or (values <= 0).any():
         raise PortfolioError("Los valores históricos de la cartera deben ser positivos y finitos.")
-    returns = values.pct_change(fill_method=None).dropna()
-    asset_returns = prices.pct_change(fill_method=None).dropna()
+    returns = period_returns(values)
+    asset_returns = period_returns(prices)
     holdings = portfolio.holdings(price_column)
     weights = holdings["weight"]
 

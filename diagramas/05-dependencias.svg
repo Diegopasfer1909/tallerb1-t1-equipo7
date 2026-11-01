@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2040" height="1540" viewBox="0 0 2040 1540" role="img">
+<title>05-dependencias</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="2040" height="1540" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1540" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Dependencias del código</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Vista seleccionada de imports · la flecha apunta al paquete importado · inventario completo en ARQUITECTURA.md</text>
+<rect x="1894" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="1913.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">05</text>
+<text x="82" y="237.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#2464AD">A  /  COORDINACIÓN Y CARGA</text>
+<rect x="80" y="275" width="300" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="276" width="7" height="148" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">main</text>
+<text x="104" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Selecciona y coordina</text>
+<rect x="520" y="275" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="521" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="544" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">portfolio_loader</text>
+<text x="544" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Construye Portfolio</text>
+<rect x="1060" y="275" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1061" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1084" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">market_loader</text>
+<text x="1084" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Carga FX y referencias</text>
+<rect x="1600" y="275" width="360" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1601" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1624" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
+<text x="1624" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Normaliza las fuentes</text>
+<polyline points="380,350 520,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="506.49329346470984,356.52448301166845 520,350 506.49329346470984,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="920,350 1060,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1046.49329346471,356.52448301166845 1060,350 1046.49329346471,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="1460,350 1600,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1586.49329346471,356.52448301166845 1600,350 1586.49329346471,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<text x="82" y="489.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Aquí se muestra la cadena principal; main y loaders también importan los contratos y servicios que coordinan.</text>
+<text x="82" y="583.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#087D76">B  /  RELACIONES ENTRE PAQUETES DE LA BIBLIOTECA</text>
+<rect x="80" y="680" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="681" width="7" height="188" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="717.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">MÉTRICAS</text>
+<text x="104" y="757.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">analysis</text>
+<text x="104" y="796.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Cálculos → PortfolioAnalysis</text>
+<rect x="790" y="680" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="791" y="681" width="7" height="188" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="814" y="717.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">DOMINIO</text>
+<text x="814" y="757.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">models</text>
+<text x="814" y="796.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Datos + valoración histórica</text>
+<rect x="1500" y="680" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1501" y="681" width="7" height="188" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1524" y="717.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">FUENTES</text>
+<text x="1524" y="757.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
+<text x="1524" y="796.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Adaptadores y contratos de E/S</text>
+<rect x="80" y="1110" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="1111" width="7" height="188" rx="16" fill="#A66810" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="1147.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#A66810">PRESENTACIÓN</text>
+<text x="104" y="1187.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#A66810">reporting</text>
+<text x="104" y="1226.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Texto, gráficos y exportación</text>
+<rect x="790" y="1110" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="791" y="1111" width="7" height="188" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="814" y="1147.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">ESCENARIOS</text>
+<text x="814" y="1187.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">simulation</text>
+<text x="814" y="1226.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Inputs, motor y resultados</text>
+<polyline points="540,760 790,760" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="776.4932934647098,766.5244830116685 790,760 776.4932934647098,753.4755169883315" fill="none" stroke="#087D76" stroke-width="2"/>
+<polyline points="1500,760 1250,760" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1263.50670653529,753.4755169883315 1250,760 1263.50670653529,766.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="1020,870 1020,1110" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1013.4755169883315,1096.49329346471 1020,1110 1026.5244830116685,1096.49329346471" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="1034" y="963" width="169.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1040" y="984.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">import de módulo</text>
+<polyline points="460,870 460,960 850,960 850,1110" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="843.4755169883315,1096.49329346471 850,1110 856.5244830116685,1096.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="507.0" y="919" width="206.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="514.0" y="940.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">analysis → simulation</text>
+<polyline points="790,710 690,710 690,620 300,620 300,680" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="293.47551698833155,666.4932934647098 300,680 306.52448301166845,666.4932934647098" fill="none" stroke="#A66810" stroke-width="2"/>
+<rect x="452.0" y="598" width="96.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="459.0" y="619.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#A66810">analyze()</text>
+<polyline points="790,830 620,830 620,1055 440,1055 440,1110" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="433.47551698833155,1096.49329346471 440,1110 446.52448301166845,1096.49329346471" fill="none" stroke="#A66810" stroke-width="2"/>
+<rect x="634" y="997" width="81.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="640" y="1018.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#A66810">report()</text>
+<polyline points="230,870 230,1110" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="223.47551698833155,1096.49329346471 230,1110 236.52448301166845,1096.49329346471" fill="none" stroke="#A66810" stroke-width="2"/>
+<rect x="244" y="997" width="128.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="250" y="1018.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#A66810">presentación</text>
+<polyline points="790,1205 540,1205" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="553.5067065352902,1198.4755169883315 540,1205 553.5067065352902,1211.5244830116685" fill="none" stroke="#A66810" stroke-width="2"/>
+<rect x="635.0" y="1161" width="60.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="642.0" y="1182.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#A66810">plot()</text>
+<rect x="1500" y="980" width="460" height="320" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1501" y="981" width="7" height="318" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="1524" y="1017.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">DEPENDENCIAS AUXILIARES</text>
+<text x="1524" y="1057.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">Servicios transversales</text>
+<text x="1524" y="1096.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">constants · errors · validation</text>
+<text x="1524" y="1124.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Imports omitidos en este recorte.</text>
+<text x="1524" y="1152.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779"></text>
+<text x="1524" y="1180.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">TYPE_CHECKING:</text>
+<text x="1524" y="1208.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">models ↔ analysis</text>
+<text x="1524" y="1237.04" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">reporting → analysis, simulation</text>
+<text x="82" y="1402.08" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#142D43">Continuas: imports al cargar el módulo.   Discontinuas ámbar: imports dentro de métodos (4 aristas).</text>
+<polyline points="72,1450 1968,1450" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1486.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">El grafo de imports de módulo es acíclico. Los imports diferidos conservan acoplamiento; no equivalen a eliminar la dependencia.</text>
+</svg>

@@ -1,5 +1,6 @@
 """Descargas de tipos de cambio y referencias económicas para la cartera."""
 
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -98,14 +99,14 @@ def load_market_references(
 ) -> MarketReferences:
     """Descarga las referencias opcionales y registra sus fallos sin detener el informe.
 
-    La inflación requiere un índice de precios; el tipo de referencia, un porcentaje anual.
-    La inflación y el tipo de interés se toman de FRED. Consultar solo un índice bursátil
-    no requiere clave. Con currency, la divisa de la cartera, se descarga también el tipo de
-    cambio que necesite un índice que cotice en otra divisa.
+    El índice se consulta en Yahoo Finance y no requiere clave; la inflación (un índice de
+    precios) y el tipo de interés (un porcentaje anual), en FRED. Con currency, la divisa de
+    la cartera, se descarga también el cambio que necesite un índice cotizado en otra divisa.
     """
     notices = []
 
     def attempt(failure: str, download, *args):
+        """Una referencia que falla se registra como aviso y queda sin calcular."""
         try:
             return download(*args)
         except (ProviderError, PortfolioError) as error:
@@ -115,16 +116,20 @@ def load_market_references(
     benchmark = inflation = risk_free_rate = None
     fx_rates = FxRates()
     if benchmark_symbol:
-        provider = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+        yahoo = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
         benchmark = attempt(
             f"No se ha podido descargar el índice de referencia {benchmark_symbol}.",
-            provider.get_prices,
+            yahoo.get_prices,
             benchmark_symbol,
             start,
             end,
         )
         quoted = benchmark.profile.currency if benchmark is not None else None
-        if currency and quoted and MINOR_UNITS.get(quoted, quoted) != currency:
+        if currency and quoted:
+            # _fx_rates no descarga nada si el índice ya cotiza en la divisa de la cartera.
+            fx_provider = price_provider or YahooFinanceAPI(
+                cache_dir=cache_dir, cache_ttl=cache_ttl, include_info=False
+            )
             fx_rates = (
                 attempt(
                     f"No se ha podido descargar el tipo de cambio {quoted}/{currency} para comparar "
@@ -134,13 +139,11 @@ def load_market_references(
                     currency,
                     start,
                     end,
-                    price_provider
-                    or YahooFinanceAPI(
-                        cache_dir=cache_dir, cache_ttl=cache_ttl, include_info=False
-                    ),
+                    fx_provider,
                 )
                 or FxRates()
             )
+
     if inflation_series or risk_free_series:
         try:
             fred = fred_provider or FredAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
@@ -154,23 +157,15 @@ def load_market_references(
             )
         else:
             earlier = _days_before(start, MONTHLY_REFERENCE_MAX_AGE_DAYS)
-            if inflation_series:
-                inflation = attempt(
-                    f"No se ha podido descargar la serie de inflación ({inflation_series}).",
-                    fred.get_series,
-                    inflation_series,
-                    earlier,
-                    end,
-                )
-            if risk_free_series:
-                risk_free_rate = attempt(
-                    "No se ha podido descargar la serie de tipo de interés de referencia "
-                    f"({risk_free_series}).",
-                    fred.get_series,
-                    risk_free_series,
-                    earlier,
-                    end,
-                )
+
+            def series(series_id: str | None, label: str):
+                if not series_id:
+                    return None
+                failure = f"No se ha podido descargar la serie de {label} ({series_id})."
+                return attempt(failure, fred.get_series, series_id, earlier, end)
+
+            inflation = series(inflation_series, "inflación")
+            risk_free_rate = series(risk_free_series, "tipo de interés de referencia")
     return MarketReferences(benchmark, inflation, risk_free_rate, notices, fx_rates)
 
 
@@ -184,23 +179,20 @@ def load_references(
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
 ) -> MarketReferences:
-    """Elige las referencias predeterminadas de la divisa del informe; se pueden cambiar.
+    """Completa con las referencias predeterminadas de la divisa las que no se indiquen.
 
     benchmark_symbol sustituye al índice predeterminado; puede cotizar en otra divisa.
     """
     defaults = REPORT_DEFAULTS.get(currency, {})
-    chosen = {
-        "benchmark_symbol": benchmark_symbol,
-        "inflation_series": inflation_series,
-        "risk_free_series": risk_free_series,
-    }
     references = load_market_references(
         start,
         end,
+        benchmark_symbol=benchmark_symbol or defaults.get("benchmark_symbol"),
+        inflation_series=inflation_series or defaults.get("inflation_series"),
+        risk_free_series=risk_free_series or defaults.get("risk_free_series"),
         cache_dir=cache_dir,
         cache_ttl=cache_ttl,
         currency=currency,
-        **{name: value or defaults.get(name) for name, value in chosen.items()},
     )
     notes = []
     if benchmark_symbol:
@@ -211,8 +203,14 @@ def load_references(
                 kind="method",
             )
         )
-    defaulted = [name for name, value in chosen.items() if not value and name in defaults]
-    if defaulted:
+    if not defaults:
+        notes.append(
+            Notice(
+                f"No hay referencias económicas predeterminadas para {currency}. Las medidas que "
+                "necesitan las referencias no indicadas quedan sin calcular."
+            )
+        )
+    elif not all((benchmark_symbol, inflation_series, risk_free_series)):
         notes.append(
             Notice(
                 "Las referencias no indicadas se han elegido según la divisa del informe. "
@@ -220,17 +218,4 @@ def load_references(
                 kind="method",
             )
         )
-    elif not defaults:
-        notes.append(
-            Notice(
-                f"No hay referencias económicas predeterminadas para {currency}. Las medidas que "
-                "necesitan las referencias no indicadas quedan sin calcular."
-            )
-        )
-    return MarketReferences(
-        references.benchmark,
-        references.inflation,
-        references.risk_free_rate,
-        (*references.notices, *notes),
-        references.fx_rates,
-    )
+    return replace(references, notices=(*references.notices, *notes))
