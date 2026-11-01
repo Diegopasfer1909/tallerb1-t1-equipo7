@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1330" viewBox="0 0 1920 1330" role="img">
+<title>01-arquitectura</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="1920" height="1330" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1330" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Arquitectura del sistema</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Vista de componentes · responsabilidades, contratos y recorrido de los datos</text>
+<rect x="1774" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="1793.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">01</text>
+<rect x="80" y="230" width="420" height="155" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="231" width="7" height="153" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="267.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">INTERFAZ</text>
+<text x="104" y="307.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">Entrada CLI</text>
+<text x="104" y="347.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Argumentos + archivo de pesos</text>
+<text x="104" y="376.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Variables de entorno</text>
+<rect x="680" y="230" width="560" height="155" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="681" y="231" width="7" height="153" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="704" y="267.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">COORDINACIÓN</text>
+<text x="704" y="307.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">main + loaders</text>
+<text x="704" y="347.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Configuran, descargan y construyen</text>
+<text x="704" y="376.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">la cartera y sus referencias</text>
+<rect x="1420" y="230" width="420" height="155" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1421" y="231" width="7" height="153" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="1444" y="267.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">OTRA ENTRADA</text>
+<text x="1444" y="307.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">API Python</text>
+<text x="1444" y="346.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Objetos y proveedores inyectables</text>
+<text x="1444" y="374.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Uso directo de la biblioteca</text>
+<polyline points="500,307 680,307" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="666.4932934647098,313.52448301166845 680,307 666.4932934647098,300.47551698833155" fill="none" stroke="#64798B" stroke-width="2"/>
+<polyline points="1420,307 1240,307" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1253.50670653529,300.47551698833155 1240,307 1253.50670653529,313.52448301166845" fill="none" stroke="#64798B" stroke-width="2"/>
+<polyline points="960,385 960,450 330,450 330,520" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="323.47551698833155,506.49329346470984 330,520 336.52448301166845,506.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
+<polyline points="960,450 960,520" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="953.4755169883315,506.49329346470984 960,520 966.5244830116685,506.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
+<polyline points="960,450 1590,450 1590,520" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1583.4755169883315,506.49329346470984 1590,520 1596.5244830116685,506.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1004" y="430" width="172.0" height="32.32" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1010" y="450.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">coordina llamadas</text>
+<rect x="80" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="521" width="7" height="248" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">ADQUISICIÓN</text>
+<text x="104" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
+<text x="104" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">PriceProvider: Yahoo / Alpha</text>
+<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED: series económicas</text>
+<text x="104" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">HTTP, caché y cuota de Alpha</text>
+<rect x="710" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="711" y="521" width="7" height="248" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="734" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">DOMINIO</text>
+<text x="734" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">models</text>
+<text x="734" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Portfolio · Asset · PriceHistory</text>
+<text x="734" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FxRates · MarketReferences</text>
+<text x="734" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Validación y valoración histórica</text>
+<rect x="1340" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1341" y="521" width="7" height="248" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1364" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">ESCENARIOS</text>
+<text x="1364" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">simulation</text>
+<text x="1364" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">SimulationInputs + Settings</text>
+<text x="1364" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">simulate() → SimulationResult</text>
+<text x="1364" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">GBM correlacionado y rebalanceo</text>
+<polyline points="580,645 710,645" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="696.4932934647098,651.5244830116685 710,645 696.4932934647098,638.4755169883315" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="613.5" y="602" width="63.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="620.5" y="623.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">datos</text>
+<polyline points="1210,645 1340,645" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1326.49329346471,651.5244830116685 1340,645 1326.49329346471,638.4755169883315" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="1241.5" y="602" width="67.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1248.5" y="623.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">inputs</text>
+<rect x="80" y="920" width="500" height="220" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="921" width="7" height="218" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="957.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">market_loader</text>
+<text x="104" y="997.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Referencias de mercado</text>
+<text x="104" y="1037.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Benchmark · inflación · tipos</text>
+<text x="104" y="1066.6000000000001" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FX del benchmark cuando procede</text>
+<text x="104" y="1096.0400000000002" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Ausencias opcionales → Notice</text>
+<rect x="710" y="920" width="500" height="220" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="711" y="921" width="7" height="218" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="734" y="957.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">CÁLCULO</text>
+<text x="734" y="997.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">analysis</text>
+<text x="734" y="1036.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Cartera + referencias + simulación</text>
+<text x="734" y="1064.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Métricas y avisos → PortfolioAnalysis</text>
+<rect x="1340" y="920" width="500" height="220" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1341" y="921" width="7" height="218" rx="16" fill="#A66810" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<text x="1364" y="957.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#A66810">PRESENTACIÓN Y SALIDA</text>
+<text x="1364" y="997.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#A66810">reporting</text>
+<text x="1364" y="1037.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Resultados → Markdown + PNG</text>
+<text x="1364" y="1066.6000000000001" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Gráficos en pantalla</text>
+<text x="1364" y="1096.0400000000002" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Escritura en disco al exportar</text>
+<polyline points="330,770 330,920" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="323.47551698833155,906.4932934647098 330,920 336.52448301166845,906.4932934647098" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="344" y="826" width="191.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="350" y="847.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">series normalizadas</text>
+<polyline points="960,770 960,920" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="953.4755169883315,906.4932934647098 960,920 966.5244830116685,906.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="974" y="826" width="88.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="980" y="847.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">histórico</text>
+<polyline points="1590,770 1590,920" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1583.4755169883315,906.4932934647098 1590,920 1596.5244830116685,906.4932934647098" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="1604" y="826" width="110.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1610" y="847.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">escenarios</text>
+<polyline points="580,1030 710,1030" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="696.4932934647098,1036.5244830116685 710,1030 696.4932934647098,1023.4755169883315" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="1210,1030 1340,1030" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1326.49329346471,1036.5244830116685 1340,1030 1326.49329346471,1023.4755169883315" fill="none" stroke="#A66810" stroke-width="2"/>
+<text x="82" y="1213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#087D76">Adaptadores de proveedor  ·  contratos de datos explícitos  ·  cálculo separado de la descarga</text>
+<polyline points="72,1240 1848,1240" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1276.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Flechas: colaboración / datos, no imports. Las dependencias de código y sus excepciones se detallan en la lámina 05.</text>
+</svg>

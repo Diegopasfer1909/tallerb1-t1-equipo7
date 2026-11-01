@@ -1,0 +1,62 @@
+%% Recorrido de una consulta JSON. TIME_SERIES_DAILY y OVERVIEW lo usan por separado.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B","actorBkg":"#14233D","actorBorder":"#14233D","actorTextColor":"#FFFFFF","signalColor":"#334155","signalTextColor":"#14233D","noteBkgColor":"#FFF3D9","noteBorderColor":"#BF861B","noteTextColor":"#14233D","labelBoxBkgColor":"#E4F7F3","labelBoxBorderColor":"#168575","labelTextColor":"#14233D"},"sequence":{"mirrorActors":false,"messageMargin":30,"actorMargin":40}}}%%
+sequenceDiagram
+    accTitle: B1-T1 · Consulta Alpha Vantage con caché y cuota
+    accDescr: La caché se consulta antes de reservar cuota persistente. Solo los fallos de caché generan un envío HTTP.
+    autonumber
+    participant AV as AlphaVantageAPI
+    participant C as ApiClient
+    participant FS as Caché JSON
+    participant Q as AlphaVantageQuota
+    participant DB as SQLite
+    participant API as Alpha Vantage
+
+    AV->>C: get_json(url, params)
+    C->>FS: read_cache(hash(url, params), ttl)
+    alt Caché vigente (TTL por defecto: 24 h)
+        FS-->>C: JSON guardado
+        C-->>AV: JSON; sin espera ni reserva
+    else Caché ausente, desactivada o caducada
+        C->>C: _wait_for_rate_limit() (mínimo 1,1 s)
+        C->>Q: before_request() = reserve()
+        alt Bloqueo ya conocido en memoria
+            Q-->>C: lanza AlphaVantageQuotaError
+            C-->>AV: excepción; no se envía GET
+        else Comprobar registro persistente
+            Q->>DB: BEGIN IMMEDIATE<br/>leer bloqueo y reservas de las últimas 24 h
+            alt Bloqueo vigente o 25 reservas
+                DB-->>Q: cuota no disponible
+                Q-->>C: lanza AlphaVantageQuotaError
+                C-->>AV: excepción; no se envía GET
+            else No se puede comprobar o guardar SQLite
+                DB-->>Q: error de E/S o SQLite
+                Q-->>C: lanza ProviderError
+                C-->>AV: excepción; no se envía GET
+            else Hay cuota
+                Q->>DB: insertar reserva y COMMIT
+                Q-->>C: reserva confirmada
+                C->>API: GET (timeout 30 s; sin redirecciones)
+                alt Rechazo por cuota/ritmo, incluido HTTP 429
+                    API-->>C: HTTP de error o mensaje en HTTP 200
+                    C->>Q: on_rejection(status, reason)
+                    Q->>Q: bloqueo en memoria<br/>24 h diario / 60 s ritmo o 429
+                    Q->>DB: persistir máximo del bloqueo vigente y nuevo
+                    alt Bloqueo persistido
+                        Q-->>C: lanza AlphaVantageQuotaError
+                    else Error al persistir bloqueo
+                        Q-->>C: lanza ProviderError; conserva bloqueo en memoria
+                    end
+                    C-->>AV: excepción; sin reintento automático
+                else Otro error de red, HTTP, JSON o rechazo
+                    API-->>C: fallo o respuesta inválida
+                    C-->>AV: lanza ProviderError (clave ocultada)
+                else Respuesta JSON válida
+                    API-->>C: JSON
+                    C->>FS: write_cache() atómico, tolerante a fallos
+                    C-->>AV: JSON
+                end
+            end
+        end
+    end
+    Note over Q,DB: Reserva antes de enviar; un intento fallido también cuenta.<br/>Registro independiente de la caché, compartido por archivo y hash de clave.
+    Note over AV,C: OVERVIEW es otra consulta. Si falla la ficha opcional,<br/>se conservan los precios y se registra AssetProfile.issue.

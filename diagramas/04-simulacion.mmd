@@ -1,0 +1,72 @@
+%% Las dependencias de uso/creación no son herencia.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#F0EBFF","primaryTextColor":"#14233D","primaryBorderColor":"#7953BF","lineColor":"#64748B"}}}%%
+classDiagram
+    direction LR
+    accTitle: B1-T1 · Abstracción compartida de simulación
+    accDescr: Asset y Portfolio preparan SimulationInputs y delegan en simulate sin superclase común.
+    class Asset {
+        +simulation_inputs(price_column) SimulationInputs
+        +monte_carlo(settings, options) SimulationResult
+    }
+    class Portfolio {
+        +simulation_inputs(price_column) SimulationInputs
+        +monte_carlo(settings, options) SimulationResult
+    }
+    class SimulationInputs {
+        <<frozen dataclass>>
+        +prices : DataFrame
+        +starting_values : Series
+        +currency : str
+        +price_column : str
+        +rebalance_weights : Series?
+    }
+    class SimulationSettings {
+        <<frozen dataclass>>
+        +steps : int
+        +simulations : int
+        +seed : int?
+        +confidence : float
+        +expected_returns : Assumption
+        +volatilities : Assumption
+        +from_options(settings, options) SimulationSettings$
+    }
+    class monte_carlo {
+        <<module>>
+        +simulate(inputs, settings, periods_per_year) SimulationResult$
+        +estimate_parameters(returns, periods_per_year) DataFrame$
+    }
+    class SimulationResult {
+        <<dataclass>>
+        +paths : DataFrame
+        +assumptions : DataFrame
+        +correlation : DataFrame
+        +valuation_date : Timestamp
+        +currency : str
+        +rebalance_interval : int?
+        +summary() Series
+        +plot(show, max_paths) Figure
+    }
+    class reporting {
+        <<package>>
+        +plot_simulation(result) Figure
+    }
+    Asset ..> SimulationInputs : crea para una unidad
+    Portfolio ..> SimulationInputs : crea para sus posiciones
+    Asset ..> monte_carlo : delega
+    Portfolio ..> monte_carlo : delega
+    Asset ..> SimulationSettings : from_options()
+    Portfolio ..> SimulationSettings : from_options()
+    monte_carlo ..> SimulationInputs : lee y valida
+    monte_carlo ..> SimulationSettings : utiliza
+    monte_carlo ..> SimulationResult : crea
+    SimulationResult ..> reporting : plot() importa al llamar
+    note for monte_carlo "GBM correlacionado. Cholesky o autovalores.\nRebalanceo opcional. Sin red ni exportación."
+    note for SimulationInputs "Contrato común para activo y cartera.\nNo contiene el proveedor de precios."
+    note for SimulationSettings "Supuestos comunes o por activo.\nSin supuesto: estimación histórica."
+    style Asset fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style Portfolio fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style SimulationInputs fill:#E4F7F3,stroke:#168575,color:#14233D
+    style SimulationSettings fill:#FFF3D9,stroke:#BF861B,color:#14233D
+    style monte_carlo fill:#14233D,stroke:#14233D,color:#FFFFFF
+    style SimulationResult fill:#F0EBFF,stroke:#7953BF,color:#14233D
+    style reporting fill:#F0EBFF,stroke:#7953BF,color:#14233D

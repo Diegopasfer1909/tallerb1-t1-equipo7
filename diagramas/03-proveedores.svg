@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2040" height="1490" viewBox="0 0 2040 1490" role="img">
+<title>03-proveedores</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="2040" height="1490" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1490" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Contratos y proveedores</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML · realización estructural del protocolo y objetos creados por los adaptadores</text>
+<rect x="1894" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="1913.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">03</text>
+<rect x="390" y="240" width="700" height="187" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="391" y="241" width="698" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="410" y="269.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«Protocol»</text>
+<text x="410" y="307.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">PriceProvider</text>
+<polyline points="390,323 1090,323" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="390,375 1090,375" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="410" y="354.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">get_prices(symbol, start, end, *, adjusted)</text>
+<text x="410" y="406.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">→ PriceHistory</text>
+<rect x="1500" y="260" width="460" height="170" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1501" y="261" width="7" height="168" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="1524" y="297.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">RESULTADO</text>
+<text x="1524" y="337.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">PriceHistory</text>
+<text x="1524" y="376.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Contrato OHLCV + AssetProfile</text>
+<rect x="80" y="610" width="480" height="187" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="611" width="478" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="639.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«adaptador»</text>
+<text x="100" y="677.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">YahooFinanceAPI</text>
+<polyline points="80,693 560,693" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,745 560,745" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="724.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">cache_dir; cache_ttl</text>
+<text x="100" y="776.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ get_prices() / get_info()</text>
+<rect x="780" y="610" width="480" height="215" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="781" y="611" width="478" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="800" y="639.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«adaptador»</text>
+<text x="800" y="677.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">AlphaVantageAPI</text>
+<polyline points="780,693 1260,693" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="780,773 1260,773" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="800" y="724.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">client: ApiClient</text>
+<text x="800" y="752.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">quota: AlphaVantageQuota</text>
+<text x="800" y="804.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ get_prices() / get_info()</text>
+<rect x="1480" y="610" width="480" height="187" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1481" y="611" width="478" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="1500" y="639.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«adaptador económico»</text>
+<text x="1500" y="677.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">FredAPI</text>
+<polyline points="1480,693 1960,693" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1480,745 1960,745" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1500" y="724.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">client: ApiClient</text>
+<text x="1500" y="776.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ get_series(): EconomicIndicator</text>
+<polyline points="320,610 320,530 550,530 550.0,449.0" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="550,427 539.0,449.0 561.0,449.0 550,427" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1020,610 1020.0,449.0" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1020,427 1009.0,449.0 1031.0,449.0 1020,427" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1090,345 1500,345" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1486.49329346471,351.52448301166845 1500,345 1486.49329346471,338.47551698833155" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="1254.0" y="305" width="82.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1261.0" y="327.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">retorna</text>
+<rect x="634" y="499" width="458.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="640" y="521.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#2464AD">conformidad estructural · sin herencia nominal</text>
+<rect x="1480" y="475" width="480" height="76" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1481" y="476" width="7" height="74" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="1504" y="522.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">FRED: otro contrato</text>
+<rect x="80" y="1060" width="480" height="185" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="1061" width="7" height="183" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="1097.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">BIBLIOTECA EXTERNA</text>
+<text x="104" y="1137.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">yfinance.Ticker</text>
+<text x="104" y="1176.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Descarga e información de Yahoo</text>
+<text x="104" y="1204.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Caché propia del adaptador</text>
+<rect x="690" y="1060" width="500" height="187" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="691" y="1061" width="498" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="710" y="1089.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«control persistente»</text>
+<text x="710" y="1127.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">AlphaVantageQuota</text>
+<polyline points="690,1143 1190,1143" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="690,1195 1190,1195" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="710" y="1174.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">SQLite: reservas y bloqueos</text>
+<text x="710" y="1226.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ reserve() / handle_rejection()</text>
+<rect x="1350" y="1060" width="610" height="215" rx="0" fill="#FFFFFF" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1351" y="1061" width="608" height="80" rx="0" fill="#EAF2FF" stroke="#EAF2FF" stroke-width="2" stroke-linejoin="round"/>
+<text x="1370" y="1089.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">«HTTP + caché»</text>
+<text x="1370" y="1127.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#2464AD">ApiClient</text>
+<polyline points="1350,1143 1960,1143" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1350,1223 1960,1223" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1370" y="1174.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">session: requests.Session (inyectable)</text>
+<text x="1370" y="1202.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">before_request; on_rejection: callbacks</text>
+<text x="1370" y="1254.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ get_json()</text>
+<polyline points="320,797 320,1060" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="313.47551698833155,1046.49329346471 320,1060 326.52448301166845,1046.49329346471" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="920,825 912.0,837.0 920.0,849.0 928.0,837.0 920,825" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="920.0,849.0 920.0,1060.0" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="913.4755169883315,1046.49329346471 920.0,1060.0 926.5244830116685,1046.49329346471" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="934" y="953" width="87.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="940" y="974.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">quota  1</text>
+<polyline points="1160,825 1152.0,837.0 1160.0,849.0 1168.0,837.0 1160,825" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1160.0,849.0 1160.0,960.0 1450.0,960.0 1450.0,1060.0" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1443.4755169883315,1046.49329346471 1450.0,1060.0 1456.5244830116685,1046.49329346471" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="1254" y="919" width="83.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1260" y="940.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">client  1</text>
+<polyline points="1740,797 1732.0,809.0 1740.0,821.0 1748.0,809.0 1740,797" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1740.0,821.0 1740.0,1060.0" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1733.4755169883315,1046.49329346471 1740.0,1060.0 1746.5244830116685,1046.49329346471" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="1754" y="953" width="83.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1760" y="974.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">client  1</text>
+<text x="82" y="1366.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">ApiClient usa callbacks genéricos; Alpha conecta reserve() y handle_rejection(). Yahoo no utiliza ApiClient.</text>
+<polyline points="72,1400 1968,1400" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1436.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Triángulo hueco + trazo discontinuo: realización. Rombo lleno: objeto creado y mantenido por el adaptador. get_info() queda fuera del protocolo.</text>
+</svg>
