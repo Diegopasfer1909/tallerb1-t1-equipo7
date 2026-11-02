@@ -65,6 +65,9 @@ BENCHMARK_COMPARISON = (
     "Comparación con el índice basada en {dates} fechas comunes, con la misma divisa y columna "
     "de precios. Revisa si el índice incorpora dividendos."
 )
+NO_ALPHA_NOTE = (
+    "El alfa de Jensen necesita el índice de referencia y el tipo de interés de referencia."
+)
 BETA_UNDEFINED = (
     "La rentabilidad del índice de referencia no varía durante el período. No se puede "
     "calcular la beta porque la varianza del índice es cero."

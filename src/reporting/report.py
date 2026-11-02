@@ -6,52 +6,30 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 
-from ..constants import MONTHLY
+from ..analysis.warnings import evaluate_simulation
+from ..constants import ADJ_CLOSE, EUR, MONTHLY
+from ..simulation.monte_carlo import MODEL_RETURN
+from ..simulation.settings import SimulationSettings
 from . import texts
-from .formatting import format_date, format_number, format_points
+from .formatting import UNAVAILABLE, format_date, format_number, format_points
 from .labels import (
-    ASSET_TYPES,
     COUNTRIES,
     HOLDINGS_COLUMNS,
-    PERCENT_RESULTS,
-    PRICE_BASES,
+    RISK_FREE_NAMES,
     SECTORS,
+    SENSITIVITY_CASES,
     SEVERITIES,
     SOURCES,
     WEIGHT_COLUMNS,
-    simulation_labels,
 )
-from .sections import ALWAYS_OPEN, SECTION_TITLES, select_sections
+from .sections import SECTION_QUESTIONS, SECTION_TITLES, select_sections
 
 if TYPE_CHECKING:
     from ..analysis.result import PortfolioAnalysis
     from ..simulation.result import SimulationResult
-
-# Medida, etiqueta y unidad: % para rentabilidades, pp para diferencias y vacío para ratios.
-PORTFOLIO_METRICS = [
-    ("annualized_return", "Rentabilidad anualizada", "%"),
-    ("real_annualized_return", "Rentabilidad real anualizada", "%"),
-    ("annualized_volatility", "Volatilidad anual", "%"),
-    (
-        "comparison_portfolio_annualized_return",
-        "Cartera: rentabilidad anualizada en las fechas comunes",
-        "%",
-    ),
-    ("benchmark_annualized_return", "Índice: rentabilidad anualizada en las fechas comunes", "%"),
-    ("difference_from_benchmark", "Diferencia frente al índice", "pp"),
-    ("beta", "Beta calculada de la cartera", ""),
-    ("reference_annualized_return", "Rentabilidad equivalente del tipo de referencia", "%"),
-    ("excess_annualized_return", "Diferencia frente al tipo de referencia", "pp"),
-    ("sharpe", "Ratio de Sharpe", ""),
-    ("sortino", "Ratio de Sortino", ""),
-    ("annualized_inflation", "Inflación anualizada", "%"),
-    ("period_var_95_return", "Rentabilidad en el percentil 5", "%"),
-    ("period_cvar_95_return", "Rentabilidad media de los peores resultados", "%"),
-    ("concentration_hhi", "Índice de concentración (HHI)", ""),
-    ("effective_asset_count", "Número efectivo de activos", ""),
-]
 
 
 @dataclass(frozen=True)
@@ -85,425 +63,742 @@ def holdings_table(holdings: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
-def _asset_information(analysis: PortfolioAnalysis) -> str:
-    profiles = []
-    for symbol, asset in analysis.asset_details.iterrows():
-        kind = ASSET_TYPES.get(asset["asset_type"], asset["asset_type"])
-        sector = SECTORS.get(asset["sector"], asset["sector"])
-        country = COUNTRIES.get(asset["country"], asset["country"])
-        source = SOURCES.get(asset["source"], asset["source"])
-        profiles.append(
-            f"**{symbol} · {asset['name']}**  \n"
-            f"{kind} · {sector} · {country} · Cotización en {asset['quote_currency']} · "
-            f"Fuente: {source}."
-        )
-    return "\n\n".join(profiles)
+# Lecturas: traducen cada cifra a una frase con los tramos de la guía del report.
+def _band(value: float, limits: list[tuple[float, str]], last: str) -> str:
+    if pd.isna(value):
+        return ""
+    for limit, text in limits:
+        if value < limit:
+            return text
+    return last
 
 
-def _asset_performance(analysis: PortfolioAnalysis) -> str:
-    keys = ["total_return", "annualized_return", "annualized_volatility", "max_drawdown"]
-    return _table(
-        [
-            "Activo",
-            "Rentabilidad total",
-            "Rentabilidad anualizada",
-            "Volatilidad anual",
-            "Caída máxima",
-        ],
-        [
-            [symbol, *[format_number(row[key], True) for key in keys]]
-            for symbol, row in analysis.asset_details.iterrows()
-        ],
+def _read_sharpe(value):
+    return _band(value, [(0, "malo"), (0.5, "pobre"), (1, "aceptable")], "bueno")
+
+
+def _read_volatility(value):
+    return _band(
+        value,
+        [(0.15, "baja"), (0.20, "como un índice amplio"), (0.25, "elevada")],
+        "como una acción suelta",
     )
 
 
-def _asset_fundamentals(analysis: PortfolioAnalysis) -> str:
-    rows = []
-    for symbol, asset in analysis.asset_details.iterrows():
-        if asset["asset_type"] == "index":
-            capital = pe = "No aplicable"
-        else:
-            capital = format_number(asset["market_cap"])
-            if pd.notna(asset["market_cap"]):
-                capital += f" {asset['quote_currency']}"
-            pe = format_number(asset["pe_ratio"])
-        rows.append(
-            [
-                symbol,
-                format_number(asset["reported_beta"]),
-                format_number(asset["calculated_beta"]),
-                capital,
-                pe,
-            ]
-        )
-    return _table(
-        ["Activo", "Beta publicada", "Beta calculada", "Capitalización bursátil", "PER publicado"],
-        rows,
+def _read_drawdown(value):
+    return _band(
+        value, [(-0.30, "caída de crisis fuerte"), (-0.15, "caída notable")], "caída moderada"
     )
 
 
-def _estimated_parameters(analysis: PortfolioAnalysis) -> str:
-    return _table(
-        ["Activo", "Retorno anual μ (histórico)", "Volatilidad anual σ (histórica)"],
-        [
-            [
-                symbol,
-                format_number(row["expected_annual_return"], True),
-                format_number(row["expected_annual_volatility"], True),
-            ]
-            for symbol, row in analysis.asset_details.iterrows()
-        ],
+def _read_beta(value):
+    return _band(
+        value, [(0.8, "defensiva"), (1.2, "se mueve como el índice")], "amplifica al mercado"
     )
 
 
-def _portfolio_metrics(analysis: PortfolioAnalysis) -> str:
-    rows, missing = [], []
-    for key, label, unit in PORTFOLIO_METRICS:
-        value = analysis.metrics[key]
-        formatted = format_points(value) if unit == "pp" else format_number(value, unit == "%")
-        rows.append([label, formatted])
-        if pd.isna(value):
-            reason = analysis.metric_notes.get(
-                key, "No hay datos suficientes para calcular esta medida."
-            )
-            missing.append("Motivo: " + reason)
-    parts = [_table(["Medida", "Resultado"], rows)]
-    if missing:
-        parts.append(
-            "**Medidas que no se han podido calcular**\n\n" + _bullets(dict.fromkeys(missing))
-        )
-    return "\n\n".join(parts)
+def _read_mean_correlation(value):
+    return _band(
+        value, [(0.3, "buena diversificación"), (0.6, "moderada")], "los activos caen a la vez"
+    )
 
 
-def _quality(analysis: PortfolioAnalysis) -> str:
-    quality = analysis.data_quality
-    coverage = _table(
-        ["Activo", "Datos disponibles", "Datos utilizados", "Datos excluidos", "Historial parcial"],
-        [
-            [
-                symbol,
-                row["observations"],
-                row["common_observations"],
-                row["excluded_observations"],
-                "Sí" if row["partial_history"] else "No",
-            ]
-            for symbol, row in quality.iterrows()
-        ],
-    )
-    prices = _table(
-        ["Activo", "Columna utilizada", "Ajuste de los precios", "Adj Close disponible"],
-        [
-            [
-                symbol,
-                row["price_column"],
-                PRICE_BASES.get(row["price_basis"], "No consta"),
-                "Sí" if row["adjusted_close_available"] else "No",
-            ]
-            for symbol, row in quality.iterrows()
-        ],
-    )
-    parts = [coverage, "### Precios utilizados", prices, texts.PRICE_BASIS_NOTE]
-    missing = quality.loc[quality["missing_optional_cells"] > 0, "missing_optional_cells"]
-    parts.extend(
-        f"- {symbol}: {cells} datos ausentes en columnas opcionales."
-        for symbol, cells in missing.items()
-    )
-    return "\n\n".join(parts)
+def _read_vix(value):
+    return _band(value, [(15, "calma"), (25, "normal"), (30, "nerviosismo")], "estrés")
 
 
-def _simulation_summary(simulation: SimulationResult) -> str:
-    labels = simulation_labels(simulation.confidence)
-    rows = [
-        [labels[key], format_number(value, key in PERCENT_RESULTS)]
-        for key, value in simulation.summary().items()
-    ]
-    assumptions = _table(
-        ["Activo", "Retorno anual μ", "Origen de μ", "Volatilidad anual σ", "Origen de σ"],
-        [
-            [
-                symbol,
-                format_number(row["annual_return"], True),
-                row["return_source"],
-                format_number(row["annual_volatility"], True),
-                row["volatility_source"],
-            ]
-            for symbol, row in simulation.assumptions.iterrows()
-        ],
-    )
-    if simulation.rebalance_interval:
-        rebalance = texts.SIMULATED_REBALANCE.format(interval=simulation.rebalance_interval)
-    else:
-        rebalance = texts.SIMULATED_BUY_AND_HOLD
-    confidence = simulation.confidence
-    return "\n\n".join(
-        [
-            texts.SIMULATION_HEADER.format(
-                simulations=len(simulation.paths.columns),
-                steps=len(simulation.paths) - 1,
-                currency=simulation.currency,
-            ),
-            _table(["Resultado", "Importe o porcentaje"], rows),
-            "### Supuestos de la simulación",
-            assumptions,
-            texts.SIMULATION_SETTINGS.format(
-                date=format_date(simulation.valuation_date),
-                periods_per_year=simulation.periods_per_year,
-                seed=simulation.seed if simulation.seed is not None else "sin fijar",
-            ),
-            rebalance,
-            texts.CONFIDENCE_NOTE.format(
-                lower=100 * (1 - confidence),
-                upper=100 * confidence,
-                central=(2 * confidence - 1) * 100,
-            ),
-            texts.MODEL_NOTE.format(method=simulation.correlation_method),
-            texts.SIMULATION_LIMITATIONS,
-        ]
-    )
+def _read_sign(value, positive: str, negative: str):
+    return "" if pd.isna(value) else (positive if value > 0 else negative)
+
+
+def _strategy(analysis: PortfolioAnalysis) -> str:
+    if analysis.rebalance == MONTHLY:
+        return "rebalanceo mensual"
+    return "sin rebalanceo (comprar y mantener)"
+
+
+def _risk_free_label(analysis: PortfolioAnalysis) -> str:
+    series = analysis.risk_free_series
+    name = RISK_FREE_NAMES.get(series, series)
+    return f"tipo libre de riesgo ({name})" if name else "tipo libre de riesgo"
+
+
+def _annual_points(value: float) -> str:
+    """Diferencia de rentabilidades anuales, con signo; un dato ausente no lleva unidad."""
+    return UNAVAILABLE if pd.isna(value) else f"{format_points(value, signed=True)}/año"
+
+
+def _read_gap(value: float, reference: str) -> str:
+    """Cuántos puntos por encima o por debajo de una referencia quedó la cartera."""
+    if pd.isna(value):
+        return ""
+    direction = "más" if value > 0 else "menos"
+    return f"rindió {format_points(abs(value))} {direction} que {reference}"
+
+
+def _money(value: float, currency: str) -> str:
+    return f"{format_number(value)} {currency}"
 
 
 def _summary(report: ReportContext) -> str:
     analysis = report.analysis
     metrics = analysis.metrics
+    currency = analysis.currency
+    dates = analysis.values.index
+    header = (
+        f"{format_date(dates[0])} – {format_date(dates[-1])} · {len(dates) - 1} sesiones · "
+        f"referencia: {analysis.benchmark_name or 'sin índice'} · {_strategy(analysis)}"
+    )
+    difference = metrics["difference_from_benchmark"]
+    drawdown = metrics["max_drawdown"]
+    premium = metrics["excess_annualized_return"]
     rows = [
         [
-            f"Valor de la cartera hipotética ({analysis.currency})",
-            format_number(analysis.values.iloc[-1]),
+            f"Valor final de {_money(analysis.initial_capital, currency)}",
+            f"**{_money(analysis.values.iloc[-1], currency)}**",
+            f"{format_number(metrics['total_return'], True, signed=True)} en total, "
+            f"{format_number(metrics['annualized_return'], True)} al año",
         ],
-        ["Rentabilidad anualizada", format_number(metrics["annualized_return"], True)],
-        ["Diferencia anual frente al índice", format_points(metrics["difference_from_benchmark"])],
-        ["Caída máxima", format_number(metrics["max_drawdown"], True)],
-        ["Ratio de Sharpe", format_number(metrics["sharpe"])],
+        [
+            "Diferencia frente al índice",
+            f"**{_annual_points(difference)}**",
+            _read_sign(difference, "batió al índice", "habría sido mejor comprar el índice"),
+        ],
+        [
+            f"Diferencia frente al {_risk_free_label(analysis)}",
+            f"**{_annual_points(premium)}**",
+            _read_gap(premium, "el tipo libre de riesgo"),
+        ],
+        [
+            "Drawdown máximo",
+            f"**{format_number(drawdown, True)}**",
+            _read_drawdown(drawdown),
+        ],
+        [
+            "Ratio de Sharpe",
+            f"**{format_number(metrics['sharpe'])}**",
+            _read_sharpe(metrics["sharpe"]),
+        ],
     ]
-    comparison = analysis.benchmark_comparison
-    if comparison.empty:
-        coverage = texts.NO_BENCHMARK_COVERAGE
-    else:
-        coverage = texts.BENCHMARK_COVERAGE.format(
-            start=format_date(comparison.index[0]),
-            end=format_date(comparison.index[-1]),
-            dates=len(comparison),
-        )
-    capital = texts.SUMMARY_CAPITAL.format(
-        capital=format_number(analysis.initial_capital),
-        currency=analysis.currency,
-        total_return=format_number(metrics["total_return"], True),
-    )
-    return "\n\n".join([_table(["Medida", "Resultado"], rows), capital, coverage])
+    return header + "\n\n" + _table(["Cifra", "Valor", "Lectura"], rows)
 
 
 def _observed(value: float, unit: str) -> str:
     if unit == "days":
         return f"{value:.0f} días naturales"
+    if unit == "sessions":
+        return f"{value:.0f} sesiones"
     return format_number(value, percentage=unit == "percent")
 
 
 def _warnings(report: ReportContext) -> str:
     analysis = report.analysis
-    rows = [
-        [
-            SEVERITIES[warning.severity],
-            warning.message,
-            _observed(warning.observed, warning.unit),
-            _observed(warning.threshold, warning.unit) if warning.threshold is not None else "—",
-        ]
-        for warning in analysis.risk_warnings
-    ]
-    parts = [
-        _table(["Nivel", "Riesgo observado", "Valor", "Umbral"], rows)
-        if rows
-        else texts.NO_RISK_WARNINGS,
-        texts.THRESHOLDS_NOTE,
-    ]
-    # Los problemas de los datos se separan de los criterios que solo conviene conocer.
-    data = [notice.message for notice in analysis.notices if notice.kind == "data"]
-    method = [notice.message for notice in analysis.notices if notice.kind == "method"]
-    for title, notes in (
-        ("### Datos que revisar", [*data, *analysis.metric_notes.values()]),
-        ("### Notas de metodología", method),
-    ):
-        if notes:
-            parts.extend([title, _bullets(dict.fromkeys(notes))])
-    return "\n\n".join(parts)
-
-
-def _drawdown_details(analysis: PortfolioAnalysis) -> str:
-    episode = analysis.drawdown_episode
-    if episode.peak is None:
-        return texts.NO_DRAWDOWN
-    recovery = format_date(episode.recovery) if episode.recovery is not None else "Sin recuperar"
-    table = _table(
-        ["Pico anterior", "Valle", "Recuperación", "Días naturales desde el pico"],
-        [
-            [
-                format_date(episode.peak),
-                format_date(episode.trough),
-                recovery,
-                episode.underwater_days,
-            ]
-        ],
-    )
-    return f"{table}\n\n{texts.DRAWDOWN_DURATION}"
-
-
-def _calendar_details(analysis: PortfolioAnalysis) -> str:
-    monthly = analysis.monthly_returns
-    complete = monthly.loc[~monthly["partial"], "return"].dropna()
-    parts = ["### Rentabilidades por calendario"]
-    if complete.empty:
-        parts.append(texts.NO_COMPLETE_MONTHS)
-    else:
-        parts.append(
-            _table(
-                ["Mes completo", "Período", "Rentabilidad"],
-                [
-                    ["Mejor", str(complete.idxmax()), format_number(complete.max(), True)],
-                    ["Peor", str(complete.idxmin()), format_number(complete.min(), True)],
-                ],
-            )
-        )
-    coverage = {True: "Parcial", False: "Completa"}
-    parts.extend(
-        [
-            _table(
-                ["Año", "Rentabilidad", "Cobertura"],
-                [
-                    [str(period), format_number(row["return"], True), coverage[row["partial"]]]
-                    for period, row in analysis.annual_returns.iterrows()
-                ],
-            ),
-            "### Rentabilidades mensuales\n\n"
-            + _table(
-                ["Mes", "Rentabilidad", "Observaciones", "Cobertura"],
-                [
-                    [
-                        str(period),
-                        format_number(row["return"], True),
-                        row["observations"],
-                        coverage[row["partial"]],
-                    ]
-                    for period, row in monthly.iterrows()
-                ],
-            ),
-            texts.CALENDAR_NOTE,
-        ]
-    )
-    return "\n\n".join(parts)
+    warnings = list(analysis.risk_warnings)
+    if report.simulation is not None:
+        probability = report.simulation.summary()["probability_of_loss"]
+        warnings.extend(evaluate_simulation(probability, analysis.warning_thresholds))
+    warnings.sort(key=lambda warning: warning.severity != "high")
+    if not warnings:
+        return texts.NO_RISK_WARNINGS
+    rows = []
+    for warning in warnings:
+        detail = f"{warning.message} Valor: {_observed(warning.observed, warning.unit)}"
+        if warning.threshold is not None:
+            detail += f"; umbral: {_observed(warning.threshold, warning.unit)}"
+        rows.append([SEVERITIES[warning.severity], warning.title, f"{detail}."])
+    return _table(["Nivel", "Advertencia", "Detalle"], rows)
 
 
 def _composition(report: ReportContext) -> str:
     analysis = report.analysis
-    holdings = holdings_table(analysis.holdings)
-    return "\n\n".join(
+    returns = analysis.asset_returns
+    rows = []
+    for symbol, asset in analysis.asset_details.iterrows():
+        target = analysis.target_weights[symbol]
+        rows.append(
+            [
+                symbol,
+                asset["name"],
+                SECTORS.get(asset["sector"], asset["sector"]),
+                asset["quote_currency"],
+                COUNTRIES.get(asset["country"], asset["country"]),
+                format_number(target, True),
+                _money(analysis.initial_capital * target, analysis.currency),
+                format_number(analysis.holdings.loc[symbol, "weight"], True),
+                format_number(returns[symbol].mean(), True),
+                format_number(returns[symbol].std(), True),
+            ]
+        )
+    notes = texts.DAILY_VALUES_NOTE
+    if (analysis.asset_details["quote_currency"] != analysis.currency).any():
+        notes += " " + texts.CONVERTED_PRICES_NOTE.format(currency=analysis.currency)
+    table = _table(
         [
-            _table([holdings.index.name, *holdings.columns], holdings.itertuples(name=None)),
-            texts.COMPOSITION_NOTE.format(currency=analysis.currency),
-            texts.MONTHLY_REBALANCE if analysis.rebalance == MONTHLY else texts.BUY_AND_HOLD,
-            "### Información de los activos seleccionados",
-            _asset_information(analysis),
-        ]
+            "Ticker",
+            "Nombre",
+            "Sector",
+            "Divisa",
+            "País",
+            "Peso objetivo",
+            "Importe inicial",
+            "Peso actual",
+            "Media diaria",
+            "Desv. típica diaria",
+        ],
+        rows,
+    )
+    return "\n\n".join([table, notes, texts.COSTS_NOTE])
+
+
+def _annual_results(analysis: PortfolioAnalysis) -> str:
+    """El primer y el último año pueden ser parciales: no son comparables con uno completo."""
+    coverage = {True: "Parcial", False: "Completa"}
+    return _table(
+        ["Año", "Rentabilidad", "Cobertura"],
+        [
+            [str(year), format_number(row["return"], True, signed=True), coverage[row["partial"]]]
+            for year, row in analysis.annual_returns.iterrows()
+        ],
     )
 
 
-def _performance(report: ReportContext) -> str:
+def _asset_results(analysis: PortfolioAnalysis) -> str:
+    """Resultado de cada activo en la divisa de la cartera, en las mismas fechas que esta."""
+    return _table(
+        ["Ticker", "Rentabilidad total", "CAGR", "Volatilidad", "Caída máxima", "Beta"],
+        [
+            [
+                symbol,
+                format_number(row["total_return"], True, signed=True),
+                format_number(row["annualized_return"], True),
+                format_number(row["annualized_volatility"], True),
+                format_number(row["max_drawdown"], True),
+                format_number(row["calculated_beta"]),
+            ]
+            for symbol, row in analysis.asset_details.iterrows()
+        ],
+    )
+
+
+def _returns(report: ReportContext) -> str:
     analysis = report.analysis
+    metrics = analysis.metrics
+    difference = metrics["difference_from_benchmark"]
+    real = metrics["real_annualized_return"]
+    rows = [
+        [
+            "Rentabilidad acumulada",
+            format_number(metrics["total_return"], True, signed=True),
+            "de principio a fin",
+        ],
+        [
+            "Rentabilidad anualizada (CAGR)",
+            format_number(metrics["annualized_return"], True),
+            "en renta variable, 6–9 % anual es lo habitual",
+        ],
+        [
+            f"CAGR de {analysis.benchmark_name or 'el índice'}",
+            format_number(metrics["benchmark_annualized_return"], True),
+            "",
+        ],
+        [
+            "Diferencia frente al índice",
+            _annual_points(difference),
+            _read_sign(difference, "la cartera batió al índice", "el índice rindió más"),
+        ],
+        ["Inflación media anual", format_number(metrics["annualized_inflation"], True), ""],
+        [
+            "Rentabilidad real",
+            format_number(real, True),
+            _read_sign(real, "ganó poder de compra", "perdió frente a la inflación"),
+        ],
+    ]
+    monthly = analysis.monthly_returns
+    complete = monthly.loc[~monthly["partial"], "return"].dropna()
+    for label, month in (
+        ("Mejor mes", complete.idxmax() if not complete.empty else None),
+        ("Peor mes", complete.idxmin() if not complete.empty else None),
+    ):
+        value = complete[month] if month is not None else float("nan")
+        rows.append(
+            [
+                label,
+                format_number(value, True, signed=True),
+                month.strftime("%m/%Y") if month is not None else "",
+            ]
+        )
     return "\n\n".join(
         [
-            _portfolio_metrics(analysis),
-            texts.PERFORMANCE_NOTE,
-            "### Análisis de cada activo",
-            _asset_performance(analysis),
-            "### Estimaciones a partir del historial",
-            _estimated_parameters(analysis),
-            texts.ESTIMATES_NOTE,
-            "### Recuperación de la mayor caída",
-            _drawdown_details(analysis),
-            _calendar_details(analysis),
-            "### Datos publicados y beta",
-            _asset_fundamentals(analysis),
-            texts.FUNDAMENTALS_NOTE,
+            _table(["Métrica", "Valor", "Lectura"], rows),
+            texts.NOMINAL_RETURNS_NOTE.format(currency=analysis.currency),
+            "**Por año**",
+            _annual_results(analysis),
+            "**Por activo**",
+            _asset_results(analysis),
         ]
     )
+
+
+def _risk(report: ReportContext) -> str:
+    analysis = report.analysis
+    metrics = analysis.metrics
+    episode = analysis.drawdown_episode
+    drawdown_read = _read_drawdown(metrics["max_drawdown"])
+    if episode.peak is not None:
+        recovery = (
+            format_date(episode.recovery) if episode.recovery is not None else "sin recuperar"
+        )
+        drawdown_read += (
+            f": pico {format_date(episode.peak)}, valle {format_date(episode.trough)}, "
+            f"recuperación {recovery}"
+        )
+    rows = [
+        [
+            "Volatilidad anualizada",
+            format_number(metrics["annualized_volatility"], True),
+            _read_volatility(metrics["annualized_volatility"]),
+        ],
+        ["Drawdown máximo", format_number(metrics["max_drawdown"], True), drawdown_read],
+        [
+            "VaR 95 % diario",
+            format_number(metrics["period_var_95_return"], True),
+            "uno de cada 20 días se pierde al menos esto",
+        ],
+        [
+            "CVaR 95 % diario",
+            format_number(metrics["period_cvar_95_return"], True),
+            "pérdida media en ese 5 % de peores días",
+        ],
+        ["Beta", format_number(metrics["beta"]), _read_beta(metrics["beta"])],
+    ]
+    return _table(["Métrica", "Valor", "Lectura"], rows)
+
+
+def _risk_adjusted(report: ReportContext) -> str:
+    analysis = report.analysis
+    metrics = analysis.metrics
+    sharpe, sortino = metrics["sharpe"], metrics["sortino"]
+    sortino_read = ""
+    if pd.notna(sharpe) and pd.notna(sortino):
+        sortino_read = (
+            "volatilidad sobre todo al alza"
+            if sortino > 1.5 * sharpe and sharpe > 0
+            else "similar al Sharpe"
+        )
+    premium = metrics["excess_annualized_return"]
+    premium_read = ""
+    if pd.notna(premium):
+        premium_read = (
+            "poca compensación para el riesgo de la bolsa"
+            if premium < analysis.warning_thresholds.premium
+            else "compensó"
+        )
+    label = _risk_free_label(analysis)
+    rows = [
+        ["Ratio de Sharpe", format_number(sharpe), _read_sharpe(sharpe)],
+        ["Ratio de Sortino", format_number(sortino), sortino_read],
+        [
+            "Alfa de Jensen (anual)",
+            format_number(metrics["alpha"], True, signed=True),
+            _read_sign(
+                metrics["alpha"],
+                "la selección de valores aportó",
+                "habría sido mejor comprar el índice",
+            ),
+        ],
+        [f"Prima frente al {label}", _annual_points(premium), premium_read],
+        [
+            f"{label[0].upper()}{label[1:]}, medio del periodo",
+            format_number(metrics["reference_annualized_return"], True),
+            "referencia de Sharpe, Sortino y alfa",
+        ],
+    ]
+    if analysis.currency == EUR:
+        difference = metrics["difference_from_bund_etf"]
+        bund_etf = format_number(metrics["bund_etf_annualized_return"], True)
+        read = _read_gap(difference, "la deuda alemana")
+        rows.append(
+            [
+                "Diferencia frente a deuda alemana",
+                _annual_points(difference),
+                f"{read} (CAGR del ETF de Bunds: {bund_etf})" if read else "",
+            ]
+        )
+    return _table(["Métrica", "Valor", "Lectura"], rows)
 
 
 def _diversification(report: ReportContext) -> str:
     analysis = report.analysis
+    metrics = analysis.metrics
     pairs = analysis.correlation_pairs
-    pair_note = "No hay pares de activos con correlación definida."
+    weights = analysis.holdings["weight"]
+    pair_value, pair_read = "No disponible", ""
     if not pairs.empty:
         a, b = pairs.index[0]
-        pair_note = (
-            f"Mayor correlación: {a} / {b} ({format_number(pairs.iloc[0])}). "
-            f"Media de los pares definidos: {format_number(pairs.mean())}."
-        )
+        pair_value = f"{a} – {b}: {format_number(pairs.iloc[0])}"
+        pair_read = "casi redundantes" if pairs.iloc[0] > 0.8 else ""
+    effective = metrics["effective_asset_count"]
+    rows = [
+        [
+            "Correlación media",
+            format_number(metrics["correlation_mean"]),
+            _read_mean_correlation(metrics["correlation_mean"]),
+        ],
+        ["Par más correlacionado", pair_value, pair_read],
+        [
+            "Nº efectivo de activos",
+            f"{format_number(effective)} de {len(weights)}",
+            f"en la práctica, unas {effective:.0f} apuestas distintas",
+        ],
+    ]
+    contributions = _table(
+        ["Ticker", "Peso", "Contribución al riesgo"],
+        [
+            [symbol, format_number(weights[symbol], True), format_number(share, True)]
+            for symbol, share in analysis.risk_contributions.items()
+        ],
+    )
+    sectors = ", ".join(
+        f"{SECTORS.get(sector, sector)} {format_number(weight, True)}"
+        for sector, weight in analysis.sector_weights.items()
+    )
+    currencies = ", ".join(
+        f"{currency} {format_number(weight, True)}"
+        for currency, weight in analysis.currency_weights.items()
+    )
     return "\n\n".join(
         [
-            _table(
-                ["Activo", "Peso en la cartera", "Contribución al riesgo"],
-                [
-                    [
-                        symbol,
-                        format_number(analysis.holdings.loc[symbol, "weight"], True),
-                        format_number(value, True),
-                    ]
-                    for symbol, value in analysis.risk_contributions.items()
-                ],
-            ),
-            _table(
-                ["Sector", "Peso"],
-                [
-                    [SECTORS.get(sector, sector), format_number(weight, True)]
-                    for sector, weight in analysis.sector_weights.items()
-                ],
-            ),
-            texts.RISK_CONTRIBUTION_NOTE,
-            "### Correlaciones",
-            _table(
-                ["Activo", *analysis.correlations.columns],
-                [
-                    [symbol, *[format_number(value) for value in row]]
-                    for symbol, row in analysis.correlations.iterrows()
-                ],
-            ),
-            pair_note,
-            texts.CONCENTRATION_NOTE,
-            texts.DISTRIBUTION_NOTE,
+            _table(["Métrica", "Valor", "Lectura"], rows),
+            contributions,
+            f"**Por sector:** {sectors}  \n**Por divisa:** {currencies}",
         ]
     )
 
 
+def _market(report: ReportContext) -> str:
+    analysis = report.analysis
+    market = analysis.market
+    gold = market.gold_correlation
+    gold_read = ""
+    if pd.notna(gold):
+        gold_read = "el oro aportaría diversificación" if gold < 0.2 else "el oro diversifica poco"
+    rows = [
+        [
+            "VIX actual",
+            f"{format_number(market.vix_current)} "
+            f"(media del periodo {format_number(market.vix_mean)})",
+            _read_vix(market.vix_current),
+        ],
+        [
+            "Correlación con el Brent",
+            format_number(market.brent_correlation),
+            _read_sign(
+                market.brent_correlation,
+                "sensible al petróleo",
+                "le perjudica que suba el petróleo",
+            ),
+        ],
+        ["Correlación con el oro", format_number(gold), gold_read],
+        [
+            "Correlación con el ETF de Bunds",
+            format_number(market.bund_etf_correlation),
+            _read_sign(market.bund_etf_correlation, "caen juntos", "el Bund hace de refugio"),
+        ],
+        [
+            "Bund en el 5 % de peores días",
+            format_number(market.bund_on_worst_days, True, signed=True),
+            _read_sign(market.bund_on_worst_days, "protegió", "no protegió"),
+        ],
+    ]
+    parts = [_table(["Métrica", "Valor", "Lectura"], rows)]
+    if not market.fx_effect.empty:
+        details = analysis.asset_details
+        parts.append(
+            f"**Efecto divisa** (CAGR en {analysis.currency} − CAGR en la divisa original):\n\n"
+            + _table(
+                ["Ticker", "Divisa", "Efecto"],
+                [
+                    [
+                        symbol,
+                        details.loc[symbol, "quote_currency"],
+                        f"{_annual_points(effect)} · "
+                        + _read_sign(effect, "el tipo de cambio sumó", "el tipo de cambio restó"),
+                    ]
+                    for symbol, effect in market.fx_effect.items()
+                ],
+            )
+        )
+    return "\n\n".join(parts)
+
+
+def _return_source(assumptions: pd.DataFrame) -> str:
+    """Origen común del retorno de los activos: histórico, modelo o indicado por el usuario."""
+    sources = assumptions["return_source"]
+    if (sources == "usuario").any():
+        return "supuesto"
+    return MODEL_RETURN if (sources == MODEL_RETURN).any() else "histórico"
+
+
+def _simulation_criteria(simulation: SimulationResult, analysis: PortfolioAnalysis) -> str:
+    """Indica si la simulación usa los criterios por defecto y cómo cambiarlos."""
+    defaults = SimulationSettings()
+    assumptions = simulation.assumptions
+    source = _return_source(assumptions)
+    historical_volatility = (assumptions["volatility_source"] == "histórica").all()
+    steps = len(simulation.paths) - 1
+    scenarios = len(simulation.paths.columns)
+    is_default = (
+        source != "supuesto"
+        and historical_volatility
+        and simulation.equity_premium == defaults.equity_premium
+        and steps == defaults.steps
+        and scenarios == defaults.simulations
+        and simulation.confidence == defaults.confidence
+        and simulation.seed == defaults.seed
+    )
+    seed = simulation.seed if simulation.seed is not None else "sin fijar"
+    if source == "supuesto" or not historical_volatility:
+        assumption = "retorno y volatilidad indicados por el usuario"
+    elif source == MODEL_RETURN:
+        assumption = "retorno por tipo libre de riesgo más prima y volatilidad histórica"
+    else:
+        assumption = "retorno y volatilidad históricos"
+    criteria = (
+        f"{scenarios:,} escenarios".replace(",", ".")
+        + f", {steps} sesiones, confianza del {simulation.confidence * 100:g} %".replace(".", ",")
+        + f", semilla {seed} y {assumption}"
+    )
+    assets = " ".join(f"{s}:{w:g}" for s, w in analysis.target_weights.items())
+    template = texts.SIMULATION_DEFAULT_CRITERIA if is_default else texts.SIMULATION_CUSTOM_CRITERIA
+    return template.format(
+        criteria=criteria, command=texts.SIMULATION_COMMAND.format(assets=assets)
+    )
+
+
+def _sensitivity_row(
+    label: str, final: np.ndarray, start: float, confidence: float, real_floor: float
+) -> list[str]:
+    return [
+        label,
+        format_number((final < start).mean(), True),
+        format_number((final < real_floor).mean() if pd.notna(real_floor) else np.nan, True),
+        format_number(np.median(final) / start - 1, True, signed=True),
+        format_number(1 - np.quantile(final, 1 - confidence) / start, True),
+    ]
+
+
+def _return_sensitivity(simulation: SimulationResult, inflation: float) -> str:
+    """Compara el retorno usado en la simulación con otros supuestos, también en términos reales."""
+    start = float(simulation.paths.iloc[0, 0])
+    confidence = simulation.confidence
+    years = (len(simulation.paths) - 1) / simulation.periods_per_year
+    real_floor = start * (1 + inflation) ** years
+    source = _return_source(simulation.assumptions)
+    used = {MODEL_RETURN: "Tipo libre de riesgo + prima", "histórico": "Histórico"}.get(
+        source, "Indicado"
+    )
+    rows = [
+        _sensitivity_row(
+            f"{used} (el usado arriba)",
+            simulation.paths.iloc[-1].to_numpy(),
+            start,
+            confidence,
+            real_floor,
+        )
+    ]
+    for case, final in simulation.return_sensitivity.items():
+        rows.append(_sensitivity_row(SENSITIVITY_CASES[case], final, start, confidence, real_floor))
+    table = _table(
+        [
+            "Retorno anual μ",
+            "Prob. de pérdida",
+            "Prob. de pérdida real",
+            "Variación mediana",
+            f"VaR ({100 * confidence:g} %)",
+        ],
+        rows,
+    )
+    assumed = (
+        texts.REAL_LOSS_INFLATION.format(inflation=format_number(inflation, True))
+        if pd.notna(inflation)
+        else texts.NO_REAL_LOSS_INFLATION
+    )
+    return f"{table}\n\n{texts.SENSITIVITY_NOTE.format(inflation=assumed)}"
+
+
+def _return_note(simulation: SimulationResult) -> str:
+    assumptions = simulation.assumptions
+    if simulation.risk_free_rate is None:
+        return texts.HISTORICAL_RETURN_NOTE
+    note = texts.MODEL_RETURN_NOTE
+    unclassified = assumptions.index[assumptions["equity_share"].isna()]
+    if len(unclassified):
+        note += " " + texts.UNCLASSIFIED_NOTE.format(symbols=", ".join(unclassified))
+    return note
+
+
 def _simulation(report: ReportContext) -> str:
-    if report.simulation is None:
-        return "No se ha proporcionado una simulación."
-    return _simulation_summary(report.simulation)
+    simulation = report.simulation
+    if simulation is None:
+        return texts.SIMULATION_NOT_CONFIGURED
+    analysis = report.analysis
+    currency = simulation.currency
+    results = simulation.summary()
+    confidence = simulation.confidence
+    assumptions = simulation.assumptions
+    steps = len(simulation.paths) - 1
+    lower, upper = f"{100 * (1 - confidence):g}", f"{100 * confidence:g}"
+    level = f"{100 * confidence:g} %"
+    returns = ", ".join(
+        f"{symbol} {format_number(value, True)}"
+        for symbol, value in assumptions["annual_return"].items()
+    )
+    volatilities = ", ".join(
+        f"{symbol} {format_number(value, True)}"
+        for symbol, value in assumptions["annual_volatility"].items()
+    )
+    historical_volatility = (assumptions["volatility_source"] == "histórica").all()
+    dates = analysis.values.index
+    rebalance = (
+        texts.SIMULATED_REBALANCE.format(interval=simulation.rebalance_interval)
+        if simulation.rebalance_interval
+        else texts.SIMULATED_BUY_AND_HOLD
+    )
+    parameters = [
+        ["Método", f"Por activos ({simulation.correlation_method})"],
+        ["Rebalanceo", rebalance],
+        ["Valor inicial", _money(results["initial_value"], currency)],
+        [
+            "Horizonte",
+            f"{steps} sesiones (~{format_number(steps / simulation.periods_per_year)} años)",
+        ],
+        ["Simulaciones", f"{len(simulation.paths.columns):,}".replace(",", ".")],
+        [f"Retorno anual ({_return_source(assumptions)})", returns],
+        [
+            f"Volatilidad anual ({'histórica' if historical_volatility else 'supuesta'})",
+            volatilities,
+        ],
+        ["Historia usada para estimar", f"{format_date(dates[0])} – {format_date(dates[-1])}"],
+        ["Nivel de confianza", level],
+        ["Semilla", simulation.seed if simulation.seed is not None else "aleatoria"],
+    ]
+    if simulation.risk_free_rate is not None:
+        shares = ", ".join(
+            f"{symbol} {format_number(share, True)}"
+            for symbol, share in assumptions["equity_share"].items()
+        )
+        parameters[5:5] = [
+            ["Tipo libre de riesgo actual", format_number(simulation.risk_free_rate, True)],
+            ["Prima de riesgo", format_number(simulation.equity_premium, True)],
+            ["Parte en renta variable", shares],
+        ]
+    var = results["value_at_risk"]
+    probability = results["probability_of_loss"]
+    outcome = _table(
+        ["Métrica", "Valor", "Lectura"],
+        [
+            [
+                "Mediana del valor final",
+                _money(results["median_final_value"], currency),
+                "escenario central, no una predicción",
+            ],
+            [
+                f"Percentiles {lower} y {upper}",
+                f"{_money(results['lower_percentile'], currency)} – "
+                f"{_money(results['upper_percentile'], currency)}",
+                f"el {(2 * confidence - 1) * 100:g} % de los escenarios cae aquí",
+            ],
+            [
+                "Probabilidad de pérdida",
+                format_number(probability, True),
+                "se pierde en casi 1 de cada 3 escenarios o más" if probability > 0.3 else "",
+            ],
+            [
+                f"VaR al horizonte ({level})",
+                _money(var, currency),
+                f"con un {level} de confianza no se perdería más de esto"
+                if var > 0
+                else f"negativo: incluso el percentil {lower} acaba con ganancia",
+            ],
+            [
+                "CVaR al horizonte",
+                _money(results["conditional_value_at_risk"], currency),
+                "pérdida media en los escenarios peores que el VaR",
+            ],
+        ],
+    )
+    return "\n\n".join(
+        [
+            _simulation_criteria(simulation, analysis),
+            "**Parámetros**",
+            _table(["Parámetro", "Valor"], parameters),
+            texts.SIMULATION_START_NOTE,
+            "**Resultados**",
+            outcome,
+            texts.NOMINAL_SIMULATION_NOTE.format(currency=currency),
+            "**Sensibilidad al retorno supuesto**",
+            _return_sensitivity(simulation, analysis.metrics["latest_inflation"]),
+            _return_note(simulation),
+            texts.SIMULATION_LIMITATIONS,
+        ]
+    )
 
 
 def _data(report: ReportContext) -> str:
     analysis = report.analysis
-    parts = [_quality(analysis)]
-    if not analysis.reference_table.empty:
-        parts.extend(
-            [
-                "### Referencias utilizadas",
-                _table(
-                    ["Referencia", "Serie", "Fuente"],
-                    [
-                        [label, row["series"], SOURCES.get(row["source"], row["source"])]
-                        for label, row in analysis.reference_table.iterrows()
-                    ],
-                ),
-            ]
-        )
-    parts.extend(
-        [
-            texts.CONFIGURATION.format(
-                price_column=analysis.price_column, periods_per_year=analysis.periods_per_year
-            ),
-            texts.CALCULATION_CRITERIA,
-            "### Cómo leer las medidas",
-            texts.GLOSSARY,
-        ]
+    quality = analysis.data_quality
+    dates = analysis.values.index
+    sessions = len(dates) - 1
+    history = (
+        f"**Historia común:** {sessions} sesiones "
+        f"({format_date(dates[0])} – {format_date(dates[-1])})"
     )
+    history += (
+        texts.SHORT_HISTORY_NOTE if sessions < analysis.warning_thresholds.short_history else "."
+    )
+    limit = analysis.warning_thresholds.excluded_dates
+    excluded_rows = []
+    for symbol, row in quality.iterrows():
+        share = row["excluded_observations"] / row["observations"]
+        excluded_rows.append(
+            [symbol, format_number(share, True), "menos fiable" if share > limit else ""]
+        )
+    excluded = _table(["Ticker", "% de fechas excluidas", "Lectura"], excluded_rows)
+    dropped = int(quality["dropped_rows"].sum())
+    cleaning = (
+        f"**Limpieza:** solo se usan fechas con precio de todos los activos; {dropped} fechas "
+        "descartadas por no tener precio de cierre."
+    )
+    jumps = analysis.price_jumps
+    if not jumps.empty:
+        cleaning += (
+            " Saltos diarios sospechosos (> 50 %): "
+            + ", ".join(
+                f"{symbol} {format_date(day)} ({format_number(value, True, signed=True)})"
+                for (day, symbol), value in list(jumps.items())[:10]
+            )
+            + "."
+        )
+    if analysis.price_column != ADJ_CLOSE:
+        cleaning += texts.UNADJUSTED_NOTE.format(symbols=", ".join(quality.index))
+    sources = [
+        [symbol, f"{SOURCES.get(row['source'], row['source'])} ({symbol})"]
+        for symbol, row in quality.iterrows()
+    ]
+    sources += [
+        [label, f"{SOURCES.get(row['source'], row['source'])} ({row['series']})"]
+        for label, row in analysis.reference_table.iterrows()
+    ]
+    data = [notice.message for notice in analysis.notices if notice.kind == "data"]
+    method = [notice.message for notice in analysis.notices if notice.kind == "method"]
+    issues = [*data, *analysis.metric_notes.values()]
+    parts = [history, excluded, cleaning, _table(["Serie", "Fuente"], sources)]
+    if issues:
+        parts.append("**Incidencias de los datos:**\n\n" + _bullets(dict.fromkeys(issues)))
+    else:
+        parts.append(texts.NO_DATA_ISSUES)
+    if method:
+        parts.append("**Notas de metodología:**\n\n" + _bullets(dict.fromkeys(method)))
     return "\n\n".join(parts)
 
 
@@ -511,8 +806,11 @@ _BUILDERS = {
     "summary": _summary,
     "warnings": _warnings,
     "composition": _composition,
-    "performance": _performance,
+    "returns": _returns,
+    "risk": _risk,
+    "risk_adjusted": _risk_adjusted,
     "diversification": _diversification,
+    "market": _market,
     "simulation": _simulation,
     "data": _data,
 }
@@ -528,7 +826,7 @@ def build_report(
     detail: str = "compact",
 ) -> str:
     """Compone el Markdown; charts agrupa por sección los archivos de imagen ya guardados."""
-    selected = select_sections(sections, detail, has_simulation=simulation is not None)
+    selected = select_sections(sections, detail)
     generated_on = generated_on or datetime.now().astimezone()
     charts = charts or {}
     report = ReportContext(analysis, simulation)
@@ -540,13 +838,16 @@ def build_report(
         f"**Divisa:** {analysis.currency} · **Precios:** {analysis.price_column} · {strategy}  \n"
         f"*Elaborado el {generated_on:%d/%m/%Y a las %H:%M:%S %z}*",
     ]
-    for number, key in enumerate(selected, 1):
+    # La numeración es la de la estructura completa, también al elegir solo algunas secciones.
+    numbers = {key: number for number, key in enumerate(SECTION_TITLES, 1)}
+    for key in selected:
         body = _BUILDERS[key](report)
         for chart, file in charts.get(key, {}).items():
             body += f"\n\n![{SECTION_TITLES[key]}: {chart}]({file})"
-        title = f"{number}. {SECTION_TITLES[key]}"
-        if detail == "compact" and key not in ALWAYS_OPEN:
-            blocks.append(f"<details>\n<summary>{title}</summary>\n\n{body}\n\n</details>")
+        title = f"{numbers[key]}. {SECTION_TITLES[key]}"
+        if detail == "compact":
+            summary = f"<b>{title}</b> — {SECTION_QUESTIONS[key]}"
+            blocks.append(f"<details>\n<summary>{summary}</summary>\n\n{body}\n\n</details>")
         else:
             blocks.append(f"## {title}\n\n{body}")
     return "\n\n".join(blocks) + "\n"

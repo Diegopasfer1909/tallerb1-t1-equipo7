@@ -1,5 +1,7 @@
 """Etiquetas en español compartidas por la consola y los informes."""
 
+from ..providers.ecb import AAA_3M_YIELD
+
 ASSET_TYPES = {
     "stock": "Acción",
     "fund": "Fondo de inversión",
@@ -48,6 +50,7 @@ SOURCES = {
     "yahoo": "Yahoo Finance",
     "alpha_vantage": "Alpha Vantage",
     "fred": "FRED",
+    "ecb": "BCE",
 }
 PRICE_BASES = {
     "unadjusted": "Sin ajustar, según el proveedor",
@@ -56,8 +59,20 @@ PRICE_BASES = {
     "unknown": "No consta",
     "adjusted_growth": "Crecimiento con cierre ajustado por desdoblamientos y distribuciones",
 }
-SEVERITIES = {"high": "Alta", "medium": "Media"}
+SEVERITIES = {"high": "🔴 **Alta**", "medium": "🟠 **Media**"}
+# Nombre legible de los tipos libres de riesgo predeterminados.
+RISK_FREE_NAMES = {
+    AAA_3M_YIELD: "deuda AAA de la zona euro a 3 meses",
+    "DGS3MO": "letra de EE. UU. a 3 meses",
+}
 
+# Casos con los que se contrasta el retorno de la simulación.
+SENSITIVITY_CASES = {
+    "historical": "Histórico puro",
+    "risk_free": "Solo tipo libre de riesgo",
+    "prudent": "8 % en todos los activos",
+    "zero": "0 % en todos los activos",
+}
 # Columnas de Portfolio.holdings() en el orden en que se presentan.
 HOLDINGS_COLUMNS = {
     "target_weight": "Peso objetivo",

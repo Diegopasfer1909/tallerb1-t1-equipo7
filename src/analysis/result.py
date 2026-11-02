@@ -14,12 +14,14 @@ from ..models.notice import Notice
 from ..simulation.result import SimulationResult
 from .metrics import (
     DrawdownEpisode,
+    MarketContext,
     calendar_returns,
     correlation_pairs,
     drawdown_episode,
     drawdowns,
+    price_jumps,
 )
-from .warnings import RiskWarning
+from .warnings import RiskWarning, WarningThresholds
 
 
 @dataclass
@@ -50,6 +52,11 @@ class PortfolioAnalysis:
     rebalance: Rebalance
     benchmark_prices: pd.Series | None
     risk_warnings: list[RiskWarning]
+    market: MarketContext
+    currency_weights: pd.Series
+    benchmark_name: str
+    risk_free_series: str
+    warning_thresholds: WarningThresholds
 
     @property
     def drawdown(self) -> pd.Series:
@@ -70,6 +77,14 @@ class PortfolioAnalysis:
     @property
     def correlation_pairs(self) -> pd.Series:
         return correlation_pairs(self.correlations)
+
+    @property
+    def asset_returns(self) -> pd.DataFrame:
+        return self.asset_prices.pct_change(fill_method=None).dropna()
+
+    @property
+    def price_jumps(self) -> pd.Series:
+        return price_jumps(self.asset_prices)
 
     @property
     def benchmark_comparison(self) -> pd.DataFrame:

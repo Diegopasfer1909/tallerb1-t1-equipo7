@@ -1,7 +1,8 @@
 """Resultado de una simulación, sin descargas ni guardado automático."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 
 from ..constants import Rebalance
@@ -25,6 +26,10 @@ class SimulationResult:
     rebalance_interval: int | None
     confidence: float
     correlation_method: str
+    # Valores finales con otros retornos, para contrastar el supuesto utilizado.
+    return_sensitivity: dict[str, np.ndarray] = field(default_factory=dict)
+    risk_free_rate: float | None = None
+    equity_premium: float | None = None
 
     def summary(self) -> pd.Series:
         initial = float(self.paths.iloc[0, 0])

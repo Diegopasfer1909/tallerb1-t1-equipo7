@@ -1,20 +1,26 @@
-"""Gráficos de evolución, caídas, correlaciones, riesgo y simulación."""
+"""Gráficos del informe. Cada uno devuelve una Figure, o None si falta el dato que necesita."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import font_manager
+from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, PercentFormatter
 
+from ..analysis.metrics import annualized_return
 from ..validation import validate_positive_int
-from .formatting import DATE_FORMAT, format_date, format_tick
+from .formatting import DATE_FORMAT, format_date, format_number, format_tick
+from .labels import SECTORS
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -22,11 +28,56 @@ if TYPE_CHECKING:
     from ..analysis.result import PortfolioAnalysis
     from ..simulation.result import SimulationResult
 
+# Paleta categórica en orden fijo, tinta y superficie.
+SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+GREY = "#898781"
+CRITICAL = "#d03b3b"
+INK, INK_SECONDARY = "#0b0b0b", "#52514e"
+SURFACE, GRID, AXIS = "#fcfcfb", "#e1e0d9", "#c3c2b7"
+DIVERGING = LinearSegmentedColormap.from_list(
+    "azul_rojo", ["#184f95", "#6da7ec", "#f0efec", "#f08f8e", "#b5302f"]
+)
+SEQUENTIAL_BLUE = ["#cde2fb", "#9ec5f4", "#5598e7", "#1c5cab"]
 
-def _numbers(*scales) -> None:
-    """Coma decimal y separador de miles en los ejes indicados (axis.xaxis o axis.yaxis)."""
-    for scale in scales:
-        scale.set_major_formatter(FuncFormatter(format_tick))
+_INSTALLED = {font.name for font in font_manager.fontManager.ttflist}
+STYLE = {
+    "font.family": [font for font in ("Segoe UI", "Helvetica Neue", "Arial") if font in _INSTALLED]
+    + ["DejaVu Sans"],
+    "font.size": 10,
+    "figure.facecolor": SURFACE,
+    "axes.facecolor": SURFACE,
+    "axes.edgecolor": AXIS,
+    "axes.linewidth": 0.8,
+    "axes.labelcolor": INK_SECONDARY,
+    "axes.titlesize": 12,
+    "axes.titleweight": "bold",
+    "axes.titlecolor": INK,
+    "axes.titlelocation": "left",
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "axes.grid.axis": "y",
+    "axes.axisbelow": True,
+    "grid.color": GRID,
+    "grid.linewidth": 0.6,
+    "xtick.color": GREY,
+    "ytick.color": GREY,
+    "xtick.labelcolor": INK_SECONDARY,
+    "ytick.labelcolor": INK_SECONDARY,
+    "lines.linewidth": 2,
+    "legend.frameon": False,
+    "legend.labelcolor": INK_SECONDARY,
+}
+PERCENT = PercentFormatter(1.0, decimals=0)
+
+
+def _styled(function):
+    @wraps(function)
+    def wrapper(*args, **kwargs):
+        with mpl.rc_context(STYLE):
+            return function(*args, **kwargs)
+
+    return wrapper
 
 
 def _dates(axis) -> None:
@@ -35,202 +86,435 @@ def _dates(axis) -> None:
     axis.tick_params(axis="x", labelrotation=25)
 
 
-def plot_analysis(analysis: PortfolioAnalysis) -> Figure:
-    """Evolución frente al índice, caídas, correlaciones y contribución al riesgo."""
-    figure, axes = plt.subplots(2, 2, figsize=(12, 8))
-    _plot_value(axes[0, 0], analysis)
-    _plot_drawdown(axes[0, 1], analysis)
-    _plot_correlations(figure, axes[1, 0], analysis.correlations)
-    _plot_risk_shares(axes[1, 1], analysis)
-    figure.tight_layout()
+def _axis(axis, **size) -> tuple[Figure, object]:
+    """Dibuja en el eje indicado o en una figura nueva."""
+    return (axis.figure, axis) if axis is not None else plt.subplots(**size)
+
+
+@_styled
+def plot_evolution(analysis: PortfolioAnalysis, axis=None) -> Figure:
+    """Evolución en base 100: cartera, índice y ETF de Bunds."""
+    figure, axis = _axis(axis, figsize=(9, 4.5))
+    # Con índice, ambos se comparan en sus fechas comunes y en la misma divisa.
+    comparison = analysis.benchmark_comparison
+    values = analysis.values if comparison.empty else comparison["portfolio"]
+    values = values / values.iloc[0] * 100
+    axis.plot(values.index, values.to_numpy(), color=SERIES[0], label="Cartera")
+    if not comparison.empty:
+        benchmark = comparison["benchmark"] / comparison["benchmark"].iloc[0] * 100
+        axis.plot(
+            benchmark.index, benchmark.to_numpy(), color=SERIES[1], label=analysis.benchmark_name
+        )
+    bund_etf = analysis.market.bund_etf_prices
+    if bund_etf is not None and not bund_etf.dropna().empty:
+        bund_etf = bund_etf.dropna()
+        axis.plot(
+            bund_etf.index,
+            (bund_etf / bund_etf.iloc[0] * 100).to_numpy(),
+            color=SERIES[2],
+            label="ETF de Bunds",
+        )
+    axis.axhline(100, color=AXIS, linewidth=0.8)
+    axis.annotate(
+        f"{values.iloc[-1]:.0f}",
+        (values.index[-1], values.iloc[-1]),
+        xytext=(6, 0),
+        textcoords="offset points",
+        va="center",
+        color=INK,
+        fontweight="bold",
+    )
+    axis.set_title(f"Evolución de 100 {analysis.currency} invertidos")
+    axis.legend(loc="upper left", ncols=3)
+    _dates(axis)
     return figure
 
 
-def _plot_value(axis, analysis: PortfolioAnalysis) -> None:
-    """Cartera e índice en base 100 sobre las mismas fechas y en la misma divisa."""
-    comparison = analysis.benchmark_comparison
-    if comparison.empty:
-        values = analysis.values
-        axis.plot(values.index, values / values.iloc[0] * 100, label="Cartera")
-        title = "Evolución de la cartera"
-    else:
-        normalized = comparison / comparison.iloc[0] * 100
-        axis.plot(normalized.index, normalized["portfolio"], label="Cartera")
-        axis.plot(normalized.index, normalized["benchmark"], label="Índice de referencia")
-        title = "Evolución en fechas comunes"
-    axis.set(title=title, ylabel=f"Base 100 ({analysis.currency})", xlabel="Fecha")
-    axis.legend()
-    _numbers(axis.yaxis)
+@_styled
+def plot_assets(analysis: PortfolioAnalysis) -> Figure:
+    """Evolución de cada activo en base 100, en la divisa de la cartera."""
+    prices = analysis.asset_prices
+    normalized = prices / prices.iloc[0] * 100
+    # Con muchos activos, la paleta fija repetiría colores.
+    colors = SERIES if len(prices.columns) <= len(SERIES) else plt.get_cmap("tab20").colors
+    figure, axis = plt.subplots(figsize=(9, 4.5))
+    for number, symbol in enumerate(normalized.columns):
+        axis.plot(
+            normalized.index,
+            normalized[symbol].to_numpy(),
+            color=colors[number % len(colors)],
+            linewidth=1.5,
+            label=symbol,
+        )
+    axis.axhline(100, color=AXIS, linewidth=0.8)
+    axis.set_title(f"Evolución de 100 {analysis.currency} invertidos en cada activo")
+    axis.legend(loc="upper left", ncols=min(5, len(prices.columns)))
     _dates(axis)
+    return figure
 
 
-def _plot_drawdown(axis, analysis: PortfolioAnalysis) -> None:
-    """Caídas desde máximos, con el valle y la recuperación de la mayor de ellas."""
+@_styled
+def plot_drawdown(analysis: PortfolioAnalysis, axis=None) -> Figure:
+    """Caída desde el máximo previo a lo largo del tiempo."""
+    figure, axis = _axis(axis, figsize=(9, 3.5))
     drawdown = analysis.drawdown
-    axis.plot(drawdown.index, drawdown.to_numpy() * 100)
-    axis.set(title="Caídas desde máximos anteriores", ylabel="Caída (%)", xlabel="Fecha")
+    axis.fill_between(drawdown.index, drawdown.to_numpy(), 0, color=SERIES[0], alpha=0.25, lw=0)
+    axis.plot(drawdown.index, drawdown.to_numpy(), color=SERIES[0], linewidth=1.2)
     episode = analysis.drawdown_episode
     if episode.trough is not None:
         recovery = (
-            f"Recuperación: {format_date(episode.recovery)}"
+            f"recuperado el {format_date(episode.recovery)}"
             if episode.recovery is not None
-            else "Sin recuperar"
+            else "sin recuperar"
         )
-        axis.scatter([episode.trough], [episode.depth * 100], color="tab:red", zorder=3)
-        axis.text(
-            0.03,
-            0.05,
-            f"Valle: {format_date(episode.trough)}\n{recovery}",
-            transform=axis.transAxes,
+        axis.plot(
+            [episode.trough],
+            [episode.depth],
+            "o",
+            color=SERIES[0],
+            markersize=8,
+            markeredgecolor=SURFACE,
+            markeredgewidth=2,
+        )
+        axis.annotate(
+            f"{format_number(episode.depth, True)} · {format_date(episode.trough)}\n{recovery}",
+            (episode.trough, episode.depth),
+            xytext=(10, 4),
+            textcoords="offset points",
+            color=INK,
             fontsize=9,
-            bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"},
         )
-    _numbers(axis.yaxis)
+    axis.yaxis.set_major_formatter(PERCENT)
+    axis.set_title("Drawdown: caída desde el máximo anterior")
     _dates(axis)
+    return figure
 
 
-def _plot_correlations(figure: Figure, axis, correlations: pd.DataFrame) -> None:
-    heatmap = axis.imshow(correlations, vmin=-1, vmax=1, cmap="RdBu_r")
-    ticks = np.arange(len(correlations))
-    axis.set(
-        xticks=ticks,
-        yticks=ticks,
-        xticklabels=correlations.columns,
-        yticklabels=correlations.index,
-        title="Correlaciones históricas entre rentabilidades",
-    )
-    figure.colorbar(heatmap, ax=axis, format=FuncFormatter(format_tick))
+@_styled
+def plot_correlations(analysis: PortfolioAnalysis, axis=None) -> Figure:
+    """Matriz de correlaciones entre activos."""
+    correlations = analysis.correlations
+    count = len(correlations)
+    figure, axis = _axis(axis, figsize=(1.2 + 0.7 * count, 0.8 + 0.6 * count))
+    heatmap = axis.imshow(correlations, cmap=DIVERGING, vmin=-1, vmax=1)
+    axis.set_xticks(range(count), correlations.columns, rotation=45, ha="right")
+    axis.set_yticks(range(count), correlations.index)
+    axis.grid(False)
+    axis.spines[:].set_visible(False)
+    axis.tick_params(length=0)
+    if count <= 12:
+        for row in range(count):
+            for column in range(count):
+                value = correlations.iat[row, column]
+                axis.text(
+                    column,
+                    row,
+                    format_number(value),
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color="white" if abs(value) > 0.6 else INK,
+                )
+    bar = figure.colorbar(heatmap, ax=axis, shrink=0.8, format=FuncFormatter(format_tick))
+    bar.outline.set_visible(False)
+    bar.ax.tick_params(colors=GREY, labelcolor=INK_SECONDARY)
+    axis.set_title("Correlaciones de rentabilidades diarias")
+    return figure
 
 
-def _plot_risk_shares(axis, analysis: PortfolioAnalysis) -> None:
-    # Omite las contribuciones ausentes para no presentarlas como riesgo cero.
-    shares = analysis.risk_contributions.dropna()
-    if shares.empty:
-        axis.text(
-            0.5,
-            0.5,
-            "No hay datos suficientes para calcular la contribución al riesgo",
-            ha="center",
-            va="center",
-            transform=axis.transAxes,
-            wrap=True,
-        )
-    else:
-        positions = np.arange(len(shares))
-        weights = analysis.holdings.loc[shares.index, "weight"]
-        axis.bar(positions - 0.2, weights * 100, width=0.4, label="Peso actual")
-        axis.bar(positions + 0.2, shares * 100, width=0.4, label="Contribución al riesgo")
-        axis.set(xticks=positions, xticklabels=shares.index)
-        axis.legend()
-    axis.set(title="Pesos actuales frente a contribución al riesgo", ylabel="Porcentaje (%)")
-    _numbers(axis.yaxis)
-
-
-def plot_risk_return(analysis: PortfolioAnalysis) -> Figure:
-    """Usa los resultados ya calculados sobre el mismo historial de la cartera."""
-    figure, axis = plt.subplots(figsize=(9, 5))
+@_styled
+def plot_risk_return(analysis: PortfolioAnalysis, axis=None) -> Figure:
+    """Volatilidad frente a rentabilidad anualizada de cada activo, la cartera y el índice."""
+    figure, axis = _axis(axis, figsize=(7, 5))
     details = analysis.asset_details
     axis.scatter(
-        details["annualized_volatility"] * 100,
-        details["annualized_return"] * 100,
+        details["annualized_volatility"],
+        details["annualized_return"],
+        s=60,
+        color=SERIES[0],
+        edgecolor=SURFACE,
+        linewidth=2,
         label="Activos",
-        alpha=0.75,
+        zorder=3,
     )
     for symbol, row in details.iterrows():
         axis.annotate(
             symbol,
-            (row["annualized_volatility"] * 100, row["annualized_return"] * 100),
-            xytext=(5, 5),
+            (row["annualized_volatility"], row["annualized_return"]),
+            xytext=(6, 4),
             textcoords="offset points",
+            fontsize=8,
+            color=INK_SECONDARY,
         )
     axis.scatter(
-        [analysis.metrics["annualized_volatility"] * 100],
-        [analysis.metrics["annualized_return"] * 100],
-        marker="*",
-        s=160,
+        [analysis.metrics["annualized_volatility"]],
+        [analysis.metrics["annualized_return"]],
+        s=110,
+        color=SERIES[1],
+        edgecolor=SURFACE,
+        linewidth=2,
         label="Cartera",
+        zorder=4,
     )
-    axis.set(
-        title="Riesgo y rentabilidad histórica",
-        xlabel="Volatilidad anual (%)",
-        ylabel="Rentabilidad anualizada (%)",
-    )
-    axis.axhline(0, color="grey", linewidth=0.7)
-    _numbers(axis.xaxis, axis.yaxis)
-    axis.legend()
+    comparison = analysis.benchmark_comparison
+    if not comparison.empty:
+        market = comparison["benchmark"].pct_change(fill_method=None).dropna()
+        axis.scatter(
+            [market.std() * np.sqrt(analysis.periods_per_year)],
+            [annualized_return(market, analysis.periods_per_year)],
+            s=80,
+            marker="D",
+            color=GREY,
+            edgecolor=SURFACE,
+            linewidth=2,
+            label=analysis.benchmark_name,
+            zorder=3,
+        )
+    axis.axhline(0, color=AXIS, linewidth=0.8)
+    axis.xaxis.set_major_formatter(PERCENT)
+    axis.yaxis.set_major_formatter(PERCENT)
+    axis.set(xlabel="Volatilidad anualizada", ylabel="Rentabilidad anualizada")
+    axis.grid(True, axis="both")
+    axis.set_title("Riesgo frente a rentabilidad")
     axis.margins(0.15)
-    figure.tight_layout()
+    axis.legend(loc="best")
     return figure
 
 
-def plot_assets(analysis: PortfolioAnalysis) -> Figure:
-    figure, axis = plt.subplots(figsize=(11, 5))
-    normalized = analysis.asset_prices / analysis.asset_prices.iloc[0] * 100
-    for symbol in normalized.columns:
-        axis.plot(normalized.index, normalized[symbol].to_numpy(), label=symbol)
-    axis.set(
-        title="Evolución comparada de los activos", xlabel="Fecha", ylabel="Valor inicial = 100"
-    )
-    axis.legend(title="Activos")
-    _numbers(axis.yaxis)
-    _dates(axis)
-    figure.autofmt_xdate()
-    figure.tight_layout()
+def _grouped_bars(axis, labels, columns: dict[str, pd.Series]) -> None:
+    count = len(columns)
+    width = 0.8 / count
+    positions = np.arange(len(labels))
+    for number, (name, values) in enumerate(columns.items()):
+        axis.bar(
+            positions + (number - (count - 1) / 2) * width,
+            values,
+            width=width,
+            color=SERIES[number],
+            label=name,
+            edgecolor=SURFACE,
+            linewidth=2,
+        )
+    axis.set_xticks(positions, labels)
+    axis.axhline(0, color=AXIS, linewidth=0.8)
+    axis.legend(loc="upper right", ncols=count)
+
+
+@_styled
+def plot_risk_shares(analysis: PortfolioAnalysis) -> Figure | None:
+    """Peso de cada activo frente a su contribución al riesgo."""
+    # Omite las contribuciones ausentes para no presentarlas como riesgo cero.
+    shares = analysis.risk_contributions.dropna()
+    if shares.empty:
+        return None
+    weights = analysis.holdings.loc[shares.index, "weight"]
+    figure, axis = plt.subplots(figsize=(max(6, 1.1 * len(shares)), 4))
+    _grouped_bars(axis, shares.index, {"Peso actual": weights, "Contribución al riesgo": shares})
+    axis.yaxis.set_major_formatter(PERCENT)
+    axis.set_title("Peso frente a contribución al riesgo")
     return figure
 
 
+@_styled
+def plot_annual_returns(analysis: PortfolioAnalysis) -> Figure:
+    """Rentabilidad de cada año natural, cartera frente al índice."""
+    returns = analysis.values.pct_change(fill_method=None).dropna()
+    annual = {"Cartera": (1 + returns).resample("YE").prod() - 1}
+    comparison = analysis.benchmark_comparison
+    if not comparison.empty:
+        market = comparison["benchmark"].pct_change(fill_method=None).dropna()
+        yearly = (1 + market).resample("YE").prod() - 1
+        annual[analysis.benchmark_name] = yearly.reindex(annual["Cartera"].index)
+    figure, axis = plt.subplots(figsize=(max(6, 0.9 * len(annual["Cartera"])), 4))
+    _grouped_bars(axis, annual["Cartera"].index.year, annual)
+    axis.yaxis.set_major_formatter(PERCENT)
+    axis.set_title("Rentabilidad por año")
+    return figure
+
+
+@_styled
 def plot_distribution(analysis: PortfolioAnalysis) -> Figure:
-    """Compara los incrementos logarítmicos históricos con la normal asumida por el GBM."""
-    values = analysis.values.to_numpy(dtype=float)
-    returns = np.log(values[1:] / values[:-1]) * 100
-    figure, axis = plt.subplots(figsize=(10, 5))
+    """Histograma de rentabilidades diarias frente a una normal con igual media y desviación."""
+    returns = analysis.values.pct_change(fill_method=None).dropna()
+    figure, axis = plt.subplots(figsize=(8, 4))
     axis.hist(
         returns,
-        bins=min(40, max(5, len(returns) // 5)),
+        bins=min(80, max(5, len(returns) // 5)),
         density=True,
-        alpha=0.6,
-        label="Rentabilidades logarítmicas históricas",
-        edgecolor="white",
+        color=SERIES[0],
+        alpha=0.75,
+        edgecolor=SURFACE,
+        linewidth=0.5,
+        label="Cartera",
     )
-    mean = returns.mean()
-    deviation = returns.std(ddof=1)
+    deviation = returns.std()
     if deviation > 0:
-        low = min(returns.min(), mean - 4 * deviation)
-        high = max(returns.max(), mean + 4 * deviation)
-        grid = np.linspace(low, high, 300)
-        density = np.exp(-0.5 * ((grid - mean) / deviation) ** 2) / (deviation * np.sqrt(2 * np.pi))
-        axis.plot(grid, density, label="Distribución normal de referencia")
-    else:
-        axis.axvline(mean, label="Rentabilidad constante")
-    axis.set(
-        title="Rentabilidades logarítmicas frente a una distribución normal",
-        xlabel="Rentabilidad logarítmica por período (%)",
-        ylabel="Densidad",
+        grid = np.linspace(returns.min(), returns.max(), 300)
+        density = np.exp(-(((grid - returns.mean()) / deviation) ** 2) / 2) / (
+            deviation * np.sqrt(2 * np.pi)
+        )
+        axis.plot(grid, density, color=SERIES[1], label="Normal equivalente")
+    var = analysis.metrics["period_var_95_return"]
+    axis.axvline(var, color=INK_SECONDARY, linewidth=1)
+    axis.annotate(" VaR 95 %", (var, axis.get_ylim()[1] * 0.9), color=INK_SECONDARY, fontsize=9)
+    axis.xaxis.set_major_formatter(PercentFormatter(1.0, decimals=1))
+    axis.set_yticks([])
+    axis.grid(False)
+    axis.set_title("Distribución de rentabilidades diarias")
+    axis.legend(loc="upper right")
+    return figure
+
+
+@_styled
+def plot_volatility_vix(analysis: PortfolioAnalysis) -> Figure | None:
+    """Volatilidad móvil de 21 sesiones (anualizada) frente al VIX, en la misma escala (%)."""
+    vix = analysis.market.vix
+    if vix is None:
+        return None
+    returns = analysis.values.pct_change(fill_method=None).dropna()
+    volatility = returns.rolling(21).std() * np.sqrt(analysis.periods_per_year) * 100
+    figure, axis = plt.subplots(figsize=(9, 4))
+    axis.plot(
+        volatility.index,
+        volatility.to_numpy(),
+        color=SERIES[0],
+        linewidth=1.5,
+        label="Volatilidad de la cartera (21 sesiones)",
     )
-    _numbers(axis.xaxis, axis.yaxis)
-    axis.legend()
+    axis.plot(vix.index, vix.to_numpy(), color=SERIES[1], linewidth=1.5, label="VIX")
+    axis.set_ylabel("Volatilidad anualizada (%)")
+    axis.set_title("Volatilidad de la cartera frente al VIX")
+    axis.legend(loc="upper right", ncols=2)
+    _dates(axis)
+    return figure
+
+
+@_styled
+def plot_bund_correlation(analysis: PortfolioAnalysis) -> Figure | None:
+    """Correlación móvil de 60 sesiones con el ETF de Bunds."""
+    series = analysis.market.bund_rolling_correlation
+    if series is None or series.dropna().empty:
+        return None
+    figure, axis = plt.subplots(figsize=(9, 3.5))
+    axis.plot(series.index, series.to_numpy(), color=SERIES[0], linewidth=1.5)
+    axis.axhline(0, color=AXIS, linewidth=0.8)
+    axis.set_ylim(-1, 1)
+    axis.annotate(
+        "Por debajo de 0: el Bund hace de refugio",
+        (series.index[0], -0.92),
+        color=INK_SECONDARY,
+        fontsize=9,
+    )
+    axis.set_title("Correlación móvil (60 sesiones) con el ETF de Bunds")
+    _dates(axis)
+    return figure
+
+
+@_styled
+def plot_exposure(analysis: PortfolioAnalysis) -> Figure:
+    """Exposición por sector y por divisa."""
+    sectors = analysis.sector_weights.rename(index=lambda sector: SECTORS.get(sector, sector))
+    currencies = analysis.currency_weights
+    rows = max(len(sectors), len(currencies))
+    figure, axes = plt.subplots(1, 2, figsize=(10, 1 + 0.45 * rows))
+    for axis, data, title in (
+        (axes[0], sectors, "Por sector"),
+        (axes[1], currencies, "Por divisa"),
+    ):
+        data = data.sort_values()
+        axis.barh(data.index, data, color=SERIES[0], height=0.7, edgecolor=SURFACE, linewidth=2)
+        for row, value in enumerate(data):
+            axis.annotate(
+                f"{value * 100:.0f} %",
+                (value, row),
+                xytext=(4, 0),
+                textcoords="offset points",
+                va="center",
+                fontsize=9,
+                color=INK_SECONDARY,
+            )
+        axis.xaxis.set_major_formatter(PERCENT)
+        axis.grid(True, axis="x")
+        axis.grid(False, axis="y")
+        axis.set_xlim(0, max(1, data.max() * 1.15))
+        axis.set_title(title)
     figure.tight_layout()
     return figure
 
 
-def plot_simulation(simulation: SimulationResult, max_paths: int = 100) -> Figure:
+@_styled
+def plot_analysis(analysis: PortfolioAnalysis) -> Figure:
+    """Evolución, caídas, correlaciones y riesgo frente a rentabilidad, en una sola figura."""
+    figure, axes = plt.subplots(2, 2, figsize=(14, 9))
+    plot_evolution(analysis, axes[0, 0])
+    plot_drawdown(analysis, axes[0, 1])
+    plot_correlations(analysis, axes[1, 0])
+    plot_risk_return(analysis, axes[1, 1])
+    figure.tight_layout()
+    return figure
+
+
+def _money(currency: str) -> FuncFormatter:
+    return FuncFormatter(lambda value, _: f"{format_tick(round(value))} {currency}")
+
+
+def _fan(axis, simulation: SimulationResult, max_paths: int) -> None:
+    """Percentiles de las trayectorias simuladas sesión a sesión."""
+    paths = simulation.paths.to_numpy().T
+    steps = np.arange(paths.shape[1])
+    tail = round((1 - simulation.confidence) * 100, 1)
+    low, q1, median, q3, high = np.percentile(paths, [tail, 25, 50, 75, 100 - tail], axis=0)
+    for path in paths[:max_paths]:
+        axis.plot(steps, path, color=AXIS, linewidth=0.4, alpha=0.6)
+    label = f"Percentiles {tail:g}–{100 - tail:g}".replace(".", ",")
+    axis.fill_between(steps, low, high, color=SEQUENTIAL_BLUE[0], label=label, linewidth=0)
+    axis.fill_between(steps, q1, q3, color=SEQUENTIAL_BLUE[1], label="Percentiles 25–75", lw=0)
+    axis.plot(steps, median, color=SEQUENTIAL_BLUE[3], label="Mediana")
+    axis.axhline(paths[0, 0], color=INK_SECONDARY, linewidth=0.8)
+    axis.yaxis.set_major_formatter(_money(simulation.currency))
+    axis.set_xlabel("Sesiones")
+    count = f"{len(paths):,}".replace(",", ".")
+    axis.set_title(f"Abanico de {count} trayectorias simuladas")
+    axis.legend(loc="upper left", ncols=3)
+
+
+def _final_values(axis, simulation: SimulationResult) -> None:
+    """Distribución del valor final; en rojo, los escenarios con pérdidas."""
+    initial = float(simulation.paths.iloc[0, 0])
+    final = simulation.paths.iloc[-1].to_numpy()
+    low, high = np.percentile(final, [0.5, 99.5])
+    bins = np.linspace(low, high, 70) if high > low else 10
+    axis.hist(
+        final[final >= initial],
+        bins=bins,
+        color=SERIES[0],
+        edgecolor=SURFACE,
+        linewidth=0.5,
+        label="Ganancia",
+    )
+    axis.hist(
+        final[final < initial],
+        bins=bins,
+        color=CRITICAL,
+        edgecolor=SURFACE,
+        linewidth=0.5,
+        label=f"Pérdida ({(final < initial).mean() * 100:.0f} %)",
+    )
+    axis.axvline(initial, color=INK_SECONDARY, linewidth=1)
+    axis.xaxis.set_major_formatter(_money(simulation.currency))
+    axis.set_yticks([])
+    axis.grid(False)
+    axis.set_title("Valor final de los escenarios simulados")
+    axis.legend(loc="upper right")
+
+
+@_styled
+def plot_simulation(simulation: SimulationResult, max_paths: int = 40) -> Figure:
     """Trayectorias simuladas y distribución del valor final."""
     validate_positive_int("max_paths", max_paths)
-    figure, axes = plt.subplots(1, 2, figsize=(12, 4))
-    simulation.paths.iloc[:, :max_paths].plot(ax=axes[0], legend=False, alpha=0.25)
-    axes[0].set(
-        title="Trayectorias simuladas",
-        xlabel="Período",
-        ylabel=f"Valor ({simulation.currency})",
-    )
-    axes[1].hist(simulation.paths.iloc[-1], bins=30, edgecolor="white")
-    axes[1].set(
-        title="Distribución del valor final",
-        xlabel=f"Valor ({simulation.currency})",
-        ylabel="Número de simulaciones",
-    )
-    for axis in axes:
-        _numbers(axis.xaxis, axis.yaxis)
+    figure, axes = plt.subplots(1, 2, figsize=(15, 4.8), gridspec_kw={"width_ratios": [1.4, 1]})
+    _fan(axes[0], simulation, max_paths)
+    _final_values(axes[1], simulation)
     figure.tight_layout()
     return figure
 
@@ -241,18 +525,23 @@ class ChartSpec:
 
     file: str
     section: str
-    build: Callable[..., Figure]
+    build: Callable[..., Figure | None]
 
 
 # Las claves también nombran los gráficos que devuelve plots_report().
 CHARTS = {
-    "portfolio": ChartSpec("analisis_cartera.png", "performance", plot_analysis),
-    "assets": ChartSpec("evolucion_activos.png", "performance", plot_assets),
-    "risk_return": ChartSpec("riesgo_rentabilidad.png", "performance", plot_risk_return),
-    "distribution": ChartSpec(
-        "distribucion_rentabilidades.png", "diversification", plot_distribution
-    ),
-    "simulation": ChartSpec("simulacion_monte_carlo.png", "simulation", plot_simulation),
+    "exposure": ChartSpec("exposicion.png", "composition", plot_exposure),
+    "evolution": ChartSpec("evolucion.png", "returns", plot_evolution),
+    "assets": ChartSpec("evolucion_activos.png", "returns", plot_assets),
+    "annual_returns": ChartSpec("rentabilidad_anual.png", "returns", plot_annual_returns),
+    "drawdown": ChartSpec("drawdown.png", "risk", plot_drawdown),
+    "distribution": ChartSpec("distribucion.png", "risk", plot_distribution),
+    "risk_return": ChartSpec("riesgo_rentabilidad.png", "risk_adjusted", plot_risk_return),
+    "correlations": ChartSpec("correlaciones.png", "diversification", plot_correlations),
+    "risk_shares": ChartSpec("pesos_contribucion.png", "diversification", plot_risk_shares),
+    "volatility_vix": ChartSpec("volatilidad_vix.png", "market", plot_volatility_vix),
+    "bund_correlation": ChartSpec("correlacion_bund.png", "market", plot_bund_correlation),
+    "simulation": ChartSpec("montecarlo.png", "simulation", plot_simulation),
 }
 
 
@@ -263,14 +552,17 @@ def plot_report(
 ) -> dict[str, Figure]:
     """Crea los gráficos de las secciones indicadas (todas si es None) sin mostrarlos.
 
-    El gráfico de la simulación solo se crea si se proporciona un resultado.
+    El gráfico de la simulación solo se crea si se proporciona un resultado, y los de mercado,
+    si se han podido descargar sus datos.
     """
     figures = {}
     try:
         for key, chart in CHARTS.items():
             source = simulation if chart.section == "simulation" else analysis
             if source is not None and (sections is None or chart.section in sections):
-                figures[key] = chart.build(source)
+                figure = chart.build(source)
+                if figure is not None:
+                    figures[key] = figure
     except BaseException:
         close_figures(figures)
         raise

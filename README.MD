@@ -22,17 +22,15 @@ paquetes de `src`. Al trasladar el proyecto, recrea el entorno e instala de nuev
 
 ### Claves de API (opcionales)
 
-El programa funciona sin ninguna clave: Yahoo Finance no la necesita. Las claves solo
-amplían lo que se puede hacer. Para añadirlas, copia `.env.example` a `.env` y
-completa las que quieras; el programa busca `.env` en la carpeta desde la que lo
-ejecutas y en las superiores.
+El programa funciona sin ninguna clave: Yahoo Finance y el BCE no la necesitan. Las claves solo
+amplían lo que se puede hacer. Para añadirlas, copia `.env.example` a `.env` y completa las que
+quieras; el programa busca `.env` en la carpeta desde la que lo ejecutas y en las superiores.
 
 | Sin clave | Con `ALPHA_VANTAGE_API_KEY` | Con `FRED_API_KEY` |
 | --- | --- | --- |
-| Precios y fichas de Yahoo Finance, conversión de divisas, Monte Carlo, gráficos e informe con el índice de referencia | `--provider alpha_vantage` | El informe añade inflación, rentabilidad real, tipo de interés y las ratios de Sharpe y Sortino |
+| Precios y fichas de Yahoo Finance, conversión de divisas, Monte Carlo, gráficos e informe con índice de referencia, oro, ETF de Bunds y tipo libre de riesgo en EUR | `--provider alpha_vantage` | El informe añade inflación, rentabilidad real, VIX, Brent y, en USD, tipo libre de riesgo, Sharpe, Sortino y alfa |
 
-Antes de descargar nada, la consola comprueba las claves que necesita lo que has
-pedido:
+Antes de descargar nada, la consola comprueba las claves que necesita lo que has pedido:
 
 - Si eliges `--provider alpha_vantage` sin su clave, se detiene con un mensaje que
   indica qué falta y propone `--provider yahoo`.
@@ -40,9 +38,6 @@ pedido:
   informe con el resto; el informe explica qué medidas faltan y por qué.
 - Si un proveedor rechaza una clave (no válida o sin cuota), el mensaje muestra el
   motivo que da el proveedor, sin mostrar la clave.
-
-Desde Python, `has_api_key("FRED_API_KEY")` (en `src.providers`) indica si una clave
-está configurada.
 
 ## Uso
 
@@ -53,6 +48,7 @@ python src/main.py --provider alpha_vantage --assets IBM:1 --simulate --report
 python src/main.py --provider alpha_vantage --assets cartera_ejemplo.txt --simulate --report
 python src/main.py --assets IBM:0.6 MSFT:0.4 --start 2025-10-01 --end 2026-10-01 --report
 python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plots-report --report
+python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --benchmark ^IBEX --rebalance none --capital 50000 --report
 ```
 
 | Opción | Uso |
@@ -64,12 +60,16 @@ python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plot
 | `--simulate` | Simular la evolución de la cartera a partir de los datos históricos |
 | `--plots-report` | Mostrar el conjunto de gráficos sin crear un documento |
 | `--report` | Generar Monte Carlo y guardar el informe Markdown con sus imágenes |
+| `--benchmark ^IBEX` | Índice de referencia; por defecto, `^GSPC` en USD y `^STOXX50E` en EUR |
+| `--report-sections summary risk ...` | Secciones del informe; por defecto, todas |
+| `--report-detail compact` o `full` | Secciones en desplegables o todo a la vista; por defecto, `compact` |
 | `--output-dir CARPETA` | Carpeta de los informes; por defecto, `informes` dentro de la carpeta actual |
 | `--currency EUR` | Convertir los precios y las posiciones a la divisa indicada |
 | `--steps 252` | Sesiones futuras de la simulación |
-| `--simulations 1000` | Número de escenarios |
+| `--simulations 10000` | Número de escenarios |
+| `--equity-premium 0.045` | Retorno anual de la renta variable sobre el tipo libre de riesgo |
 | `--return 0.08` | Retorno anual μ para todos los activos |
-| `--return IBM:0.08 MSFT:0.10` | Cambiar μ por activo; los demás conservan su estimación histórica |
+| `--return IBM:0.08 MSFT:0.10` | Cambiar μ por activo; los demás usan el cálculo por defecto |
 | `--volatility 0.20` | Volatilidad anual σ para todos los activos |
 | `--volatility IBM:0.20 MSFT:0.30` | Cambiar σ por activo manteniendo las correlaciones históricas |
 | `--confidence 0.95` | Confianza de las medidas de cola VaR y CVaR; debe estar entre 0,5 y 1 |
@@ -238,9 +238,23 @@ El modelo es un movimiento browniano geométrico. En cada sesión se aplica:
 S(t+1) = S(t) × exp[(mu − sigma²/2)/252 + sigma/√252 × Z]
 ```
 
-`mu` es la deriva anual del modelo y `sigma`, su volatilidad anual. Si no se
-indican, se estiman con la media y la desviación típica de las rentabilidades
-simples históricas, anualizadas con 252 sesiones. Por ejemplo, `--return 0.08`
+`mu` es la deriva anual del modelo y `sigma`, su volatilidad anual. `sigma` y las
+correlaciones se estiman con las rentabilidades simples históricas, anualizadas con 252
+sesiones. El retorno, si no se indica, es:
+
+```text
+mu = tipo libre de riesgo actual + prima de riesgo × parte del activo en renta variable
+```
+
+La prima es del 4,5 % por defecto y se cambia con `--equity-premium`. Las acciones y los
+índices cuentan como 100 % renta variable; en ETF y fondos se usa la composición que publica
+Yahoo Finance. Así, un ETF 60/40 recibe el 60 % de la prima, y la renta fija, el oro y lo que
+no se puede clasificar reciben solo el tipo libre de riesgo; el informe lo indica. No se usa
+el retorno de cada bono porque Yahoo no publica su rentabilidad a vencimiento, de modo que en
+bonos a largo plazo este valor puede quedarse algo corto. Sin tipo libre de riesgo para la
+divisa se usa el histórico y se avisa.
+
+Por ejemplo, `--return 0.08`
 fija mu en 0,08: el crecimiento esperado a un año es `exp(0.08) - 1`, aproximadamente
 un 8,33 %. No se interpreta como un crecimiento anual exacto del 8 %.
 
@@ -249,6 +263,13 @@ Si la matriz es singular, por ejemplo con activos idénticos o volatilidad cero,
 se utiliza una factorización por autovalores. El informe indica el método aplicado.
 Cambiar sigma conserva las correlaciones históricas. Los supuestos por activo
 pueden ser parciales; el resto utiliza sus parámetros históricos.
+
+No se usa el retorno histórico por defecto porque es el supuesto más débil: la volatilidad y
+las correlaciones se estiman bien con datos diarios, pero el retorno depende de los años de
+historia, no del número de observaciones, y refleja sobre todo lo que ya ocurrió. El informe
+repite la simulación con el retorno histórico y con solo el tipo libre de riesgo, con los
+mismos escenarios aleatorios, y compara la probabilidad de pérdida, nominal y real, la
+variación mediana y el VaR. Todos los importes son nominales.
 
 El nivel de confianza controla la cola del VaR y CVaR al final del horizonte.
 Con 0,95 se muestran los percentiles 5 y 95, que delimitan el 90 % central de los
@@ -303,11 +324,13 @@ producen el mismo tipo de historial interno, por lo que comparten el análisis,
 Monte Carlo, los gráficos y el informe. No se cambia de proveedor automáticamente
 si una descarga falla.
 
-Las fuentes auxiliares se mantienen separadas: el índice de referencia y los
-cambios de divisa automáticos se consultan en Yahoo Finance; la inflación y el
-tipo de interés se consultan en FRED. Elegir Alpha Vantage para los activos no
-cambia estas referencias. El informe identifica la fuente de cada activo y de
-cada referencia utilizada.
+Las fuentes auxiliares se mantienen separadas: el índice de referencia, el oro (`GC=F`),
+el ETF de Bunds (`EXHD.DE`) y los cambios de divisa automáticos se consultan en Yahoo
+Finance; la inflación, el VIX, el Brent y el tipo libre de riesgo en USD se consultan en la API
+de FRED, que necesita `FRED_API_KEY`; el tipo libre de riesgo en EUR, en la API de datos del BCE,
+sin clave. Elegir Alpha Vantage para los activos no
+cambia estas referencias. El informe identifica la fuente de cada activo y de cada
+referencia utilizada.
 
 ### Datos económicos: FRED y no ALFRED
 
@@ -321,8 +344,7 @@ corregir.
 ALFRED, el archivo de versiones de FRED, solo aportaría algo si una regla de inversión
 usara el dato macro disponible en cada fecha. Para estas medidas no mejora el resultado y
 tiene inconvenientes: las series predeterminadas apenas se revisan (los tipos de mercado,
-nunca), el IPC entraría con la primera publicación y desfasado un mes, el €STR solo tiene
-versiones archivadas desde 2022 y la API rechaza más de 2000 versiones por consulta, lo que
+nunca), el IPC entraría con la primera publicación y desfasado un mes y la API rechaza más de 2000 versiones por consulta, lo que
 impide pedir el tipo diario de más de unos ocho años.
 
 Desde Python, `FredAPI().get_series(serie, inicio, fin)` devuelve la serie; los tipos de
@@ -352,40 +374,71 @@ internacionales.
 
 ## Información y supuestos del informe
 
-El nombre de cada empresa, su sector, país, beta publicada, capitalización bursátil
-y PER se consultan automáticamente. El informe reúne esta información, los
-resultados del análisis, las referencias utilizadas y las posibles limitaciones
-de los datos.
+Las rentabilidades, la simulación y el informe utilizan Adj Close, que incluye los
+dividendos, cuando lo publican todos los activos; si no, usan Close y el informe lo indica
+en la sección de calidad de los datos. Se toman 252 períodos por año. La simulación de
+Monte Carlo genera por defecto 10.000 escenarios de 252 períodos, con la semilla 42,
+volatilidad histórica y el retorno explicado en "Parámetros de Monte Carlo". El informe indica
+si se han usado estos criterios y qué comando los cambia. Salvo la rentabilidad real, todas las
+cifras son nominales: incluyen dividendos y no descuentan la inflación.
 
-El informe incluye μ y σ históricos por activo y, por separado, los parámetros
-efectivamente utilizados en Monte Carlo con su origen (histórico o usuario). Los
-supuestos personalizados no modifican los resultados históricos. Son estimaciones
-del modelo, no previsiones publicadas por las empresas ni garantías de resultados.
+Las referencias se eligen según la divisa del informe:
 
-Los cálculos utilizan el precio de cierre (Close) y 252 períodos por año. La
-simulación de Monte Carlo genera 1.000 escenarios de 252 períodos y utiliza
-la semilla aleatoria 42 por defecto. El informe muestra todos los parámetros utilizados.
-La valoración usa Close: en Yahoo está ajustado por desdoblamientos y no incorpora
-el ajuste adicional por dividendos de Adj Close.
+| Divisa | Índice | Inflación | Tipo libre de riesgo |
+| --- | --- | --- | --- |
+| USD | S&P 500 (`^GSPC`) | IPC de EE. UU. (`CPIAUCSL`) | Letra a 3 meses (`DGS3MO`) |
+| EUR | EURO STOXX 50 (`^STOXX50E`) | IPCA de la zona euro (`CP0000EZ19M086NEST`) | Deuda AAA de la zona euro a 3 meses, BCE (`YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M`) |
 
-Para las carteras en dólares estadounidenses (USD), las referencias son el S&P 500,
-el IPC estadounidense y el rendimiento de las letras del Tesoro a tres meses.
-Para las carteras en euros (EUR), se utilizan el EURO STOXX 50, el IPCA de la zona
-euro y el tipo de interés €STR. Las referencias
-se eligen por divisa y se identifican en el informe. Para otras divisas, las medidas
-que carezcan de una referencia configurada quedan sin calcular.
+El índice se puede cambiar con `--benchmark`; si cotiza en otra divisa, se descarga su
+cambio para compararlo en la divisa del informe. Para otras divisas, las medidas sin
+referencia configurada quedan sin calcular: no se supone un tipo del 0 %.
+
+**Tipo libre de riesgo.** Es deuda pública de máxima calidad a 3 meses en la divisa de la
+cartera, de modo que ambas divisas miden lo mismo. En euros no hay una serie gratuita de letras
+cotizadas, así que se usa la curva de deuda AAA de la zona euro que estima el BCE, disponible
+desde septiembre de 2004; la €STR mediría riesgo bancario, no de Estado. Cada sesión toma el
+último tipo anual publicado y lo pasa a diario con `(1 + tipo) ** (1 / 252) - 1`, que es lo
+que se habría ganado ese día sin arriesgar. Sharpe, Sortino y el alfa de Jensen restan ese dato
+a la rentabilidad del mismo día. Si no hay un dato reciente para todas las fechas, esas medidas
+quedan sin calcular.
+
+**Deuda alemana.** El Bund a 10 años no se usa como tipo libre de riesgo: tiene riesgo de
+precio y mezclaría divisas en una cartera en dólares. Su tipo tampoco indica lo que ganó
+quien tenía bonos, porque no recoge la variación de su precio. Por eso, en carteras en euros,
+"Diferencia frente a deuda alemana" compara la rentabilidad anualizada de la cartera con la
+del ETF `EXHD.DE` (deuda alemana a 5,5-10,5 años), con cupones y variación de precio, en las
+mismas fechas.
+
+## Validación de los datos de entrada
+
+No se admite cualquier serie de precios: todo pasa por modelos que validan al crearse.
+Admitir "cualquier cosa con fechas y números" trasladaría los errores a las métricas, donde
+son silenciosos: un Sharpe calculado con divisas mezcladas da un número, pero falso. El
+criterio es que **lo que haría falsas las cifras detiene el programa; lo que solo las hace
+menos fiables se registra y aparece en la sección "Calidad de los datos" del informe.**
+
+| Situación | Tratamiento |
+| --- | --- |
+| Fechas no válidas o repetidas, precios no positivos o no finitos | Error |
+| Pesos que no suman 1, fuera de 0-1 o que no coinciden con los activos; activos repetidos | Error |
+| Símbolo sin datos o rechazado por el proveedor | Error que indica cuál |
+| Activos en varias divisas sin `--currency`, o sin tipo de cambio reciente | Error |
+| Menos de tres fechas comunes | Error |
+| Menos de 252 sesiones | Advertencia alta |
+| Fechas con zona horaria o desordenadas | Se normalizan |
+| Calendarios distintos (festivos de cada bolsa) | Solo se usan las fechas comunes, sin rellenar precios, y se informa del % excluido |
+| Fechas sin precio de cierre | Se descartan y se cuentan |
+| Saltos diarios de más del 50 % | Se marcan sin tocarlos: suelen ser desdoblamientos mal ajustados |
+| Fallo de una fuente opcional (índice, VIX, Brent...) o falta de `FRED_API_KEY` | Se anota y sus medidas salen "No disponible" |
 
 ## Gráficos e informes
 
-`--plots-report` muestra gráficos históricos, de comparación de activos y de
-distribución, más los de simulación si se añade `--simulate` o `--report`. No guarda
-archivos por sí solo ni descarga las referencias económicas, por lo que el gráfico de
-la cartera no incluye el índice. Puede combinarse con `--report` para ver los gráficos
-y guardar el informe completo.
+`--plots-report` muestra los gráficos del informe, más el de la simulación si se añade
+`--simulate` o `--report`. No guarda archivos por sí solo. Puede combinarse con `--report`
+para ver los gráficos y guardar el informe completo.
 
-Desde Python, `portfolio.plots_report()` devuelve ese mismo conjunto como un
-diccionario de figuras (`portfolio`, `assets`, `distribution` y `risk_return`). Con
-`portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
+Desde Python, `portfolio.plots_report()` devuelve ese conjunto como un diccionario de
+figuras. Con `portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
 
 Cada informe crea una carpeta dentro de `informes`, en la carpeta desde la que
 ejecutas el programa, o dentro de la indicada con `--output-dir` (`directory=` desde
@@ -395,23 +448,29 @@ Python):
 informes/
 └── AAAA-MM-DD_HH-MM-SS/
     ├── AAAA-MM-DD_HH-MM-SS.md
-    ├── analisis_cartera.png
+    ├── exposicion.png            # 3. Composición
+    ├── evolucion.png             # 4. Rentabilidad
     ├── evolucion_activos.png
-    ├── distribucion_rentabilidades.png
-    ├── riesgo_rentabilidad.png
-    └── simulacion_monte_carlo.png
+    ├── rentabilidad_anual.png
+    ├── drawdown.png              # 5. Riesgo
+    ├── distribucion.png
+    ├── riesgo_rentabilidad.png   # 6. Rentabilidad ajustada al riesgo
+    ├── correlaciones.png         # 7. Diversificación
+    ├── pesos_contribucion.png
+    ├── volatilidad_vix.png       # 8. Contexto de mercado
+    ├── correlacion_bund.png
+    └── montecarlo.png            # 9. Monte Carlo
 ```
 
-El informe completo incluye la imagen de Monte Carlo. Si se generan
+Los gráficos de mercado solo se crean si se han podido descargar sus datos. Si se generan
 dos informes en el mismo segundo, se añaden microsegundos al nombre para conservar ambos.
 El informe se prepara en una carpeta temporal y solo aparece cuando se ha guardado
 completo: si algo falla, no quedan carpetas a medias ni gráficos abiertos.
 
 ## Documentación de arquitectura
 
-La carpeta `arquitectura/` contiene diagramas editables de Excalidraw: paquetes y
-dependencias, la revisión de arquitectura, diagramas UML de clases y los flujos de uso
-desde la consola y desde Python. Consulta `arquitectura/README.md` para abrirlos.
+[docs/arquitectura.md](docs/arquitectura.md) contiene los diagramas de capas, de clases
+(UML) y del flujo de una ejecución.
 
 ## Comprobaciones
 
@@ -431,7 +490,7 @@ reglas de `.gitleaks.toml`: el escaneo de secretos de GitHub no reconoce las cla
 de Alpha Vantage ni de FRED.
 
 Las pruebas de integración (`tests/integration_apis.py`) consultan las API reales:
-comprueban que las series predeterminadas de FRED siguen actualizándose, que
+comprueban que las series predeterminadas de FRED y del BCE siguen actualizándose, que
 Alpha Vantage y Yahoo Finance responden y que el informe incluye inflación y Sharpe.
 No forman parte de la suite anterior. En GitHub Actions las ejecuta el trabajo
 «Integración con las API reales» en cada pull request, tras integrar en `main`, cada
@@ -458,7 +517,7 @@ python -B -m unittest tests.integration_apis -v
 ```
 
 `__pycache__` está excluido
-en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage y FRED se
+en `.gitignore`. La caché de respuestas de Yahoo Finance, Alpha Vantage, FRED y el BCE se
 conserva en `.cache/market-data`, dentro de la carpeta desde la que ejecutas el
 programa, para evitar consultas repetidas; no contiene las claves en texto y las
 respuestas de más de un día se eliminan automáticamente. Yahoo guarda por símbolo la
@@ -468,14 +527,27 @@ ya consultado se reutiliza. Para forzar una descarga nueva, borra esa carpeta.
 
 ## Lectura y selección del informe
 
-El informe comienza con cinco cifras y las advertencias. Por defecto, las demás
-secciones quedan plegadas en visores Markdown compatibles con `<details>`.
-`detail="full"` produce Markdown completamente desplegado, también útil para
-visores que no admitan esos elementos HTML.
+El informe tiene diez secciones, cada una en un desplegable que responde a una pregunta:
+
+| Nº | Clave | Sección | Pregunta |
+| --- | --- | --- | --- |
+| 1 | `summary` | Resumen | ¿Cómo ha ido, en cinco cifras? |
+| 2 | `warnings` | Advertencias | ¿Qué hay que vigilar? |
+| 3 | `composition` | Composición | ¿Qué contiene la cartera? |
+| 4 | `returns` | Rentabilidad | ¿Cuánto ha ganado? |
+| 5 | `risk` | Riesgo | ¿Cuánto ha arriesgado? |
+| 6 | `risk_adjusted` | Rentabilidad ajustada al riesgo | ¿Ha compensado el riesgo? |
+| 7 | `diversification` | Diversificación | ¿Está bien repartida? |
+| 8 | `market` | Contexto de mercado | ¿Qué pasa fuera de la cartera que le afecte? |
+| 9 | `simulation` | Monte Carlo | ¿Qué puede pasar a futuro? |
+| 10 | `data` | Calidad de los datos | ¿Cuánto fiarse de todo lo anterior? |
+
+`detail="full"` produce Markdown completamente desplegado, también útil para visores que no
+admitan esos elementos HTML.
 
 ```powershell
 python src/main.py --assets cartera_ejemplo.txt --report --report-detail full
-python src/main.py --assets cartera_ejemplo.txt --report --report-sections summary warnings performance
+python src/main.py --assets cartera_ejemplo.txt --report --report-sections summary warnings risk
 ```
 
 Desde Python se pueden reutilizar los mismos resultados sin descargar de nuevo:
@@ -484,53 +556,38 @@ Desde Python se pueden reutilizar los mismos resultados sin descargar de nuevo:
 from src.analysis import WarningThresholds
 
 analysis = portfolio.analyze(
-    warning_thresholds=WarningThresholds(
-        asset_weight=0.45, sector_weight=0.55, correlation=0.85, drawdown=0.30, volatility=0.25
-    ),
+    warning_thresholds=WarningThresholds(asset_weight=0.45, drawdown=0.30, vix=35),
 )
 text = analysis.markdown(detail="full")
-path = analysis.report(sections=["summary", "warnings", "performance"])
+path = analysis.report(sections=["summary", "warnings", "risk"])
 # También se admiten sections, detail y directory directamente en portfolio.report().
 ```
 
-Las secciones disponibles, en orden de lectura, son `summary`, `warnings`,
-`composition`, `performance`, `diversification`, `simulation` y `data`.
-Seleccionar secciones solo cambia la presentación. Se guardan únicamente las
-imágenes utilizadas por esas secciones. Si `portfolio.report()` o la consola
-excluyen `simulation`, no generan Monte Carlo; `--simulate` lo solicita de forma
-independiente. Sin selección explícita se conserva la simulación automática de
-`portfolio.report()` y `--report`. `analysis.report()` sigue permitiendo un
-informe histórico o un resultado de simulación proporcionado explícitamente.
+Seleccionar secciones solo cambia la presentación: cada una conserva su número y se guardan
+únicamente sus imágenes. Si `portfolio.report()` o la consola excluyen `simulation`, no
+generan Monte Carlo; `--simulate` lo solicita de forma independiente. `analysis.report()`
+sin un resultado de simulación muestra en la sección 9 el aviso "No se ha configurado la
+simulación".
 
-El resumen muestra valor final, rentabilidad anualizada, diferencia anual frente
-al índice, caída máxima y Sharpe. Indica las fechas comunes de la comparación:
-el gráfico de cartera e índice utiliza exactamente esas fechas y la divisa del
-informe, con ambos recorridos normalizados a 100 al inicio común.
-
-Las advertencias de riesgo se encuentran en `analysis.risk_warnings`, con código,
-nivel, valor observado, umbral y unidad (`percent`, `ratio` o `days`). Los demás
-avisos están en `analysis.notices`: cada `Notice` indica si señala un problema de los
-datos (`data`) o un criterio de metodología (`method`), y el informe los presenta por
-separado. `analysis.metric_notes` explica por qué falta cada medida sin calcular.
-Las reglas usan pesos actuales y omiten correlaciones sin
-posición o no definidas; un sector desconocido no se interpreta como una apuesta
-sectorial. Son umbrales orientativos, no recomendaciones de inversión. La ausencia
-de referencias sigue dejando sus métricas sin calcular, sin suponer un tipo cero.
+Las advertencias se encuentran en `analysis.risk_warnings`, con código, nivel, valor
+observado, umbral y unidad, y sus umbrales son los de `WarningThresholds`. Cubren
+concentración, correlación, riesgo no compensado, caídas, volatilidad, inflación, divisa,
+VIX, historia corta, fechas excluidas y escenarios desfavorables de la simulación. Son
+orientativas, no recomendaciones de inversión, y un dato ausente nunca activa una regla.
+Los demás avisos están en `analysis.notices`: cada `Notice` indica si señala un problema de
+los datos (`data`) o un criterio de metodología (`method`), y aparecen en la sección 10.
+`analysis.metric_notes` explica por qué falta cada medida sin calcular.
 
 `analysis.drawdown_episode` describe la mayor caída: último pico anterior al valle,
-primera recuperación y días naturales desde el pico. Si no se recuperó, la duración
-termina en la última fecha del análisis; si no hubo caídas, las fechas quedan vacías.
-
-`analysis.monthly_returns` y `analysis.annual_returns` contienen rentabilidad,
-número de observaciones y cobertura parcial. El mejor y peor mes se eligen solo
-entre meses completos. Se exige un cierre previo y el final del período usando
-lunes-viernes como aproximación conservadora, sin asumir festivos de una bolsa.
-Los períodos sin observaciones no se convierten en rentabilidad cero y un retorno
-que atraviese un mes/año entero sin precios no se asigna íntegramente al período
-de llegada. Estas tablas son rentabilidades por calendario, sin anualización.
-
-El panel histórico compara cartera e índice, anota la recuperación de la mayor
-caída y enfrenta pesos actuales con contribuciones al riesgo. Se añade
-`riesgo_rentabilidad.png`, un gráfico de volatilidad y rentabilidad anualizadas
-para la cartera y sus activos. Los resultados numéricos proceden del análisis;
-los generadores de texto y gráficos no consultan proveedores.
+primera recuperación y días naturales desde el pico. `analysis.monthly_returns` y
+`analysis.annual_returns` contienen rentabilidad, número de observaciones y cobertura
+parcial; el mejor y el peor mes se eligen solo entre meses completos. Un periodo necesita el
+cierre del anterior: para que 2021 sea completo, `--start` debe ser anterior al último cierre
+de 2020. Un período es completo
+si tiene un cierre hasta 5 días antes de su final, porque los festivos de cada bolsa pueden
+dejar sin fecha común el último día laborable; en el último período se exige la fecha exacta,
+ya que sin datos posteriores puede no haber terminado.
+`analysis.market` reúne el contexto de mercado: VIX, correlaciones con Brent, oro y ETF de
+Bunds, comportamiento del Bund en los peores días y efecto divisa por activo. Los resultados
+numéricos proceden del análisis; los generadores de texto y gráficos no consultan
+proveedores.

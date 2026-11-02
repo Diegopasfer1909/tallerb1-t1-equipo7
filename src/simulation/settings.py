@@ -3,7 +3,7 @@
 from dataclasses import dataclass, replace
 from numbers import Integral
 
-from ..constants import DEFAULT_SEED, PERIODS_PER_YEAR
+from ..constants import DEFAULT_EQUITY_PREMIUM, DEFAULT_SEED, PERIODS_PER_YEAR
 from ..errors import PortfolioError
 from ..validation import is_finite_number, validate_positive_int
 
@@ -30,15 +30,18 @@ class SimulationSettings:
     """steps son sesiones futuras; confidence fija la cola del VaR y CVaR.
 
     expected_returns y volatilities admiten un valor para todos los activos o un diccionario
-    por símbolo; los activos sin supuesto usan su estimación histórica.
+    por símbolo. Sin supuesto, la volatilidad es la histórica y el retorno, risk_free_rate más
+    equity_premium por la parte del activo en renta variable; sin risk_free_rate, el histórico.
     """
 
     steps: int = PERIODS_PER_YEAR
-    simulations: int = 1000
+    simulations: int = 10_000
     seed: int | None = DEFAULT_SEED
     confidence: float = 0.95
     expected_returns: Assumption = None
     volatilities: Assumption = None
+    equity_premium: float = DEFAULT_EQUITY_PREMIUM
+    risk_free_rate: float | None = None
 
     def __post_init__(self) -> None:
         validate_positive_int("steps", self.steps)
@@ -50,6 +53,10 @@ class SimulationSettings:
         if not is_finite_number(self.confidence) or not 0.5 < self.confidence < 1:
             raise PortfolioError("La confianza debe estar entre 0,5 y 1, sin incluir los extremos.")
         validate_assumptions(self.expected_returns, self.volatilities)
+        if not is_finite_number(self.equity_premium) or self.equity_premium < 0:
+            raise PortfolioError("La prima de riesgo debe ser un número finito no negativo.")
+        if self.risk_free_rate is not None and not is_finite_number(self.risk_free_rate):
+            raise PortfolioError("El tipo libre de riesgo debe ser un número finito.")
 
     @classmethod
     def from_options(cls, settings=None, **options) -> "SimulationSettings":

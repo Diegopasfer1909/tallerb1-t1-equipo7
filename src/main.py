@@ -3,16 +3,16 @@
 import argparse
 import sys
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 
 from src.analysis import PortfolioAnalysis
-from src.constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
+from src.constants import CLOSE, DEFAULT_CAPITAL, MONTHLY, PriceColumn, Rebalance
 from src.errors import ConfigurationError, PortfolioError
-from src.market_loader import load_references
+from src.market_loader import load_references, load_risk_free_rate
 from src.models import Portfolio
 from src.portfolio_loader import load_portfolio
 from src.providers import (
@@ -40,7 +40,7 @@ from src.validation import (
 # Caché de Yahoo Finance, Alpha Vantage y FRED, relativa a la carpeta desde la que se
 # ejecuta el programa. Las respuestas se reutilizan durante un día, por símbolo y serie.
 CACHE_DIR = Path(".cache") / "market-data"
-SIMULATION_OPTIONS = ("steps", "simulations", "seed", "confidence")
+SIMULATION_OPTIONS = ("steps", "simulations", "seed", "confidence", "equity_premium")
 ASSUMPTIONS_FORMAT = (
     "Indica un número finito o valores SÍMBOLO:número sin repetir activos. Los símbolos deben "
     "pertenecer a la cartera."
@@ -84,6 +84,7 @@ class RunConfig:
     report_sections: list[str] | None
     report_detail: str
     output_dir: Path | None
+    benchmark: str | None = None
 
 
 def parse_values(items: list[str]) -> dict[str, float]:
@@ -197,8 +198,12 @@ def build_parser() -> argparse.ArgumentParser:
     options.add_argument(
         "--report",
         action="store_true",
-        help="Guardar el informe en formato Markdown con sus gráficos. Con "
-        f"{FRED_KEY} incluye además inflación y tipo de interés de FRED",
+        help="Guardar el informe en formato Markdown con sus gráficos",
+    )
+    options.add_argument(
+        "--benchmark",
+        metavar="SÍMBOLO",
+        help="Índice de referencia, por ejemplo ^IBEX. Por defecto: ^GSPC en USD y ^STOXX50E en EUR",
     )
     options.add_argument(
         "--output-dir",
@@ -234,6 +239,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--confidence", type=float, help=f"Confianza del VaR y CVaR ({defaults.confidence})"
     )
     options.add_argument(
+        "--equity-premium",
+        type=float,
+        metavar="PRIMA",
+        help="Retorno anual de la renta variable sobre el tipo libre de riesgo "
+        f"({defaults.equity_premium})",
+    )
+    options.add_argument(
         "--capital",
         type=float,
         default=DEFAULT_CAPITAL,
@@ -250,7 +262,8 @@ def build_parser() -> argparse.ArgumentParser:
         dest="expected_returns",
         nargs="+",
         metavar="MU",
-        help="Retorno anual mu para todos (0.08) o por activo (IBM:0.08 MSFT:0.1)",
+        help="Retorno anual mu para todos (0.08) o por activo (IBM:0.08 MSFT:0.1). Por defecto: "
+        "tipo libre de riesgo + prima por la parte en renta variable",
     )
     options.add_argument(
         "--volatility",
@@ -277,8 +290,10 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     presentation = (args.report_sections, args.report_detail, args.output_dir)
     if not args.report and any(option is not None for option in presentation):
         raise PortfolioError("Las opciones de presentación requieren --report.")
+    if args.benchmark is not None and not (args.report or args.plots_report):
+        raise PortfolioError("--benchmark requiere --report o --plots-report.")
     detail = args.report_detail or "compact"
-    selected = select_sections(args.report_sections, detail, has_simulation=True)
+    selected = select_sections(args.report_sections, detail)
     run_simulation = args.simulate or (args.report and "simulation" in selected)
     provider = PROVIDERS[args.provider]
     start = args.start or (
@@ -286,6 +301,9 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     )
     date_range(start, args.end)
     weights = parse_values(args.assets)
+    benchmark = args.benchmark.strip() if args.benchmark is not None else None
+    if benchmark is not None:
+        validate_symbols([benchmark])
     options = {
         name: getattr(args, name) for name in SIMULATION_OPTIONS if getattr(args, name) is not None
     }
@@ -316,6 +334,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         report_sections=args.report_sections,
         report_detail=detail,
         output_dir=args.output_dir,
+        benchmark=benchmark,
     )
 
 
@@ -333,11 +352,11 @@ def check_api_keys(config: RunConfig) -> list[str]:
             "el entorno. Sin clave puedes usar --provider yahoo, que no la necesita."
         )
     warnings = []
-    if config.report and not has_api_key(FRED_KEY):
+    if (config.report or config.plots_report) and not has_api_key(FRED_KEY):
         warnings.append(
-            f"{FRED_KEY} no está configurada: el informe se generará sin inflación ni tipo de "
-            "interés de referencia, por lo que no incluirá la rentabilidad real ni las ratios "
-            "de Sharpe y Sortino. El índice de referencia (Yahoo Finance) sí se incluye."
+            f"{FRED_KEY} no está configurada: el informe se generará sin inflación, rentabilidad "
+            "real, VIX ni Brent, y en USD tampoco tendrá tipo libre de riesgo, Sharpe ni Sortino. "
+            "El índice de referencia, el oro, el ETF de Bunds y el tipo en EUR sí se incluyen."
         )
     return warnings
 
@@ -360,21 +379,33 @@ def run(config: RunConfig) -> None:
         rebalance=config.rebalance,
         fx_provider=fx_provider,
     )
-    print_portfolio(portfolio)
+    # Con Adj Close las rentabilidades, la simulación y el informe incluyen los dividendos.
+    price_column = portfolio.preferred_price_column
+    print_portfolio(portfolio, price_column)
     simulation = None
     if config.simulation is not None:
+        rate = load_risk_free_rate(portfolio.currency, config.end, cache_dir=CACHE_DIR)
+        if rate is None:
+            print(
+                f"Aviso: no hay tipo libre de riesgo para {portfolio.currency}; la simulación usa "
+                "el retorno histórico, que suele ser optimista. Puedes indicarlo con --return.",
+                file=sys.stderr,
+            )
+        settings = replace(config.simulation, risk_free_rate=rate)
         # El informe muestra el horizonte, los escenarios, la semilla y los supuestos utilizados.
-        simulation = portfolio.monte_carlo(config.simulation)
+        simulation = portfolio.monte_carlo(settings, price_column=price_column)
         print_simulation(simulation)
     if not (config.report or config.plots_report):
         return
-    # Las referencias económicas solo se descargan para el informe.
-    references = None
-    if config.report:
-        references = load_references(
-            portfolio.currency, config.start, config.end, cache_dir=CACHE_DIR
-        )
-    analysis = portfolio.analyze(references)
+    # Las referencias económicas solo se descargan para el informe y los gráficos.
+    references = load_references(
+        portfolio.currency,
+        config.start,
+        config.end,
+        benchmark_symbol=config.benchmark,
+        cache_dir=CACHE_DIR,
+    )
+    analysis = portfolio.analyze(references, price_column=price_column)
     if config.report:
         path = analysis.report(
             simulation,
@@ -397,14 +428,15 @@ def show_plots(analysis: PortfolioAnalysis, simulation: SimulationResult | None 
     plt.show()
 
 
-def print_portfolio(portfolio: Portfolio) -> None:
+def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> None:
     """Presenta las posiciones con las mismas etiquetas y formato que el informe."""
     currency = portfolio.currency
+    holdings = portfolio.holdings(price_column)
     print(f"Fecha de valoración: {format_date(portfolio.valuation_date)} ({currency})")
-    print(holdings_table(portfolio.holdings()).to_string())
+    print(holdings_table(holdings).to_string())
     print(f"Capital hipotético inicial: {format_number(portfolio.initial_capital)} {currency}")
     print("Rebalanceo: mensual" if portfolio.rebalance == MONTHLY else "Rebalanceo: sin reajustes")
-    print(f"Valor total: {format_number(portfolio.total_value)} {currency}")
+    print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
     print(f"Fechas con precios para todos los activos: {len(portfolio.close_prices())}")
 
 

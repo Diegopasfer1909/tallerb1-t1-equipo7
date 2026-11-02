@@ -28,16 +28,19 @@ import pandas as pd
 
 from src.constants import DAILY_REFERENCE_MAX_AGE_DAYS, MONTHLY_REFERENCE_MAX_AGE_DAYS
 from src.main import main
-from src.market_loader import REPORT_DEFAULTS
+from src.market_loader import MARKET_SERIES, REPORT_DEFAULTS
 from src.providers import (
+    AAA_3M_YIELD,
     ALPHA_VANTAGE_KEY,
     FRED_KEY,
     AlphaVantageAPI,
     AlphaVantageQuotaError,
+    EcbAPI,
     FredAPI,
     ProviderError,
     YahooFinanceAPI,
     has_api_key,
+    is_ecb_series,
 )
 
 TODAY = date.today()
@@ -58,7 +61,7 @@ class FredIntegrationTests(unittest.TestCase):
         Si una serie deja de actualizarse, el informe deja sus medidas sin calcular: esta
         prueba lo detecta antes de que lo descubra un usuario.
         """
-        fred = FredAPI()
+        fred, ecb = FredAPI(), EcbAPI()
         series = sorted(
             {
                 (currency, kind, series_id)
@@ -69,7 +72,8 @@ class FredIntegrationTests(unittest.TestCase):
         )
         for currency, kind, series_id in series:
             with self.subTest(currency=currency, series=series_id):
-                indicator = fred.get_series(series_id, ONE_YEAR_AGO, END)
+                source = ecb if is_ecb_series(series_id) else fred
+                indicator = source.get_series(series_id, ONE_YEAR_AGO, END)
                 monthly = indicator.frequency.lower().startswith("month")
                 limit = MONTHLY_REFERENCE_MAX_AGE_DAYS if monthly else DAILY_REFERENCE_MAX_AGE_DAYS
                 latest = indicator.values.dropna().index[-1]
@@ -79,10 +83,38 @@ class FredIntegrationTests(unittest.TestCase):
                     f"{series_id} ({kind}): última observación el {latest.date()}",
                 )
 
+    def test_market_series_are_recent(self):
+        fred = FredAPI()
+        for name, series_id in MARKET_SERIES.values():
+            with self.subTest(series=name):
+                values = fred.get_series(series_id, ONE_YEAR_AGO, END).values.dropna()
+                self.assertLessEqual(
+                    (pd.Timestamp(TODAY) - values.index[-1]).days, DAILY_REFERENCE_MAX_AGE_DAYS
+                )
+
     def test_exchange_rates(self):
         indicator = FredAPI().get_series("DEXUSEU", ONE_YEAR_AGO, END)
         self.assertGreater(indicator.values.notna().sum(), 150)
         self.assertTrue((indicator.values.dropna() > 0).all())
+
+
+class FundCompositionIntegrationTests(unittest.TestCase):
+    def test_bonds_and_equity_funds_are_told_apart(self):
+        start = (TODAY - timedelta(days=30)).isoformat()
+        yahoo = YahooFinanceAPI()
+        for symbol, is_equity in (("SPY", True), ("AGG", False), ("EXHD.DE", False)):
+            with self.subTest(symbol=symbol):
+                profile = yahoo.get_prices(symbol, start, END).profile
+                # La ficha es complementaria: si Yahoo la limita, se informa en lugar de fallar.
+                if profile.issue is None:
+                    self.assertEqual(profile.equity_share > 0.9, is_equity)
+
+
+class EcbIntegrationTests(unittest.TestCase):
+    def test_risk_free_rate_is_recent(self):
+        indicator = EcbAPI().get_series(AAA_3M_YIELD, ONE_YEAR_AGO, END)
+        latest = indicator.values.dropna().index[-1]
+        self.assertLessEqual((pd.Timestamp(TODAY) - latest).days, DAILY_REFERENCE_MAX_AGE_DAYS)
 
 
 class YahooIntegrationTests(unittest.TestCase):
@@ -130,7 +162,15 @@ class ReportIntegrationTests(unittest.TestCase):
             report = next(Path(folder).glob("*/*.md")).read_text(encoding="utf-8")
         self.assertIn("incluyen las revisiones", report)
         self.assertIn("FRED", report)
-        for metric in ("Ratio de Sharpe", "Inflación anualizada"):
+        for metric in (
+            "Ratio de Sharpe",
+            "Inflación media anual",
+            "Rentabilidad real",
+            "VIX actual",
+            "Correlación con el Brent",
+            "Correlación con el oro",
+            "Correlación con el ETF de Bunds",
+        ):
             line = next(line for line in report.splitlines() if line.startswith(f"| {metric} |"))
             self.assertNotIn("No disponible", line, line)
 

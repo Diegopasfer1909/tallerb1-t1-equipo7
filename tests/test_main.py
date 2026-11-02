@@ -37,6 +37,10 @@ class MainTests(unittest.TestCase):
         )
         usage.start()
         self.addCleanup(usage.stop)
+        # Sin tipo libre de riesgo, la simulación usa el histórico y no consulta la red.
+        rate = patch("src.main.load_risk_free_rate", return_value=None)
+        self.risk_free_rate = rate.start()
+        self.addCleanup(rate.stop)
         self.dates = pd.date_range("2026-01-01", periods=4)
         self.history = PriceHistory(
             "IBM",
@@ -151,16 +155,16 @@ class MainTests(unittest.TestCase):
                 self.assertEqual(main(arguments), 0)
             path = next(reports.glob("*/*.md"))
             report = path.read_text(encoding="utf-8")
-            self.assertTrue((path.parent / "distribucion_rentabilidades.png").is_file())
+            self.assertTrue((path.parent / "distribucion.png").is_file())
         for text in (
             "5 escenarios",
-            "63 períodos",
-            "Semilla aleatoria: 7",
+            "63 sesiones",
+            "semilla 7",
             "20.000,00 USD",
-            "| IBM | 8,00 % | usuario | 0,00 % | usuario |",
-            "VaR al 99 %",
-            "Percentil 1 del valor final",
-            "Percentil 99 del valor final",
+            "| Retorno anual (supuesto) | IBM 8,00 % |",
+            "| Volatilidad anual (supuesta) | IBM 0,00 % |",
+            "VaR al horizonte (99 %)",
+            "Percentiles 1 y 99",
             "21 sesiones",
             "Autovalores (matriz singular)",
         ):
@@ -217,7 +221,7 @@ class MainTests(unittest.TestCase):
                 self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
             self.assertIn("Peso objetivo", report)
-            self.assertIn("capital inicial de 10.000,00 USD", report)
+            self.assertIn("Valor final de 10.000,00 USD", report)
             self.assertIn("Rebalanceo mensual", report)
 
     def test_holdings_summary_does_not_write_files(self):
@@ -400,9 +404,9 @@ class MainTests(unittest.TestCase):
                                 self.assertEqual(main(arguments), 0, output.getvalue())
                                 path = next(reports.glob("*/*.md"))
                                 report = path.read_text(encoding="utf-8")
-                                self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
-                                self.assertIn("Simulación de Monte Carlo", report)
-                                self.assertIn("Retorno anual μ", report)
+                                self.assertEqual(len(list(path.parent.glob("*.png"))), 10)
+                                self.assertIn("9. Monte Carlo", report)
+                                self.assertIn("Retorno anual (histórico)", report)
                                 for symbol in symbols:
                                     self.assertIn(symbol, report)
                             finally:
@@ -413,13 +417,13 @@ class MainTests(unittest.TestCase):
                         self.assertTrue(alpha_factory.call_args.kwargs["include_info"])
                         yahoo_factory.assert_not_called()
                         self.assertEqual(session.get.call_count, 2 * len(symbols))
-                        self.assertIn("Fuente: Alpha Vantage", report)
+                        self.assertIn("Alpha Vantage (IBM)", report)
                         self.assertIn("distorsione las rentabilidades", report)
                     else:
                         yahoo_factory.assert_called_once()
                         alpha_factory.assert_not_called()
                         self.assertEqual(yahoo.get_prices.call_count, len(symbols))
-                        self.assertIn("Fuente: Yahoo Finance", report)
+                        self.assertIn("Yahoo Finance (IBM)", report)
 
     def test_alpha_without_key_stops_before_downloading_and_suggests_yahoo(self):
         with (
@@ -471,7 +475,7 @@ class MainTests(unittest.TestCase):
                 yahoo.return_value.get_prices.return_value = self.history
                 index_provider.return_value.get_prices.return_value = benchmark
                 arguments = ["--assets", "IBM:1", "--report", "--report-sections", "summary"]
-                self.assertEqual(main([*arguments, "warnings", "--output-dir", str(reports)]), 0)
+                self.assertEqual(main([*arguments, "data", "--output-dir", str(reports)]), 0)
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
         fred_requests.assert_not_called()
         self.assertIn("Aviso: FRED_API_KEY no está configurada", errors.getvalue())
@@ -519,11 +523,11 @@ class MainTests(unittest.TestCase):
                 )
             path = next(reports.glob("*/*.md"))
             report = path.read_text(encoding="utf-8")
-            self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
+            self.assertEqual(len(list(path.parent.glob("*.png"))), 10)
         references.assert_called_once()
         self.assertIn("International Business Machines", report)
-        self.assertIn("Retorno anual μ", report)
-        self.assertIn("Configuración utilizada", report)
+        self.assertIn("Retorno anual (histórico)", report)
+        self.assertIn("criterios por defecto", report)
 
     def test_report_includes_simulation_and_its_settings(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -539,16 +543,16 @@ class MainTests(unittest.TestCase):
                 self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
             path = next(reports.glob("*/*.md"))
             report = path.read_text(encoding="utf-8")
-            self.assertEqual(len(list(path.parent.glob("*.png"))), 5)
-        self.assertIn("1000 escenarios", report)
-        self.assertIn("252 períodos", report)
-        self.assertIn("Semilla aleatoria: 42", report)
+            self.assertEqual(len(list(path.parent.glob("*.png"))), 10)
+        self.assertIn("10.000 escenarios", report)
+        self.assertIn("252 sesiones", report)
+        self.assertIn("semilla 42", report)
 
     def test_plots_report_shows_figures_without_creating_markdown(self):
         with (
             patch("src.main.load_dotenv"),
             patch("src.main.YahooFinanceAPI") as yahoo,
-            patch("src.main.load_references") as references,
+            patch("src.main.load_references", return_value=MarketReferences()) as references,
             patch("pathlib.Path.write_text") as write_file,
             patch("matplotlib.pyplot.show") as show,
             redirect_stdout(io.StringIO()),
@@ -556,12 +560,12 @@ class MainTests(unittest.TestCase):
             yahoo.return_value.get_prices.return_value = self.history
             try:
                 self.assertEqual(main(["--assets", "IBM:1", "--simulate", "--plots-report"]), 0)
-                self.assertEqual(len(plt.get_fignums()), 5)
+                self.assertEqual(len(plt.get_fignums()), 10)
             finally:
                 plt.close("all")
         show.assert_called_once()
         write_file.assert_not_called()
-        references.assert_not_called()
+        references.assert_called_once()
 
     def test_currency_conversion_is_loaded_automatically(self):
         indicator = EconomicIndicator(

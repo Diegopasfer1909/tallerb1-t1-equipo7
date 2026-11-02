@@ -221,7 +221,8 @@ class SimulationTests(unittest.TestCase):
         self.assertLessEqual(summary["probability_of_loss"], 1)
         figure = result.plot(show=False, max_paths=3)
         self.assertEqual(len(figure.axes), 2)
-        self.assertEqual(len(figure.axes[0].lines), 3)
+        # Las trayectorias pedidas, la mediana y la línea del valor inicial.
+        self.assertEqual(len(figure.axes[0].lines), 5)
         plt.close(figure)
 
     def test_default_seed_makes_runs_reproducible(self):

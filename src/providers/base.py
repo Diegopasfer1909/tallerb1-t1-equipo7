@@ -76,7 +76,17 @@ def build_profile(
         pe_ratio=_number(first("pe_ratio")),
         raw=dict(raw),
         issue=issue,
+        equity_share=_equity_share(raw),
     )
+
+
+def _equity_share(raw: dict) -> float:
+    """Parte en renta variable; NaN si el proveedor no publica la composición."""
+    classes = raw.get("assetClasses")
+    if not isinstance(classes, dict):
+        return math.nan
+    share = _number(classes.get("stockPosition", 0))
+    return min(max(share, 0.0), 1.0) if math.isfinite(share) else math.nan
 
 
 def _number(value) -> float:
