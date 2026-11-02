@@ -12,7 +12,8 @@ class AssetProfile:
     """Los textos ausentes quedan como None y las cifras ausentes como NaN.
 
     raw conserva la respuesta original del proveedor; issue explica por qué no se pudo
-    consultar la ficha, en cuyo caso la divisa debe indicarse expresamente.
+    consultar la ficha, en cuyo caso la divisa debe indicarse expresamente. equity_share es la
+    parte de un ETF o fondo invertida en renta variable, de 0 a 1.
     """
 
     currency: str | None = None
@@ -25,6 +26,7 @@ class AssetProfile:
     pe_ratio: float = math.nan
     raw: dict = field(default_factory=dict)
     issue: str | None = None
+    equity_share: float = math.nan
 
     def __post_init__(self) -> None:
         if self.asset_type not in ASSET_TYPES:

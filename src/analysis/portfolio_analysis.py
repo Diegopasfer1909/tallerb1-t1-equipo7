@@ -11,6 +11,7 @@ from ..constants import (
     CLOSE,
     DAILY_REFERENCE_MAX_AGE_DAYS,
     DAYS_PER_YEAR,
+    EUR,
     MONTHLY_REFERENCE_MAX_AGE_DAYS,
     ONE_YEAR_MIN_DAYS,
     PERIODS_PER_YEAR,
@@ -24,11 +25,15 @@ from ..simulation import estimate_parameters
 from ..validation import validate_positive_int
 from . import messages
 from .metrics import (
+    MarketContext,
     annualized_growth,
     annualized_return,
     beta,
     correlation_pairs,
+    currency_effect,
     drawdown_episode,
+    jensen_alpha,
+    market_context,
     performance,
     risk_adjusted,
     risk_contributions,
@@ -46,7 +51,8 @@ BENCHMARK_METRICS = (
     "difference_from_benchmark",
     "beta",
 )
-INFLATION_METRICS = ("annualized_inflation", "real_annualized_return")
+INFLATION_METRICS = ("annualized_inflation", "real_annualized_return", "latest_inflation")
+BUND_ETF_METRICS = ("bund_etf_annualized_return", "difference_from_bund_etf")
 # Base de precios del análisis cuando se usa Adj Close en lugar de Close.
 ADJUSTED_GROWTH = "adjusted_growth"
 # Fracción mínima de las observaciones esperadas para escalar la dispersión con
@@ -61,6 +67,7 @@ class _Measures:
     values: dict[str, float] = field(default_factory=dict)
     notes: dict[str, str] = field(default_factory=dict)
     notices: list[Notice] = field(default_factory=list)
+    series: pd.Series | None = None
 
     @classmethod
     def missing(cls, keys: tuple[str, ...], note: str, notice: str | None = None) -> "_Measures":
@@ -99,7 +106,7 @@ def _reference_rate(
         notes["sharpe"] = messages.SHARPE_UNDEFINED
     if np.isnan(values["sortino"]):
         notes["sortino"] = messages.SORTINO_UNDEFINED
-    return _Measures(values, notes)
+    return _Measures(values, notes, series=reference)
 
 
 def _inflation(
@@ -123,7 +130,87 @@ def _inflation(
         {
             "annualized_inflation": inflation,
             "real_annualized_return": (1 + annualized) / (1 + inflation) - 1,
+            "latest_inflation": _latest_inflation(indicator),
         }
+    )
+
+
+def _latest_inflation(indicator: EconomicIndicator) -> float:
+    """Variación interanual del último dato; NaN si no se ha cargado un año de historia."""
+    observed = indicator.values.dropna()
+    last = observed.index[-1]
+    earlier = observed.loc[: last - pd.DateOffset(years=1)]
+    if earlier.empty or (last - earlier.index[-1]).days > 366 + _max_age(indicator):
+        return np.nan
+    return float(observed.iloc[-1] / earlier.iloc[-1] - 1)
+
+
+def _bund_etf(
+    history: PriceHistory | None,
+    values: pd.Series,
+    currency: str,
+    price_column: PriceColumn,
+) -> dict[str, float]:
+    """Lo que rindió invertir en deuda alemana, con cupones y variación de precio.
+
+    Se compara en las fechas comunes y solo con carteras en euros: en otra divisa las mezclaría.
+    """
+    if history is None or currency != EUR:
+        return {}
+    prices = _on_dates(history, values.index, price_column).dropna()
+    if len(prices) < 3:
+        return {}
+    bund_etf = annualized_growth(prices)
+    portfolio = annualized_growth(values.reindex(prices.index))
+    return {
+        "bund_etf_annualized_return": bund_etf,
+        "difference_from_bund_etf": portfolio - bund_etf,
+    }
+
+
+def _alpha(
+    returns: pd.Series,
+    benchmark_prices: pd.Series | None,
+    reference: pd.Series | None,
+    periods_per_year: int,
+) -> float:
+    if benchmark_prices is None or reference is None:
+        return np.nan
+    market = benchmark_prices.pct_change(fill_method=None).dropna()
+    return jensen_alpha(returns, market, reference, periods_per_year)
+
+
+def _on_dates(history: PriceHistory | None, dates: pd.DatetimeIndex, column: PriceColumn):
+    """Precios externos en las fechas de la cartera, con el último cierre conocido."""
+    if history is None:
+        return None
+    selected = column if column in history.prices.columns else CLOSE
+    return history.closing_prices(selected).reindex(dates, method="ffill")
+
+
+def _market(
+    references: MarketReferences,
+    portfolio: "Portfolio",
+    prices: pd.DataFrame,
+    returns: pd.Series,
+    periods_per_year: int,
+    price_column: PriceColumn,
+) -> MarketContext:
+    dates = prices.index
+    effects = {}
+    for asset in portfolio.assets:
+        if asset.currency != portfolio.currency:
+            local = _on_dates(asset.history, dates, price_column)
+            effects[asset.symbol] = currency_effect(local, prices[asset.symbol])
+    vix = references.vix
+    brent = references.brent
+    return market_context(
+        returns,
+        vix.as_of(dates, DAILY_REFERENCE_MAX_AGE_DAYS) if vix is not None else None,
+        brent.as_of(dates, DAILY_REFERENCE_MAX_AGE_DAYS) if brent is not None else None,
+        _on_dates(references.gold, dates, price_column),
+        _on_dates(references.bund_etf, dates, price_column),
+        pd.Series(effects, dtype=float),
     )
 
 
@@ -297,7 +384,16 @@ def _reference_table(references: MarketReferences, fx_rates: FxRates) -> pd.Data
         rows.append(("Inflación", inflation.series_id, inflation.source))
     if references.risk_free_rate is not None:
         rate = references.risk_free_rate
-        rows.append(("Tipo de interés de referencia", rate.series_id, rate.source))
+        rows.append(("Tipo libre de riesgo", rate.series_id, rate.source))
+    for label, indicator in (
+        ("VIX", references.vix),
+        ("Brent", references.brent),
+    ):
+        if indicator is not None:
+            rows.append((label, indicator.series_id, indicator.source))
+    for label, history in (("Oro", references.gold), ("ETF de Bunds", references.bund_etf)):
+        if history is not None:
+            rows.append((label, history.symbol, history.source))
     for rate in fx_rates.rates:
         rows.append(
             (
@@ -346,23 +442,35 @@ def analyze_portfolio(
     benchmark, benchmark_prices = _benchmark(
         references.benchmark, values, portfolio.currency, fx_rates, price_column
     )
+    rate = _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized)
     measures = [
-        _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized),
+        rate,
         _inflation(references.inflation, prices.index, annualized),
         benchmark,
     ]
-    for name in (*RATE_METRICS, *BENCHMARK_METRICS, *INFLATION_METRICS):
+    for name in (*RATE_METRICS, *BENCHMARK_METRICS, *INFLATION_METRICS, *BUND_ETF_METRICS):
         metrics[name] = np.nan
     for measure in measures:
         for name, value in measure.values.items():
             metrics[name] = value
+    metrics.update(_bund_etf(references.bund_etf, values, portfolio.currency, price_column))
+    metrics["alpha"] = _alpha(returns, benchmark_prices, rate.series, periods_per_year)
     metrics["concentration_hhi"] = (weights**2).sum()
     metrics["effective_asset_count"] = 1 / metrics["concentration_hhi"]
+    metrics["history_days"] = (values.index[-1] - values.index[0]).days
+    pairs = correlation_pairs(asset_returns.corr())
+    metrics["correlation_mean"] = pairs.mean() if not pairs.empty else np.nan
 
     details = _asset_details(portfolio, prices, periods_per_year, benchmark_prices)
     sector_weights = weights.groupby(details["sector"]).sum().sort_values(ascending=False)
     quality = _quality(portfolio, prices.index, price_column)
     correlations = asset_returns.corr()
+    market = _market(references, portfolio, prices, returns, periods_per_year, price_column)
+    excluded = quality["excluded_observations"] / quality["observations"]
+    currency_weights = weights.groupby(details["quote_currency"]).sum().sort_values(ascending=False)
+    metric_notes = {name: note for measure in measures for name, note in measure.notes.items()}
+    if np.isnan(metrics["alpha"]):
+        metric_notes["alpha"] = messages.NO_ALPHA_NOTE
     profile_notices = [
         Notice(f"{asset.symbol}: {asset.history.profile.issue}")
         for asset in portfolio.assets
@@ -386,7 +494,7 @@ def analyze_portfolio(
         sector_weights=sector_weights,
         data_quality=quality,
         notices=notices,
-        metric_notes={name: note for measure in measures for name, note in measure.notes.items()},
+        metric_notes=metric_notes,
         reference_table=_reference_table(references, fx_rates),
         asset_details=details,
         asset_prices=prices,
@@ -401,5 +509,19 @@ def analyze_portfolio(
             correlation_pairs(correlations),
             drawdown_episode(values),
             thresholds,
+            currencies=currency_weights,
+            excluded_dates=excluded,
+            vix=market.vix_current,
         ),
+        market=market,
+        currency_weights=currency_weights,
+        benchmark_name=_benchmark_name(references.benchmark),
+        risk_free_series=references.risk_free_rate.series_id if references.risk_free_rate else "",
+        warning_thresholds=thresholds,
     )
+
+
+def _benchmark_name(benchmark: PriceHistory | None) -> str:
+    if benchmark is None:
+        return ""
+    return benchmark.profile.name or benchmark.symbol

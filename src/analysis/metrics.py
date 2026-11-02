@@ -5,12 +5,12 @@ perder fechas intermedias no lo altera. Las medidas de dispersión (volatilidad,
 se escalan con periods_per_year y suponen observaciones con esa frecuencia.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-from ..constants import DAYS_PER_YEAR
+from ..constants import DAYS_PER_YEAR, PERIOD_CLOSE_TOLERANCE_DAYS
 
 
 def annualized_growth(values: pd.Series) -> float:
@@ -68,12 +68,16 @@ def calendar_returns(values: pd.Series, frequency: str) -> pd.DataFrame:
 
     Los extremos sin cobertura se marcan como parciales. Si un intervalo salta
     un mes/año entero, no se atribuye toda su ganancia al período de llegada.
-    El cierre se aproxima con lunes-viernes; no se presume un calendario bursátil.
+    El cierre se aproxima con lunes-viernes; no se presume un calendario bursátil, de modo que
+    un cierre hasta PERIOD_CLOSE_TOLERANCE_DAYS antes se admite como festivo. En el último
+    período se exige la fecha exacta: sin datos posteriores, puede que aún no haya terminado.
     """
     if frequency not in ("M", "Y"):
         raise ValueError("frequency debe ser M o Y.")
     returns = values.pct_change(fill_method=None).iloc[1:]
     starts = pd.Series(values.index[:-1], index=returns.index)
+    last_period = returns.index[-1].to_period(frequency)
+    tolerance = pd.Timedelta(days=PERIOD_CLOSE_TOLERANCE_DAYS)
     records = []
     for period, group in returns.groupby(returns.index.to_period(frequency)):
         start = starts.loc[group.index[0]]
@@ -85,12 +89,14 @@ def calendar_returns(values: pd.Series, frequency: str) -> pd.DataFrame:
             begins.to_period(frequency).ordinal < ends.to_period(frequency).ordinal - 1
             for begins, ends in zip(starts.loc[group.index], group.index, strict=True)
         )
+        missing_start = not previous_end - tolerance <= start <= previous_end
+        allowed_end = period_end if period == last_period else period_end - tolerance
         records.append(
             {
                 "period": period,
                 "return": np.nan if skipped else (1 + group).prod() - 1,
                 "observations": len(group),
-                "partial": start != previous_end or end < period_end or skipped,
+                "partial": missing_start or end < allowed_end or skipped,
             }
         )
     return pd.DataFrame(records).set_index("period")
@@ -136,6 +142,80 @@ def beta(returns: pd.Series, market: pd.Series) -> float:
     """Sensibilidad frente al índice; NaN si la rentabilidad del índice no varía."""
     variance = market.var()
     return float(returns.cov(market) / variance) if variance > 0 else np.nan
+
+
+def jensen_alpha(
+    returns: pd.Series, market: pd.Series, reference: pd.Series, periods_per_year: int
+) -> float:
+    """Alfa anual: rentabilidad no explicada por la beta, ambas por encima de la referencia."""
+    data = pd.concat({"market": market - reference, "asset": returns - reference}, axis=1).dropna()
+    if len(data) < 3 or not data["market"].var() > 0:
+        return np.nan
+    _, alpha = np.polyfit(data["market"], data["asset"], 1)
+    return float(alpha * periods_per_year)
+
+
+def currency_effect(local: pd.Series, converted: pd.Series) -> float:
+    """Rentabilidad anualizada en la divisa de la cartera menos la de la divisa original."""
+    return annualized_growth(converted) - annualized_growth(local)
+
+
+def price_jumps(prices: pd.DataFrame, limit: float = 0.5) -> pd.Series:
+    """Rentabilidades diarias extremas, que suelen ser desdoblamientos o errores de la fuente."""
+    returns = prices.pct_change(fill_method=None).stack()
+    return returns[returns.abs() > limit]
+
+
+@dataclass(frozen=True)
+class MarketContext:
+    """Lo que ocurre fuera de la cartera; un dato no disponible queda como None o NaN."""
+
+    vix: pd.Series | None = None
+    vix_current: float = np.nan
+    vix_mean: float = np.nan
+    brent_correlation: float = np.nan
+    gold_correlation: float = np.nan
+    bund_etf_correlation: float = np.nan
+    bund_on_worst_days: float = np.nan
+    bund_rolling_correlation: pd.Series | None = None
+    bund_etf_prices: pd.Series | None = None
+    fx_effect: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))
+
+
+def market_context(
+    returns: pd.Series,
+    vix: pd.Series | None,
+    brent: pd.Series | None,
+    gold: pd.Series | None,
+    bund_etf: pd.Series | None,
+    fx_effect: pd.Series,
+) -> MarketContext:
+    """Los precios y el VIX deben estar en las fechas de la cartera, con el último dato conocido."""
+
+    def correlation(prices: pd.Series | None) -> float:
+        if prices is None:
+            return np.nan
+        return float(returns.corr(prices.pct_change(fill_method=None).reindex(returns.index)))
+
+    bund_on_worst_days, rolling = np.nan, None
+    if bund_etf is not None:
+        bund_returns = bund_etf.pct_change(fill_method=None).reindex(returns.index)
+        rolling = returns.rolling(60).corr(bund_returns)
+        bund_on_worst_days = float(bund_returns[returns <= returns.quantile(0.05)].mean())
+    observed = vix.dropna() if vix is not None else None
+    has_vix = observed is not None and not observed.empty
+    return MarketContext(
+        vix=observed if has_vix else None,
+        vix_current=float(observed.iloc[-1]) if has_vix else np.nan,
+        vix_mean=float(observed.mean()) if has_vix else np.nan,
+        brent_correlation=correlation(brent),
+        gold_correlation=correlation(gold),
+        bund_etf_correlation=correlation(bund_etf),
+        bund_on_worst_days=bund_on_worst_days,
+        bund_rolling_correlation=rolling,
+        bund_etf_prices=bund_etf,
+        fx_effect=fx_effect,
+    )
 
 
 def risk_contributions(returns: pd.DataFrame, weights: pd.Series) -> pd.Series:

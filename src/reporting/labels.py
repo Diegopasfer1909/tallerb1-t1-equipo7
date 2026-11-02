@@ -1,5 +1,7 @@
 """Etiquetas en español compartidas por la consola y los informes."""
 
+from ..providers.ecb import AAA_3M_YIELD
+
 ASSET_TYPES = {
     "stock": "Acción",
     "fund": "Fondo de inversión",
@@ -48,6 +50,7 @@ SOURCES = {
     "yahoo": "Yahoo Finance",
     "alpha_vantage": "Alpha Vantage",
     "fred": "FRED",
+    "ecb": "BCE",
 }
 PRICE_BASES = {
     "unadjusted": "Sin ajustar, según el proveedor",
@@ -56,16 +59,35 @@ PRICE_BASES = {
     "unknown": "No consta",
     "adjusted_growth": "Crecimiento con cierre ajustado por desdoblamientos y distribuciones",
 }
-SEVERITIES = {"high": "Alta", "medium": "Media"}
-# Texto alternativo de cada gráfico del informe, con las claves de CHARTS.
-CHART_TITLES = {
-    "portfolio": "Evolución, caídas, correlaciones y contribución al riesgo de la cartera",
-    "assets": "Evolución comparada de los activos",
-    "risk_return": "Riesgo y rentabilidad histórica de cada activo",
-    "distribution": "Rentabilidades logarítmicas frente a una distribución normal",
-    "simulation": "Trayectorias simuladas y distribución del valor final",
+SEVERITIES = {"high": "🔴 **Alta**", "medium": "🟠 **Media**"}
+# Nombre legible de los tipos libres de riesgo predeterminados.
+RISK_FREE_NAMES = {
+    AAA_3M_YIELD: "deuda AAA de la zona euro a 3 meses",
+    "DGS3MO": "letra de EE. UU. a 3 meses",
 }
 
+# Texto alternativo de cada gráfico del informe, con las claves de CHARTS.
+CHART_TITLES = {
+    "exposure": "Exposición de la cartera por sector y por divisa",
+    "evolution": "Evolución de la cartera frente al índice y al ETF de Bunds",
+    "assets": "Evolución comparada de los activos",
+    "annual_returns": "Rentabilidad de cada año, cartera frente al índice",
+    "drawdown": "Caídas de la cartera desde sus máximos",
+    "distribution": "Rentabilidades diarias frente a una distribución normal",
+    "risk_return": "Riesgo y rentabilidad de los activos, la cartera y el índice",
+    "correlations": "Correlaciones entre las rentabilidades de los activos",
+    "risk_shares": "Peso de cada activo frente a su contribución al riesgo",
+    "volatility_vix": "Volatilidad de la cartera frente al VIX",
+    "bund_correlation": "Correlación móvil de la cartera con el ETF de Bunds",
+    "simulation": "Trayectorias simuladas y distribución del valor final",
+}
+# Casos con los que se contrasta el retorno de la simulación.
+SENSITIVITY_CASES = {
+    "historical": "Histórico puro",
+    "risk_free": "Solo tipo libre de riesgo",
+    "prudent": "8 % en todos los activos",
+    "zero": "0 % en todos los activos",
+}
 # Columnas de Portfolio.holdings() en el orden en que se presentan.
 HOLDINGS_COLUMNS = {
     "target_weight": "Peso objetivo",

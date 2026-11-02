@@ -59,6 +59,13 @@ class Asset:
         return self.history.profile.name or self.symbol
 
     @property
+    def equity_share(self) -> float:
+        """Parte del activo en renta variable, de 0 a 1; NaN si no se puede saber."""
+        if self.asset_type in ("stock", "index"):
+            return 1.0
+        return self.history.profile.equity_share
+
+    @property
     def latest_price(self) -> float:
         return float(self.history.closing_prices().iloc[-1])
 
@@ -69,6 +76,7 @@ class Asset:
             starting_values=pd.Series({self.symbol: self.latest_price}),
             currency=self.currency,
             price_column=price_column,
+            equity_shares=pd.Series({self.symbol: self.equity_share}, dtype=float),
         )
 
     def monte_carlo(

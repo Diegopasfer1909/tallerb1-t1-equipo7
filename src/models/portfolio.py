@@ -11,7 +11,15 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from ..constants import CLOSE, DEFAULT_CAPITAL, MONTHLY, PERIODS_PER_YEAR, PriceColumn, Rebalance
+from ..constants import (
+    ADJ_CLOSE,
+    CLOSE,
+    DEFAULT_CAPITAL,
+    MONTHLY,
+    PERIODS_PER_YEAR,
+    PriceColumn,
+    Rebalance,
+)
 from ..errors import PortfolioError
 from ..simulation import SimulationInputs, SimulationResult, SimulationSettings, simulate
 from ..validation import (
@@ -122,6 +130,12 @@ class Portfolio:
         return self.reporting_currency or self.assets[0].currency
 
     @property
+    def preferred_price_column(self) -> PriceColumn:
+        """Adj Close incluye dividendos en las rentabilidades, si lo publican todos los activos."""
+        available = all(ADJ_CLOSE in asset.history.prices.columns for asset in self.assets)
+        return ADJ_CLOSE if available else CLOSE
+
+    @property
     def valuation_date(self) -> pd.Timestamp:
         return self._prices(CLOSE).index[-1]
 
@@ -169,6 +183,9 @@ class Portfolio:
             currency=self.currency,
             price_column=price_column,
             rebalance_weights=self.target_weights if self.rebalance == MONTHLY else None,
+            equity_shares=pd.Series(
+                {asset.symbol: asset.equity_share for asset in self.assets}, dtype=float
+            ),
         )
 
     def monte_carlo(
@@ -227,7 +244,7 @@ class Portfolio:
         """
         from ..reporting.sections import select_sections
 
-        selected = select_sections(sections, detail, has_simulation=True)
+        selected = select_sections(sections, detail)
         analysis = self.analyze(
             references,
             periods_per_year=periods_per_year,
@@ -235,6 +252,8 @@ class Portfolio:
             warning_thresholds=warning_thresholds,
         )
         if simulation is None and "simulation" in selected:
+            if simulation_settings is None and references is not None:
+                simulation_options.setdefault("risk_free_rate", references.latest_risk_free_rate)
             simulation = self.monte_carlo(
                 simulation_settings,
                 periods_per_year=periods_per_year,

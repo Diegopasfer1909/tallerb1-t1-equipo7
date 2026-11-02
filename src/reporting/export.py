@@ -37,7 +37,7 @@ def save_report(
     El informe se prepara en una carpeta temporal y solo se publica si todo se ha guardado;
     si algo falla, no quedan carpetas a medias ni figuras abiertas.
     """
-    selected = select_sections(sections, detail, has_simulation=simulation is not None)
+    selected = select_sections(sections, detail)
     if simulation is not None:
         _check_simulation_matches(analysis, simulation)
     generated_on = generated_on or datetime.now().astimezone()

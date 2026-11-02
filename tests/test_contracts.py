@@ -143,7 +143,10 @@ class BenchmarkChoiceTests(unittest.TestCase):
         self.assertTrue(np.isnan(analysis.metrics["difference_from_benchmark"]))
 
     def test_user_benchmark_replaces_the_default_and_is_reported(self):
-        with patch("src.market_loader.load_market_references") as load:
+        with (
+            patch("src.market_loader.load_market_references") as load,
+            patch("src.market_loader.load_market_context", return_value=({}, [])),
+        ):
             load.return_value = MarketReferences()
             references = load_references(
                 "USD", "2026-01-01", "2026-02-01", benchmark_symbol="^IXIC"
@@ -168,6 +171,7 @@ class BenchmarkChoiceTests(unittest.TestCase):
                 patch("src.main.load_dotenv"),
                 patch("src.main.YahooFinanceAPI") as yahoo,
                 patch("src.main.load_references", return_value=MarketReferences()) as load,
+                patch("src.main.load_risk_free_rate", return_value=None),
                 redirect_stdout(io.StringIO()),
             ):
                 yahoo.return_value.get_prices.return_value = data
@@ -206,11 +210,11 @@ class ReportTextTests(unittest.TestCase):
             [3, 0.1],
         )
         report = build_report(
-            portfolio.analyze(), charts={"performance": {"portfolio": "analisis_cartera.png"}}
+            portfolio.analyze(), charts={"returns": {"evolution": "evolucion.png"}}
         )
         self.assertIn("Concentración sectorial: Tecnología.", report)
         self.assertNotIn("Concentración sectorial: Technology", report)
-        self.assertIn("![Evolución, caídas, correlaciones", report)
+        self.assertIn("![Evolución de la cartera frente al índice", report)
         self.assertIn("Por qué las medidas de rentabilidad pueden discrepar", report)
 
     def test_summary_names_the_benchmark(self):
