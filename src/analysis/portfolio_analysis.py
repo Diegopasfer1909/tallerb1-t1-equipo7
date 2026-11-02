@@ -10,19 +10,23 @@ from ..constants import (
     ADJ_CLOSE,
     CLOSE,
     DAILY_REFERENCE_MAX_AGE_DAYS,
+    DAYS_PER_YEAR,
     EUR,
     MONTHLY_REFERENCE_MAX_AGE_DAYS,
+    ONE_YEAR_MIN_DAYS,
     PERIODS_PER_YEAR,
     UNKNOWN,
     PriceColumn,
 )
 from ..errors import PortfolioError
 from ..models import EconomicIndicator, FxRates, MarketReferences, Notice, PriceHistory
+from ..models.price_history import period_returns
 from ..simulation import estimate_parameters
 from ..validation import validate_positive_int
 from . import messages
 from .metrics import (
     MarketContext,
+    annualized_growth,
     annualized_return,
     beta,
     correlation_pairs,
@@ -51,6 +55,9 @@ INFLATION_METRICS = ("annualized_inflation", "real_annualized_return", "latest_i
 BUND_ETF_METRICS = ("bund_etf_annualized_return", "difference_from_bund_etf")
 # Base de precios del análisis cuando se usa Adj Close en lugar de Close.
 ADJUSTED_GROWTH = "adjusted_growth"
+# Fracción mínima de las observaciones esperadas para escalar la dispersión con
+# periods_per_year; por debajo, faltan demasiadas fechas comunes.
+MIN_SAMPLE_COVERAGE = 0.9
 
 
 @dataclass
@@ -105,7 +112,6 @@ def _reference_rate(
 def _inflation(
     indicator: EconomicIndicator | None,
     dates: pd.DatetimeIndex,
-    periods_per_year: int,
     annualized: float,
 ) -> _Measures:
     if indicator is None:
@@ -119,7 +125,7 @@ def _inflation(
         return _Measures.missing(
             INFLATION_METRICS, messages.INFLATION_STALE_NOTE, messages.INFLATION_STALE
         )
-    inflation = (levels.iloc[-1] / levels.iloc[0]) ** (periods_per_year / (len(dates) - 1)) - 1
+    inflation = annualized_growth(levels)
     return _Measures(
         {
             "annualized_inflation": inflation,
@@ -143,7 +149,6 @@ def _bund_etf(
     history: PriceHistory | None,
     values: pd.Series,
     currency: str,
-    periods_per_year: int,
     price_column: PriceColumn,
 ) -> dict[str, float]:
     """Lo que rindió invertir en deuda alemana, con cupones y variación de precio.
@@ -155,10 +160,8 @@ def _bund_etf(
     prices = _on_dates(history, values.index, price_column).dropna()
     if len(prices) < 3:
         return {}
-    bund_etf = annualized_return(prices.pct_change(fill_method=None).dropna(), periods_per_year)
-    portfolio = annualized_return(
-        values.reindex(prices.index).pct_change(fill_method=None).dropna(), periods_per_year
-    )
+    bund_etf = annualized_growth(prices)
+    portfolio = annualized_growth(values.reindex(prices.index))
     return {
         "bund_etf_annualized_return": bund_etf,
         "difference_from_bund_etf": portfolio - bund_etf,
@@ -198,7 +201,7 @@ def _market(
     for asset in portfolio.assets:
         if asset.currency != portfolio.currency:
             local = _on_dates(asset.history, dates, price_column)
-            effects[asset.symbol] = currency_effect(local, prices[asset.symbol], periods_per_year)
+            effects[asset.symbol] = currency_effect(local, prices[asset.symbol])
     vix = references.vix
     brent = references.brent
     return market_context(
@@ -211,32 +214,18 @@ def _market(
     )
 
 
-def _comparable_benchmark(
-    benchmark: PriceHistory,
-    dates: pd.DatetimeIndex,
-    target: str,
-    fx_rates: FxRates,
-    price_column: PriceColumn,
-) -> pd.Series | None:
-    """Precios del índice en las fechas de la cartera y en su divisa, o None si no bastan."""
-    try:
-        prices = benchmark.closing_prices(price_column).reindex(dates).dropna()
-        if len(prices) < 3:
-            return None
-        return fx_rates.convert(prices, benchmark.profile.currency, target)
-    except PortfolioError:
-        return None
-
-
 def _benchmark(
     benchmark: PriceHistory | None,
     values: pd.Series,
-    portfolio: "Portfolio",
-    periods_per_year: int,
+    currency: str,
+    fx_rates: FxRates,
     price_column: PriceColumn,
-    benchmark_fx: FxRates,
 ) -> tuple[_Measures, pd.Series | None]:
-    """Compara la cartera con el índice en sus fechas comunes y en la misma divisa."""
+    """Compara la cartera con el índice en sus fechas comunes y en la misma divisa.
+
+    Ambas rentabilidades se anualizan por el tiempo transcurrido entre las mismas fechas
+    extremas, aunque el índice no cotice en todas las fechas de la cartera.
+    """
     if benchmark is None:
         return _Measures.missing(BENCHMARK_METRICS, messages.NO_BENCHMARK_NOTE), None
     if not benchmark.profile.currency:
@@ -244,27 +233,31 @@ def _benchmark(
             BENCHMARK_METRICS, messages.BENCHMARK_CURRENCY_NOTE, messages.BENCHMARK_CURRENCY
         )
         return measures, None
-    fx_rates = benchmark_fx if benchmark_fx.rates else portfolio.fx_rates
-    prices = _comparable_benchmark(
-        benchmark, values.index, portfolio.currency, fx_rates, price_column
-    )
-    if prices is None:
+    # Fechas de la cartera en las que cotiza el índice, sin rellenar, en la divisa de la cartera.
+    try:
+        prices = benchmark.closing_prices(price_column).reindex(values.index).dropna()
+        prices = fx_rates.convert(prices, benchmark.profile.currency, currency)
+    except PortfolioError:
+        prices = None
+    if prices is None or len(prices) < 3:
         measures = _Measures.missing(
             BENCHMARK_METRICS, messages.BENCHMARK_COVERAGE_NOTE, messages.BENCHMARK_COVERAGE
         )
         return measures, None
-    market = prices.pct_change(fill_method=None).dropna()
-    returns = values.reindex(prices.index).pct_change(fill_method=None).dropna()
-    portfolio_return = annualized_return(returns, periods_per_year)
-    benchmark_return = annualized_return(market, periods_per_year)
+    portfolio = values.reindex(prices.index)
+    portfolio_return = annualized_growth(portfolio)
+    benchmark_return = annualized_growth(prices)
     measured = {
         "comparison_portfolio_annualized_return": portfolio_return,
         "benchmark_annualized_return": benchmark_return,
         "difference_from_benchmark": portfolio_return - benchmark_return,
-        "beta": beta(returns, market),
+        "beta": beta(period_returns(portfolio), period_returns(prices)),
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
-    notice = Notice(messages.BENCHMARK_COMPARISON.format(dates=len(prices)), kind="method")
+    notice = Notice(
+        messages.BENCHMARK_COMPARISON.format(symbol=benchmark.symbol, dates=len(prices)),
+        kind="method",
+    )
     return _Measures(measured, notes, [notice]), prices
 
 
@@ -302,10 +295,10 @@ def _asset_details(
     benchmark_prices: pd.Series | None,
 ) -> pd.DataFrame:
     """Reúne la ficha y los resultados de cada activo para su presentación."""
-    estimates = estimate_parameters(prices.pct_change(fill_method=None).iloc[1:], periods_per_year)
+    estimates = estimate_parameters(period_returns(prices), periods_per_year)
     market = None
     if benchmark_prices is not None:
-        market = benchmark_prices.pct_change(fill_method=None).dropna()
+        market = period_returns(benchmark_prices)
     records = []
     for asset in portfolio.assets:
         profile = asset.history.profile
@@ -313,7 +306,7 @@ def _asset_details(
         calculated_beta = np.nan
         if market is not None:
             on_benchmark_dates = prices[asset.symbol].reindex(benchmark_prices.index)
-            calculated_beta = beta(on_benchmark_dates.pct_change(fill_method=None).dropna(), market)
+            calculated_beta = beta(period_returns(on_benchmark_dates), market)
         records.append(
             {
                 "asset": asset.symbol,
@@ -348,12 +341,24 @@ def _quality_notices(
     notices = []
     # pct_change no sabe cuánto tiempo separa dos filas: la anualización depende de este dato.
     typical_gap = pd.Series(dates).diff().dt.days.median()
+    days = (dates[-1] - dates[0]).days
+    returns = len(dates) - 1
+    # Duración y tamaño de muestra son cosas distintas: un año puede tener pocas fechas comunes.
+    expected = days / DAYS_PER_YEAR * periods_per_year
     if periods_per_year >= PERIODS_PER_YEAR and typical_gap > 5:
         notices.append(
             Notice(messages.ANNUALIZATION_GAP.format(gap=typical_gap, periods=periods_per_year))
         )
-    if len(dates) - 1 < periods_per_year:
-        notices.append(Notice(messages.SHORT_HISTORY))
+    elif returns < MIN_SAMPLE_COVERAGE * expected:
+        notices.append(
+            Notice(
+                messages.SPARSE_SAMPLE.format(
+                    returns=returns, days=days, expected=expected, periods=periods_per_year
+                )
+            )
+        )
+    if days < ONE_YEAR_MIN_DAYS:
+        notices.append(Notice(messages.SHORT_HISTORY.format(days=days)))
     if quality["partial_history"].any():
         notices.append(Notice(messages.PARTIAL_HISTORY))
     unadjusted = quality.index[quality["price_basis"] == "unadjusted"]
@@ -425,25 +430,22 @@ def analyze_portfolio(
     values = portfolio.position_values(price_column).sum(axis=1).rename("portfolio_value")
     if not np.isfinite(values).all() or (values <= 0).any():
         raise PortfolioError("Los valores históricos de la cartera deben ser positivos y finitos.")
-    returns = values.pct_change(fill_method=None).dropna()
-    asset_returns = prices.pct_change(fill_method=None).dropna()
+    returns = period_returns(values)
+    asset_returns = period_returns(prices)
     holdings = portfolio.holdings(price_column)
     weights = holdings["weight"]
 
     metrics = performance(values, periods_per_year)
     annualized = metrics["annualized_return"]
+    # Un índice en otra divisa puede traer en las referencias el tipo de cambio que necesita.
+    fx_rates = portfolio.fx_rates.combine(references.fx_rates)
     benchmark, benchmark_prices = _benchmark(
-        references.benchmark,
-        values,
-        portfolio,
-        periods_per_year,
-        price_column,
-        references.benchmark_fx,
+        references.benchmark, values, portfolio.currency, fx_rates, price_column
     )
     rate = _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized)
     measures = [
         rate,
-        _inflation(references.inflation, prices.index, periods_per_year, annualized),
+        _inflation(references.inflation, prices.index, annualized),
         benchmark,
     ]
     for name in (*RATE_METRICS, *BENCHMARK_METRICS, *INFLATION_METRICS, *BUND_ETF_METRICS):
@@ -451,13 +453,11 @@ def analyze_portfolio(
     for measure in measures:
         for name, value in measure.values.items():
             metrics[name] = value
-    metrics.update(
-        _bund_etf(references.bund_etf, values, portfolio.currency, periods_per_year, price_column)
-    )
+    metrics.update(_bund_etf(references.bund_etf, values, portfolio.currency, price_column))
     metrics["alpha"] = _alpha(returns, benchmark_prices, rate.series, periods_per_year)
     metrics["concentration_hhi"] = (weights**2).sum()
     metrics["effective_asset_count"] = 1 / metrics["concentration_hhi"]
-    metrics["sessions"] = len(returns)
+    metrics["history_days"] = (values.index[-1] - values.index[0]).days
     pairs = correlation_pairs(asset_returns.corr())
     metrics["correlation_mean"] = pairs.mean() if not pairs.empty else np.nan
 
@@ -495,7 +495,7 @@ def analyze_portfolio(
         data_quality=quality,
         notices=notices,
         metric_notes=metric_notes,
-        reference_table=_reference_table(references, portfolio.fx_rates),
+        reference_table=_reference_table(references, fx_rates),
         asset_details=details,
         asset_prices=prices,
         initial_capital=portfolio.initial_capital,

@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1380" viewBox="0 0 1920 1380" role="img">
+<title>04-simulacion</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="1920" height="1380" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1380" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Una abstracción común para simular</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML de contratos · Asset y Portfolio adaptan su estado al mismo motor funcional</text>
+<rect x="1774" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="1793.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">04</text>
+<rect x="80" y="260" width="450" height="215" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="261" width="448" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="289.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="100" y="327.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">Asset</text>
+<polyline points="80,343 530,343" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,395 530,395" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="374.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">history; currency</text>
+<text x="100" y="426.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulation_inputs()</text>
+<text x="100" y="454.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ monte_carlo()</text>
+<rect x="80" y="620" width="450" height="215" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="621" width="448" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="649.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="100" y="687.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">Portfolio</text>
+<polyline points="80,703 530,703" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,755 530,755" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="734.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">assets; target_weights; rebalance</text>
+<text x="100" y="786.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulation_inputs()</text>
+<text x="100" y="814.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ monte_carlo()</text>
+<rect x="700" y="310" width="490" height="271" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="701" y="311" width="488" height="80" rx="0" fill="#F0EBFF" stroke="#F0EBFF" stroke-width="2" stroke-linejoin="round"/>
+<text x="720" y="339.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">«dataclass · frozen»</text>
+<text x="720" y="377.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">SimulationInputs</text>
+<polyline points="700,393 1190,393" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="700,529 1190,529" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="720" y="424.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">prices: DataFrame</text>
+<text x="720" y="452.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">starting_values: Series</text>
+<text x="720" y="480.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency: str</text>
+<text x="720" y="508.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rebalance_weights: Series?</text>
+<text x="720" y="560.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">—</text>
+<rect x="1340" y="310" width="500" height="243" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1341" y="311" width="498" height="80" rx="0" fill="#F0EBFF" stroke="#F0EBFF" stroke-width="2" stroke-linejoin="round"/>
+<text x="1360" y="339.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">«dataclass · frozen»</text>
+<text x="1360" y="377.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">SimulationSettings</text>
+<polyline points="1340,393 1840,393" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1340,501 1840,501" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1360" y="424.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">steps; simulations; seed</text>
+<text x="1360" y="452.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">confidence</text>
+<text x="1360" y="480.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">expected_returns?; volatilities?</text>
+<text x="1360" y="532.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">validación en construcción</text>
+<rect x="700" y="850" width="490" height="243" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="701" y="851" width="488" height="80" rx="0" fill="#F0EBFF" stroke="#F0EBFF" stroke-width="2" stroke-linejoin="round"/>
+<text x="720" y="879.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">«módulo · función»</text>
+<text x="720" y="917.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">monte_carlo</text>
+<polyline points="700,933 1190,933" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="700,1013 1190,1013" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="720" y="964.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">mu / sigma + correlaciones</text>
+<text x="720" y="992.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">trayectorias GBM + rebalanceo</text>
+<text x="720" y="1044.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulate(inputs, settings,</text>
+<text x="720" y="1072.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">    periods_per_year)</text>
+<rect x="1340" y="850" width="500" height="243" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1341" y="851" width="498" height="80" rx="0" fill="#F0EBFF" stroke="#F0EBFF" stroke-width="2" stroke-linejoin="round"/>
+<text x="1360" y="879.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">«dataclass»</text>
+<text x="1360" y="917.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">SimulationResult</text>
+<polyline points="1340,933 1840,933" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1340,1013 1840,1013" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1360" y="964.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">paths; assumptions; correlation</text>
+<text x="1360" y="992.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency; confidence</text>
+<text x="1360" y="1044.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ summary()</text>
+<text x="1360" y="1072.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ plot()</text>
+<polyline points="530,370 700,370" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="686.4932934647098,376.52448301166845 700,370 686.4932934647098,363.47551698833155" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="588.5" y="328" width="53.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="595.5" y="349.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">crea</text>
+<polyline points="530,720 615,720 615,560 700,560" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="686.4932934647098,566.5244830116685 700,560 686.4932934647098,553.4755169883315" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="629" y="597" width="53.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="635" y="618.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">crea</text>
+<polyline points="945,581 945,850" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="938.4755169883315,836.4932934647098 945,850 951.5244830116685,836.4932934647098" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="959" y="727" width="102.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="965" y="749.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">consume</text>
+<polyline points="1590,553 1590,730 1245,730 1245,960 1190,960" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1203.50670653529,953.4755169883315 1190,960 1203.50670653529,966.5244830116685" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="1309" y="689" width="103.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1315" y="711.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">configura</text>
+<polyline points="1190,1050 1340,1050" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1326.49329346471,1056.5244830116685 1340,1050 1326.49329346471,1043.4755169883315" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="1238.5" y="1006" width="53.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1245.5" y="1027.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">crea</text>
+<rect x="80" y="1030" width="450" height="220" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="1031" width="7" height="218" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="1067.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">ABSTRACCIÓN</text>
+<text x="104" y="1107.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">Delegación</text>
+<text x="104" y="1146.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">monte_carlo() construye inputs</text>
+<text x="104" y="1174.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">y llama a simulate().</text>
+<text x="104" y="1202.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">No existe clase de motor</text>
+<text x="104" y="1230.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">ni herencia Asset → Portfolio.</text>
+<text x="704" y="1225.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">SimulationResult.plot() delega en reporting mediante un import diferido.</text>
+<polyline points="72,1290 1848,1290" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1326.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Las flechas discontinuas expresan uso / creación, no transferencia de propiedad. El motor no descarga datos de proveedores.</text>
+</svg>

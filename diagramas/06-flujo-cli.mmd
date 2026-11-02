@@ -1,0 +1,73 @@
+%% Actividad UML expresada con flowchart: acciones, decisiones, inicio y finales.
+%% Las salidas 0/1/2 son códigos del proceso. Los errores de run se agrupan.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B","clusterBkg":"#F8FAFC","clusterBorder":"#CBD5E1"},"flowchart":{"curve":"linear","nodeSpacing":35,"rankSpacing":40}}}%%
+flowchart TD
+    accTitle: B1-T1 · Actividad de la interfaz de consola
+    accDescr: Validación previa, descarga, simulación opcional, referencias del informe y salidas solicitadas.
+    START((" ")):::navy
+    ENV["Cargar .env<br/>sin sobrescribir el entorno"]:::blue
+    PARSE["parse_arguments()<br/>validar opciones → RunConfig"]:::blue
+    EXIT2((("2"))):::error
+    START --> ENV --> PARSE
+    PARSE -->|"opciones inválidas: argparse"| EXIT2
+    subgraph RUN["run(config) · coordinación"]
+        KEYS{"¿Clave del proveedor<br/>elegido disponible?"}:::amber
+        FRED{"¿--report y falta<br/>FRED_API_KEY?"}:::amber
+        WARN["Aviso: faltan referencias FRED<br/>el informe continúa"]:::amber
+        FX{"¿--currency?"}:::amber
+        FXP["Crear YahooFinanceAPI auxiliar<br/>para cambios necesarios"]:::teal
+        LOAD["load_portfolio()<br/>precios → activos → FX → cartera"]:::teal
+        PRINT["print_portfolio()"]:::blue
+        SIMQ{"¿config.simulation<br/>es distinto de None?"}:::amber
+        SIM["portfolio.monte_carlo()<br/>print_simulation()"]:::violet
+        OUT{"¿--report o<br/>--plots-report?"}:::amber
+        REFQ{"¿--report?"}:::amber
+        REFS["load_references()<br/>benchmark · inflación · tipo<br/>fallos opcionales → Notice"]:::teal
+        ANALYZE["portfolio.analyze(references)<br/>PortfolioAnalysis"]:::violet
+        REPORTQ{"¿--report?"}:::amber
+        REPORT["analysis.report(simulation)<br/>carpeta temporal → Markdown + PNG<br/>renombrar al completar"]:::violet
+        PLOTQ{"¿--plots-report?"}:::amber
+        PLOTS["show_plots()<br/>análisis y simulación disponible"]:::violet
+        KEYS -->|"sí"| FRED
+        FRED -->|"sí"| WARN
+        FRED -->|"no"| FX
+        WARN --> FX
+        FX -->|"sí"| FXP
+        FX -->|"no"| LOAD
+        FXP --> LOAD
+        LOAD --> PRINT --> SIMQ
+        SIMQ -->|"sí"| SIM
+        SIMQ -->|"no"| OUT
+        SIM --> OUT
+        OUT -->|"sí"| REFQ
+        REFQ -->|"sí"| REFS
+        REFQ -->|"no: references=None"| ANALYZE
+        REFS --> ANALYZE
+        ANALYZE --> REPORTQ
+        REPORTQ -->|"sí"| REPORT
+        REPORTQ -->|"no"| PLOTQ
+        REPORT --> PLOTQ
+        PLOTQ -->|"sí"| PLOTS
+    end
+    PARSE -->|"configuración válida"| KEYS
+    ERR["Mensaje por stderr"]:::error
+    EXIT1((("1"))):::error
+    OK((("0"))):::teal
+    KEYS -->|"no: ConfigurationError"| ERR
+    RUN -. "PortfolioError · ProviderError · OSError" .-> ERR
+    ERR --> EXIT1
+    OUT -->|"no"| OK
+    PLOTQ -->|"no"| OK
+    PLOTS --> OK
+    NOTE["Simulación activada por --simulate<br/>o por --report con sección simulation.<br/>El informe por defecto incluye esa sección."]:::note
+    NOTE -.- SIMQ
+    classDef navy fill:#14233D,stroke:#14233D,color:#FFFFFF;
+    classDef blue fill:#EAF2FF,stroke:#356CC9,color:#14233D;
+    classDef teal fill:#E4F7F3,stroke:#168575,color:#14233D;
+    classDef violet fill:#F0EBFF,stroke:#7953BF,color:#14233D;
+    classDef amber fill:#FFF3D9,stroke:#BF861B,color:#14233D;
+    classDef error fill:#FDEBEC,stroke:#BA4652,color:#7B2730;
+    classDef note fill:#F8FAFC,stroke:#94A3B8,color:#334155,stroke-dasharray:5 4;
+%% Las descargas de referencias ocurren después de la simulación en la CLI.
+%% Un fallo del proveedor elegido no activa otro proveedor automáticamente.
+%% --help termina mediante argparse con código 0; no entra en run.

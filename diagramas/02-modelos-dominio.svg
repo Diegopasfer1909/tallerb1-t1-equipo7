@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2140" height="1580" viewBox="0 0 2140 1580" role="img">
+<title>02-modelos-dominio</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="2140" height="1580" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1580" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Modelo de dominio</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML de clases · atributos y operaciones seleccionados · multiplicidad en el extremo de destino</text>
+<rect x="1994" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="2013.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">02</text>
+<rect x="80" y="270" width="470" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="271" width="468" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="299.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="100" y="337.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">Asset</text>
+<polyline points="80,353 550,353" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,433 550,433" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="384.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">history: PriceHistory</text>
+<text x="100" y="412.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency, asset_type: str</text>
+<text x="100" y="464.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ symbol / latest_price</text>
+<text x="100" y="492.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulation_inputs()</text>
+<rect x="820" y="270" width="500" height="271" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="821" y="271" width="498" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="840" y="299.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="840" y="337.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">Portfolio</text>
+<polyline points="820,353 1320,353" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="820,461 1320,461" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="840" y="384.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">assets: tuple[Asset, ...]</text>
+<text x="840" y="412.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">target_weights: Series</text>
+<text x="840" y="440.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">reporting_currency; rebalance</text>
+<text x="840" y="492.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ close_prices() / holdings()</text>
+<text x="840" y="520.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ analyze() / monte_carlo()</text>
+<rect x="1600" y="270" width="460" height="187" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1601" y="271" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="299.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="1620" y="337.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">FxRates</text>
+<polyline points="1600,353 2060,353" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1600,405 2060,405" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="384.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rates: tuple[ExchangeRate, ...]</text>
+<text x="1620" y="436.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ convert() / combine()</text>
+<rect x="80" y="730" width="470" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="731" width="468" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="759.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="100" y="797.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">PriceHistory</text>
+<polyline points="80,813 550,813" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,893 550,893" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="844.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">symbol; source; price_basis</text>
+<text x="100" y="872.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">prices: DataFrame; profile</text>
+<text x="100" y="924.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ closing_prices() / returns()</text>
+<text x="100" y="952.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ mean / std</text>
+<rect x="1600" y="680" width="460" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1601" y="681" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="709.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="1620" y="747.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">ExchangeRate</text>
+<polyline points="1600,763 2060,763" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1600,871 2060,871" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="794.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">base_currency; quote_currency</text>
+<text x="1620" y="822.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">indicator: EconomicIndicator</text>
+<text x="1620" y="850.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">max_age_days: int</text>
+<text x="1620" y="902.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ on_dates()</text>
+<rect x="80" y="1170" width="470" height="215" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="1171" width="468" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="1199.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="100" y="1237.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">AssetProfile</text>
+<polyline points="80,1253 550,1253" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="80,1333 550,1333" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="1284.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency; name; asset_type</text>
+<text x="100" y="1312.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">sector; raw; issue</text>
+<text x="100" y="1364.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">validación en construcción</text>
+<rect x="820" y="1020" width="500" height="299" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="821" y="1021" width="498" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="840" y="1049.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="840" y="1087.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">MarketReferences</text>
+<polyline points="820,1103 1320,1103" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="820,1267 1320,1267" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="840" y="1134.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">benchmark: PriceHistory?</text>
+<text x="840" y="1162.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">inflation: EconomicIndicator?</text>
+<text x="840" y="1190.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">risk_free_rate: EconomicIndicator?</text>
+<text x="840" y="1218.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">fx_rates: FxRates</text>
+<text x="840" y="1246.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">notices: tuple[Notice, ...]</text>
+<text x="840" y="1298.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">—</text>
+<rect x="1600" y="1170" width="460" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1601" y="1171" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="1199.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="1620" y="1237.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">EconomicIndicator</text>
+<polyline points="1600,1253 2060,1253" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1600,1333 2060,1333" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="1620" y="1284.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">series_id; source; values</text>
+<text x="1620" y="1312.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">units; frequency</text>
+<text x="1620" y="1364.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ as_of()</text>
+<text x="1620" y="1392.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ mean / std</text>
+<polyline points="820,370 808.0,362.0 796.0,370.0 808.0,378.0 820,370" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="796.0,370.0 550.0,370.0" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="563.5067065352902,363.47551698833155 550.0,370.0 563.5067065352902,376.52448301166845" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="624.5" y="325" width="121.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="631.5" y="347.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">assets  1..*</text>
+<polyline points="315,513 315,730" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="308.47551698833155,716.4932934647098 315,730 321.52448301166845,716.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="331" y="622" width="102.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="337" y="644.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">history  1</text>
+<polyline points="315,973 315,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="308.47551698833155,1156.49329346471 315,1170 321.52448301166845,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="331" y="1077" width="97.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="337" y="1099.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">profile  1</text>
+<polyline points="1320,370 1600,370" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1586.49329346471,376.52448301166845 1600,370 1586.49329346471,363.47551698833155" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="1402.5" y="325" width="115.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1409.5" y="347.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">fx_rates  1</text>
+<polyline points="1830,457 1822.0,469.0 1830.0,481.0 1838.0,469.0 1830,457" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1830.0,481.0 1830.0,680.0" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1823.4755169883315,666.4932934647098 1830.0,680.0 1836.5244830116685,666.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="1844" y="587" width="106.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1850" y="609.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">rates  0..*</text>
+<polyline points="1830,923 1830,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1823.4755169883315,1156.49329346471 1830,1170 1836.5244830116685,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="1844" y="1032" width="120.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1850" y="1054.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">indicator  1</text>
+<polyline points="1070,541 1070,1020" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1063.4755169883315,1006.4932934647098 1070,1020 1076.5244830116685,1006.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1084" y="737" width="142.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1090" y="759.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">parámetro de</text>
+<text x="1090" y="786.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">analyze()</text>
+<polyline points="820,1110 680,1110 680,860 550,860" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="563.5067065352902,853.4755169883315 550,860 563.5067065352902,866.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="684" y="937" width="121.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="690" y="959.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">benchmark</text>
+<text x="690" y="986.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">0..1</text>
+<polyline points="1320,1090 1450,1090 1450,540 1730,540 1730,457" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1736.5244830116685,470.50670653529016 1730,457 1723.4755169883315,470.50670653529016" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="1359" y="557" width="115.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1365" y="579.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">fx_rates  1</text>
+<polyline points="1320,1230 1600,1230" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1586.49329346471,1236.5244830116685 1600,1230 1586.49329346471,1223.4755169883315" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="1396.0" y="1190" width="128.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1403.0" y="1211.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">inflation  0..1</text>
+<polyline points="1320,1320 1600,1320" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1586.49329346471,1326.5244830116685 1600,1320 1586.49329346471,1313.4755169883315" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="1368.5" y="1279" width="183.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1375.5" y="1300.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">risk_free_rate  0..1</text>
+<polyline points="72,1490 2068,1490" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1526.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Rombo hueco: agregación compartida. Discontinua: dependencia de uso. «frozen» no implica inmutabilidad profunda.</text>
+</svg>

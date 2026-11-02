@@ -7,10 +7,13 @@ import pandas as pd
 
 from ..errors import PortfolioError
 from ..validation import is_numeric_data, validate_dates
+from .snapshot import read_only
 
 
 @dataclass(frozen=True)
 class EconomicIndicator:
+    """values es de solo lectura: un tipo de cambio puede formar parte de una cartera valorada."""
+
     series_id: str
     source: str
     values: pd.Series
@@ -21,7 +24,7 @@ class EconomicIndicator:
     def __post_init__(self) -> None:
         """Valida las observaciones y conserva los datos ausentes en una copia ordenada."""
         self._validate()
-        object.__setattr__(self, "values", self.values.copy().sort_index())
+        object.__setattr__(self, "values", read_only(self.values.sort_index()))
 
     def _validate(self) -> None:
         """Admite datos ausentes, pero exige al menos una observación finita."""

@@ -14,7 +14,7 @@ import pandas as pd
 from fixtures import history, indicator
 
 from src.analysis import WarningThresholds
-from src.analysis.metrics import jensen_alpha
+from src.analysis.metrics import annualized_growth, jensen_alpha
 from src.analysis.warnings import evaluate_simulation
 from src.errors import ConfigurationError
 from src.main import main, parse_arguments
@@ -172,7 +172,7 @@ class StructureTests(unittest.TestCase):
         falling = history("EXHD.DE", [100, 99, 98, 97], "EUR", dates=dates)
         references = MarketReferences(bund_etf=falling)
         analysis = Portfolio(assets, {"A": 1}).analyze(references)
-        expected = 0.97 ** (252 / 3) - 1
+        expected = annualized_growth(falling.closing_prices())
         self.assertAlmostEqual(analysis.metrics["bund_etf_annualized_return"], expected)
         self.assertAlmostEqual(
             analysis.metrics["difference_from_bund_etf"],
@@ -593,26 +593,6 @@ class MarketLoaderTests(unittest.TestCase):
         self.assertIsNone(references.vix)
         self.assertIsNone(references.inflation)
         self.assertTrue(any("FRED_API_KEY" in notice.message for notice in references.notices))
-
-    def test_benchmark_in_another_currency_gets_its_exchange_rate(self):
-        benchmark = history("^GSPC", [100, 101, 102], "USD", dates=DATES[:3])
-        with (
-            patch(
-                "src.market_loader.load_market_references",
-                return_value=MarketReferences(benchmark=benchmark),
-            ),
-            patch("src.market_loader.load_market_context", return_value=({}, [])),
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-        ):
-            yahoo.return_value.get_prices.return_value = history(
-                "USDEUR=X", [0.9, 0.9, 0.9], "EUR", dates=DATES[:3]
-            )
-            references = load_references("EUR", "2025-01-01", "2025-02-01")
-        rate = references.benchmark_fx.rates[0]
-        self.assertEqual((rate.base_currency, rate.quote_currency), ("USD", "EUR"))
-        same = Asset(history("A", [100, 110, 121], "EUR", dates=DATES[:3]))
-        analysis = Portfolio([same], {"A": 1}).analyze(references)
-        self.assertTrue(np.isfinite(analysis.metrics["beta"]))
 
 
 if __name__ == "__main__":

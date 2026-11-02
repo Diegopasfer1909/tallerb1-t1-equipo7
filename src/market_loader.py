@@ -23,7 +23,7 @@ from .providers import (
     is_ecb_series,
 )
 
-# Referencias iniciales que el usuario puede cambiar expresamente.
+# Referencias iniciales que el usuario puede cambiar expresamente, por ejemplo con --benchmark.
 REPORT_DEFAULTS = {
     "USD": {
         "benchmark_symbol": "^GSPC",
@@ -69,15 +69,16 @@ def load_fx_rates(
 
     Por defecto consulta pares como USDEUR=X en Yahoo Finance.
     """
+    return _fx_rates({asset.currency for asset in assets}, target, start, end, provider)
+
+
+def _fx_rates(
+    currencies: set[str], target: str, start: str, end: str, provider: PriceProvider | None
+) -> FxRates:
+    """Descarga un cambio directo por cada divisa distinta de target; GBp cuenta como GBP."""
     # De un tipo de cambio solo se usan los precios; la ficha costaría otra petición.
     provider = provider or YahooFinanceAPI(include_info=False)
-    currencies = {MINOR_UNITS.get(asset.currency, asset.currency) for asset in assets}
-    return _exchange_rates(currencies, target, start, end, provider)
-
-
-def _exchange_rates(
-    currencies: set[str], target: str, start: str, end: str, provider: PriceProvider
-) -> FxRates:
+    currencies = {MINOR_UNITS.get(currency, currency) for currency in currencies}
     earlier = _days_before(start, FX_MAX_AGE_DAYS)
     rates = []
     for source in sorted(currencies - {target}):
@@ -133,17 +134,20 @@ def load_market_references(
     risk_free_series: str | None = None,
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
+    currency: str = "",
     ecb_provider: EcbAPI | None = None,
 ) -> MarketReferences:
     """Descarga las referencias opcionales y registra sus fallos sin detener el informe.
 
-    La inflación requiere un índice de precios; el tipo de referencia, un porcentaje anual.
-    Las series se toman de FRED, que requiere clave, o, si su identificador es del BCE, de este,
-    que no la requiere. Consultar solo un índice bursátil tampoco la requiere.
+    El índice se consulta en Yahoo Finance y no requiere clave. La inflación (un índice de
+    precios) y el tipo de interés (un porcentaje anual) se toman de FRED, que la requiere, o, si
+    el identificador es del BCE, de este, que no. Con currency, la divisa de la cartera, se
+    descarga también el cambio que necesite un índice cotizado en otra divisa.
     """
     notices = []
 
     def attempt(failure: str, download, *args):
+        """Una referencia que falla se registra como aviso y queda sin calcular."""
         try:
             return download(*args)
         except (ProviderError, PortfolioError) as error:
@@ -151,15 +155,36 @@ def load_market_references(
             return None
 
     benchmark = inflation = risk_free_rate = None
+    fx_rates = FxRates()
     if benchmark_symbol:
-        provider = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
+        yahoo = price_provider or YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl)
         benchmark = attempt(
             f"No se ha podido descargar el índice de referencia {benchmark_symbol}.",
-            provider.get_prices,
+            yahoo.get_prices,
             benchmark_symbol,
             start,
             end,
         )
+        quoted = benchmark.profile.currency if benchmark is not None else None
+        if currency and quoted:
+            # _fx_rates no descarga nada si el índice ya cotiza en la divisa de la cartera.
+            fx_provider = price_provider or YahooFinanceAPI(
+                cache_dir=cache_dir, cache_ttl=cache_ttl, include_info=False
+            )
+            fx_rates = (
+                attempt(
+                    f"No se ha podido descargar el tipo de cambio {quoted}/{currency} para comparar "
+                    f"la cartera con {benchmark_symbol}.",
+                    _fx_rates,
+                    {quoted},
+                    currency,
+                    start,
+                    end,
+                    fx_provider,
+                )
+                or FxRates()
+            )
+
     fred = None
     if inflation_series or (risk_free_series and not is_ecb_series(risk_free_series)):
         fred = _fred_or_notice(fred_provider, notices, cache_dir, cache_ttl)
@@ -184,7 +209,7 @@ def load_market_references(
             earlier,
             end,
         )
-    return MarketReferences(benchmark, inflation, risk_free_rate, notices)
+    return MarketReferences(benchmark, inflation, risk_free_rate, notices, fx_rates)
 
 
 def load_risk_free_rate(
@@ -236,27 +261,6 @@ def load_market_context(
     return context, notices
 
 
-def _benchmark_fx(
-    references: MarketReferences,
-    currency: str,
-    start: str,
-    end: str,
-    cache_dir: Path | None,
-    cache_ttl: float,
-) -> tuple[FxRates, list[Notice]]:
-    """Cambio del índice cuando cotiza en otra divisa; sin él no se puede comparar."""
-    source = references.benchmark.profile.currency if references.benchmark is not None else None
-    source = MINOR_UNITS.get(source, source)
-    if not source or not currency or source == currency:
-        return FxRates(), []
-    provider = YahooFinanceAPI(cache_dir=cache_dir, cache_ttl=cache_ttl, include_info=False)
-    try:
-        return _exchange_rates({source}, currency, start, end, provider), []
-    except (ProviderError, PortfolioError) as error:
-        message = f"No se ha podido descargar el cambio {source}/{currency}. Motivo: {error}"
-        return FxRates(), [Notice(message)]
-
-
 def load_references(
     currency: str,
     start: str,
@@ -267,7 +271,10 @@ def load_references(
     cache_dir: Path | None = None,
     cache_ttl: float = 86400,
 ) -> MarketReferences:
-    """Elige las referencias predeterminadas de la divisa del informe; se pueden cambiar."""
+    """Completa con las referencias predeterminadas de la divisa las que no se indiquen.
+
+    benchmark_symbol sustituye al índice predeterminado; puede cotizar en otra divisa.
+    """
     defaults = REPORT_DEFAULTS.get(currency, {})
     references = load_market_references(
         start,
@@ -277,25 +284,33 @@ def load_references(
         risk_free_series=risk_free_series or defaults.get("risk_free_series"),
         cache_dir=cache_dir,
         cache_ttl=cache_ttl,
+        currency=currency,
     )
-    if defaults:
-        note = Notice(
-            "Las referencias se han elegido según la divisa del informe. Comprueba si se ajustan "
-            "al mercado y a la zona geográfica que quieres analizar.",
-            kind="method",
+    notes = []
+    if benchmark_symbol:
+        notes.append(
+            Notice(
+                f"Índice de referencia elegido por el usuario: {benchmark_symbol}. Si cotiza en "
+                f"otra divisa, se convierte a {currency} para compararlo con la cartera.",
+                kind="method",
+            )
         )
-    else:
-        note = Notice(
-            f"No hay referencias económicas predeterminadas para {currency}. Las medidas que "
-            "necesitan esas referencias quedan sin calcular."
+    if not defaults:
+        notes.append(
+            Notice(
+                f"No hay referencias económicas predeterminadas para {currency}. Las medidas que "
+                "necesitan las referencias no indicadas quedan sin calcular."
+            )
+        )
+    elif not all((benchmark_symbol, inflation_series, risk_free_series)):
+        notes.append(
+            Notice(
+                "Las referencias no indicadas se han elegido según la divisa del informe. "
+                "Comprueba si se ajustan al mercado y a la zona geográfica que quieres analizar.",
+                kind="method",
+            )
         )
     context, context_notices = load_market_context(
         start, end, cache_dir=cache_dir, cache_ttl=cache_ttl
     )
-    benchmark_fx, fx_notices = _benchmark_fx(references, currency, start, end, cache_dir, cache_ttl)
-    return replace(
-        references,
-        notices=(*references.notices, *fx_notices, *context_notices, note),
-        benchmark_fx=benchmark_fx,
-        **context,
-    )
+    return replace(references, notices=(*references.notices, *context_notices, *notes), **context)

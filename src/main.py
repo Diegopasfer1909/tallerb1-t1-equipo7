@@ -12,8 +12,13 @@ from dotenv import find_dotenv, load_dotenv
 from src.analysis import PortfolioAnalysis
 from src.constants import CLOSE, DEFAULT_CAPITAL, MONTHLY, PriceColumn, Rebalance
 from src.errors import ConfigurationError, PortfolioError
-from src.market_loader import load_references, load_risk_free_rate
-from src.models import Portfolio
+from src.market_loader import (
+    REPORT_DEFAULTS,
+    load_market_references,
+    load_references,
+    load_risk_free_rate,
+)
+from src.models import MarketReferences, Portfolio
 from src.portfolio_loader import load_portfolio
 from src.providers import (
     ALPHA_VANTAGE_KEY,
@@ -201,15 +206,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Guardar el informe en formato Markdown con sus gráficos",
     )
     options.add_argument(
-        "--benchmark",
-        metavar="SÍMBOLO",
-        help="Índice de referencia, por ejemplo ^IBEX. Por defecto: ^GSPC en USD y ^STOXX50E en EUR",
-    )
-    options.add_argument(
         "--output-dir",
         type=Path,
         metavar="CARPETA",
         help="Carpeta de los informes. Por defecto: informes, dentro de la carpeta actual",
+    )
+    options.add_argument(
+        "--benchmark",
+        metavar="SÍMBOLO",
+        help="Índice o fondo de Yahoo Finance contra el que comparar la cartera, por ejemplo "
+        "^IXIC, ^IBEX o URTH. Por defecto, según la divisa: "
+        + ", ".join(f"{code} {item['benchmark_symbol']}" for code, item in REPORT_DEFAULTS.items())
+        + ". Requiere --report o --plots-report",
     )
     options.add_argument(
         "--currency",
@@ -290,8 +298,6 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     presentation = (args.report_sections, args.report_detail, args.output_dir)
     if not args.report and any(option is not None for option in presentation):
         raise PortfolioError("Las opciones de presentación requieren --report.")
-    if args.benchmark is not None and not (args.report or args.plots_report):
-        raise PortfolioError("--benchmark requiere --report o --plots-report.")
     detail = args.report_detail or "compact"
     selected = select_sections(args.report_sections, detail)
     run_simulation = args.simulate or (args.report and "simulation" in selected)
@@ -301,9 +307,6 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     )
     date_range(start, args.end)
     weights = parse_values(args.assets)
-    benchmark = args.benchmark.strip() if args.benchmark is not None else None
-    if benchmark is not None:
-        validate_symbols([benchmark])
     options = {
         name: getattr(args, name) for name in SIMULATION_OPTIONS if getattr(args, name) is not None
     }
@@ -316,6 +319,12 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
             "Los parámetros de Monte Carlo requieren --simulate o la sección simulation de "
             "--report."
         )
+    benchmark = None
+    if args.benchmark is not None:
+        if not (args.report or args.plots_report):
+            raise PortfolioError("--benchmark requiere --report o --plots-report.")
+        validate_symbols([args.benchmark])
+        benchmark = args.benchmark.strip()
     validate_capital(args.capital)
     currency = args.currency.strip().upper()
     if currency:
@@ -352,7 +361,7 @@ def check_api_keys(config: RunConfig) -> list[str]:
             "el entorno. Sin clave puedes usar --provider yahoo, que no la necesita."
         )
     warnings = []
-    if (config.report or config.plots_report) and not has_api_key(FRED_KEY):
+    if config.report and not has_api_key(FRED_KEY):
         warnings.append(
             f"{FRED_KEY} no está configurada: el informe se generará sin inflación, rentabilidad "
             "real, VIX ni Brent, y en USD tampoco tendrá tipo libre de riesgo, Sharpe ni Sortino. "
@@ -397,15 +406,9 @@ def run(config: RunConfig) -> None:
         print_simulation(simulation)
     if not (config.report or config.plots_report):
         return
-    # Las referencias económicas solo se descargan para el informe y los gráficos.
-    references = load_references(
-        portfolio.currency,
-        config.start,
-        config.end,
-        benchmark_symbol=config.benchmark,
-        cache_dir=CACHE_DIR,
+    analysis = portfolio.analyze(
+        load_run_references(config, portfolio.currency), price_column=price_column
     )
-    analysis = portfolio.analyze(references, price_column=price_column)
     if config.report:
         path = analysis.report(
             simulation,
@@ -416,6 +419,31 @@ def run(config: RunConfig) -> None:
         print(f"Informe generado: {path.resolve()}")
     if config.plots_report:
         show_plots(analysis, simulation)
+
+
+def load_run_references(config: RunConfig, currency: str) -> MarketReferences | None:
+    """El informe usa todas las referencias; los gráficos, solo el índice elegido, si lo hay."""
+    if config.report:
+        return load_references(
+            currency,
+            config.start,
+            config.end,
+            benchmark_symbol=config.benchmark,
+            cache_dir=CACHE_DIR,
+        )
+    if not config.benchmark:
+        return None
+    references = load_market_references(
+        config.start,
+        config.end,
+        benchmark_symbol=config.benchmark,
+        cache_dir=CACHE_DIR,
+        currency=currency,
+    )
+    # Sin informe no hay otro lugar donde explicar por qué falta la comparación.
+    for notice in references.notices:
+        print(f"Aviso: {notice.message}", file=sys.stderr)
+    return references
 
 
 def show_plots(analysis: PortfolioAnalysis, simulation: SimulationResult | None = None) -> None:

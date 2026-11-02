@@ -17,7 +17,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter, PercentFormatter
 
-from ..analysis.metrics import annualized_return
+from ..analysis.metrics import annualized_growth
 from ..validation import validate_positive_int
 from .formatting import DATE_FORMAT, format_date, format_number, format_tick
 from .labels import SECTORS
@@ -261,7 +261,7 @@ def plot_risk_return(analysis: PortfolioAnalysis, axis=None) -> Figure:
         market = comparison["benchmark"].pct_change(fill_method=None).dropna()
         axis.scatter(
             [market.std() * np.sqrt(analysis.periods_per_year)],
-            [annualized_return(market, analysis.periods_per_year)],
+            [annualized_growth(comparison["benchmark"])],
             s=80,
             marker="D",
             color=GREY,

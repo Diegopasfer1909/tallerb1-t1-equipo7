@@ -1,0 +1,104 @@
+%% Objetos compartibles: ninguna asociación exige dueño exclusivo.
+%% frozen impide reasignar campos, no garantiza inmutabilidad profunda universal.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B"}}}%%
+classDiagram
+    direction LR
+    accTitle: B1-T1 · Modelo de dominio
+    accDescr: Clases de cartera, precios, ficha y referencias con asociaciones y agregaciones compartidas.
+    class Portfolio {
+        <<frozen dataclass>>
+        +target_weights : Series
+        +initial_capital : float
+        +rebalance : Rebalance
+        +reporting_currency : str
+        -_cache : dict
+        +close_prices() DataFrame
+        +position_values() DataFrame
+        +holdings() DataFrame
+        +analyze(references) PortfolioAnalysis
+    }
+    class Asset {
+        <<frozen dataclass>>
+        +currency : str
+        +asset_type : AssetType
+        +/symbol : str
+        +/latest_price : float
+        +simulation_inputs() SimulationInputs
+    }
+    class PriceHistory {
+        <<frozen dataclass>>
+        +symbol : str
+        +source : str
+        +price_basis : PriceBasis
+        +/prices : DataFrame
+        +/mean : Series
+        +/std : Series
+        +closing_prices() Series
+        +returns() Series
+    }
+    class AssetProfile {
+        <<frozen dataclass>>
+        +currency : str?
+        +name : str?
+        +asset_type : AssetType
+        +sector : str?
+        +raw : dict
+        +issue : str?
+    }
+    class FxRates {
+        <<frozen dataclass>>
+        +convert(prices, source, target) Series
+        +combine(other) FxRates
+    }
+    class ExchangeRate {
+        <<frozen dataclass>>
+        +base_currency : str
+        +quote_currency : str
+        +max_age_days : int
+        +on_dates(dates) Series
+    }
+    class EconomicIndicator {
+        <<frozen dataclass>>
+        +series_id : str
+        +source : str
+        +values : Series
+        +units : str
+        +frequency : str
+        +as_of(dates, max_age_days) Series
+    }
+    class MarketReferences {
+        <<frozen dataclass>>
+        +benchmark : PriceHistory?
+        +inflation : EconomicIndicator?
+        +risk_free_rate : EconomicIndicator?
+        +fx_rates : FxRates
+    }
+    class Notice {
+        <<frozen dataclass>>
+        +message : str
+        +kind : NoticeKind
+    }
+    Portfolio "0..*" o-- "1..*" Asset : assets
+    Asset "0..*" --> "1" PriceHistory : history
+    PriceHistory "0..*" --> "1" AssetProfile : profile
+    Portfolio "0..*" --> "1" FxRates : fx_rates
+    FxRates "0..*" o-- "0..*" ExchangeRate : rates
+    ExchangeRate "0..*" --> "1" EconomicIndicator : indicator
+    MarketReferences "0..*" --> "0..1" PriceHistory : benchmark
+    MarketReferences "0..*" --> "0..1" EconomicIndicator : inflation
+    MarketReferences "0..*" --> "0..1" EconomicIndicator : risk_free_rate
+    MarketReferences "0..*" --> "1" FxRates : fx_rates
+    MarketReferences "0..*" o-- "0..*" Notice : notices
+    Portfolio ..> MarketReferences : analyze() recibe
+    note for PriceHistory "prices, mean y std devuelven copias.\nSe conserva OHLCV y la procedencia."
+    note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración guardada por columna en _cache."
+    note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."
+    style Portfolio fill:#14233D,stroke:#14233D,color:#FFFFFF
+    style Asset fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style PriceHistory fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style AssetProfile fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style FxRates fill:#E4F7F3,stroke:#168575,color:#14233D
+    style ExchangeRate fill:#E4F7F3,stroke:#168575,color:#14233D
+    style EconomicIndicator fill:#E4F7F3,stroke:#168575,color:#14233D
+    style MarketReferences fill:#F0EBFF,stroke:#7953BF,color:#14233D
+    style Notice fill:#FFF3D9,stroke:#BF861B,color:#14233D

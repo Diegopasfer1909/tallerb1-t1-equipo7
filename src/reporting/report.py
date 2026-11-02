@@ -16,6 +16,7 @@ from ..simulation.settings import SimulationSettings
 from . import texts
 from .formatting import UNAVAILABLE, format_date, format_number, format_points
 from .labels import (
+    CHART_TITLES,
     COUNTRIES,
     HOLDINGS_COLUMNS,
     RISK_FREE_NAMES,
@@ -151,6 +152,10 @@ def _summary(report: ReportContext) -> str:
     )
     difference = metrics["difference_from_benchmark"]
     drawdown = metrics["max_drawdown"]
+    symbol = analysis.benchmark_symbol
+    benchmark_label = "Diferencia anual frente al índice"
+    if symbol:
+        benchmark_label += f" ({symbol})"
     premium = metrics["excess_annualized_return"]
     rows = [
         [
@@ -160,7 +165,7 @@ def _summary(report: ReportContext) -> str:
             f"{format_number(metrics['annualized_return'], True)} al año",
         ],
         [
-            "Diferencia frente al índice",
+            benchmark_label,
             f"**{_annual_points(difference)}**",
             _read_sign(difference, "batió al índice", "habría sido mejor comprar el índice"),
         ],
@@ -180,15 +185,33 @@ def _summary(report: ReportContext) -> str:
             _read_sharpe(metrics["sharpe"]),
         ],
     ]
-    return header + "\n\n" + _table(["Cifra", "Valor", "Lectura"], rows)
+    parts = [header, _table(["Cifra", "Valor", "Lectura"], rows)]
+    comparison = analysis.benchmark_comparison
+    if not comparison.empty:
+        parts.append(
+            texts.BENCHMARK_COVERAGE.format(
+                symbol=symbol,
+                start=format_date(comparison.index[0]),
+                end=format_date(comparison.index[-1]),
+                dates=len(comparison),
+            )
+        )
+    return "\n\n".join(parts)
 
 
 def _observed(value: float, unit: str) -> str:
     if unit == "days":
         return f"{value:.0f} días naturales"
-    if unit == "sessions":
-        return f"{value:.0f} sesiones"
     return format_number(value, percentage=unit == "percent")
+
+
+def _warning_message(warning) -> str:
+    """El análisis conserva el sector del proveedor; el informe lo muestra en español."""
+    if warning.code == "sector_concentration" and warning.subject:
+        return texts.SECTOR_CONCENTRATION.format(
+            sector=SECTORS.get(warning.subject, warning.subject)
+        )
+    return warning.message
 
 
 def _warnings(report: ReportContext) -> str:
@@ -202,7 +225,7 @@ def _warnings(report: ReportContext) -> str:
         return texts.NO_RISK_WARNINGS
     rows = []
     for warning in warnings:
-        detail = f"{warning.message} Valor: {_observed(warning.observed, warning.unit)}"
+        detail = f"{_warning_message(warning)} Valor: {_observed(warning.observed, warning.unit)}"
         if warning.threshold is not None:
             detail += f"; umbral: {_observed(warning.threshold, warning.unit)}"
         rows.append([SEVERITIES[warning.severity], warning.title, f"{detail}."])
@@ -424,7 +447,7 @@ def _risk_adjusted(report: ReportContext) -> str:
                 f"{read} (CAGR del ETF de Bunds: {bund_etf})" if read else "",
             ]
         )
-    return _table(["Métrica", "Valor", "Lectura"], rows)
+    return "\n\n".join([_table(["Métrica", "Valor", "Lectura"], rows), texts.RETURN_MEASURES_NOTE])
 
 
 def _diversification(report: ReportContext) -> str:
@@ -753,9 +776,8 @@ def _data(report: ReportContext) -> str:
         f"**Historia común:** {sessions} sesiones "
         f"({format_date(dates[0])} – {format_date(dates[-1])})"
     )
-    history += (
-        texts.SHORT_HISTORY_NOTE if sessions < analysis.warning_thresholds.short_history else "."
-    )
+    days = analysis.metrics["history_days"]
+    history += texts.SHORT_HISTORY_NOTE if days < analysis.warning_thresholds.short_history else "."
     limit = analysis.warning_thresholds.excluded_dates
     excluded_rows = []
     for symbol, row in quality.iterrows():
@@ -792,7 +814,13 @@ def _data(report: ReportContext) -> str:
     data = [notice.message for notice in analysis.notices if notice.kind == "data"]
     method = [notice.message for notice in analysis.notices if notice.kind == "method"]
     issues = [*data, *analysis.metric_notes.values()]
-    parts = [history, excluded, cleaning, _table(["Serie", "Fuente"], sources)]
+    parts = [
+        history,
+        excluded,
+        cleaning,
+        texts.PRICE_BASIS_NOTES[analysis.price_column],
+        _table(["Serie", "Fuente"], sources),
+    ]
     if issues:
         parts.append("**Incidencias de los datos:**\n\n" + _bullets(dict.fromkeys(issues)))
     else:
@@ -843,7 +871,7 @@ def build_report(
     for key in selected:
         body = _BUILDERS[key](report)
         for chart, file in charts.get(key, {}).items():
-            body += f"\n\n![{SECTION_TITLES[key]}: {chart}]({file})"
+            body += f"\n\n![{CHART_TITLES.get(chart, chart)}]({file})"
         title = f"{numbers[key]}. {SECTION_TITLES[key]}"
         if detail == "compact":
             summary = f"<b>{title}</b> — {SECTION_QUESTIONS[key]}"

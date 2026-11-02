@@ -66,6 +66,21 @@ RISK_FREE_NAMES = {
     "DGS3MO": "letra de EE. UU. a 3 meses",
 }
 
+# Texto alternativo de cada gráfico del informe, con las claves de CHARTS.
+CHART_TITLES = {
+    "exposure": "Exposición de la cartera por sector y por divisa",
+    "evolution": "Evolución de la cartera frente al índice y al ETF de Bunds",
+    "assets": "Evolución comparada de los activos",
+    "annual_returns": "Rentabilidad de cada año, cartera frente al índice",
+    "drawdown": "Caídas de la cartera desde sus máximos",
+    "distribution": "Rentabilidades diarias frente a una distribución normal",
+    "risk_return": "Riesgo y rentabilidad de los activos, la cartera y el índice",
+    "correlations": "Correlaciones entre las rentabilidades de los activos",
+    "risk_shares": "Peso de cada activo frente a su contribución al riesgo",
+    "volatility_vix": "Volatilidad de la cartera frente al VIX",
+    "bund_correlation": "Correlación móvil de la cartera con el ETF de Bunds",
+    "simulation": "Trayectorias simuladas y distribución del valor final",
+}
 # Casos con los que se contrasta el retorno de la simulación.
 SENSITIVITY_CASES = {
     "historical": "Histórico puro",

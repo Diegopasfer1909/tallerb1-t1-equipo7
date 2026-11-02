@@ -5,14 +5,14 @@ from typing import Literal
 
 import pandas as pd
 
-from ..constants import PERIODS_PER_YEAR, UNKNOWN
+from ..constants import ONE_YEAR_MIN_DAYS, UNKNOWN
 from ..errors import PortfolioError
 from ..validation import is_finite_number
 from .metrics import DrawdownEpisode
 
 Severity = Literal["high", "medium"]
-# Cómo leer observed y threshold: fracción de la cartera, ratio sin unidades, días o sesiones.
-Unit = Literal["percent", "ratio", "days", "sessions"]
+# Cómo leer observed y threshold: fracción de la cartera, ratio sin unidades o días.
+Unit = Literal["percent", "ratio", "days"]
 # Umbrales que no son fracciones y pueden superar 1.
 UNBOUNDED = ("volatility", "vix", "short_history")
 
@@ -30,7 +30,8 @@ class WarningThresholds:
     drawdown: float = 0.3
     volatility: float = 0.25
     vix: float = 30
-    short_history: int = PERIODS_PER_YEAR
+    # Días naturales: un año bursátil puede tener menos de 252 sesiones comunes.
+    short_history: int = ONE_YEAR_MIN_DAYS
     excluded_dates: float = 0.05
     # A un año, una cartera de bolsa pierde en cerca del 40 % de los escenarios: es lo normal.
     simulation_loss: float = 0.45
@@ -53,6 +54,8 @@ class RiskWarning:
     threshold: float | None = None
     unit: Unit = "percent"
     title: str = ""
+    # Activo o sector afectado, tal como lo publica el proveedor; la presentación lo traduce.
+    subject: str | None = None
 
 
 def evaluate_risk(
@@ -82,6 +85,7 @@ def evaluate_risk(
                 float(weights[largest]),
                 thresholds.asset_weight,
                 title="Concentración en un activo",
+                subject=largest,
             )
         )
     elif weights[largest] > thresholds.asset_weight_medium:
@@ -93,6 +97,7 @@ def evaluate_risk(
                 float(weights[largest]),
                 thresholds.asset_weight_medium,
                 title="Concentración en un activo",
+                subject=largest,
             )
         )
     for sector, weight in sectors.items():
@@ -105,6 +110,7 @@ def evaluate_risk(
                     float(weight),
                     thresholds.sector_weight,
                     title="Concentración sectorial",
+                    subject=sector,
                 )
             )
     pairs = pairs[[weights[a] > 0 and weights[b] > 0 for a, b in pairs.index]]
@@ -224,16 +230,16 @@ def evaluate_risk(
                 title="Mercado en estrés",
             )
         )
-    sessions = metrics.get("sessions", float("nan"))
-    if sessions < thresholds.short_history:
+    days = metrics.get("history_days", float("nan"))
+    if days < thresholds.short_history:
         warnings.append(
             RiskWarning(
                 "short_history",
                 "high",
-                "Pocas sesiones comunes para estimar métricas anuales.",
-                float(sessions),
+                "El historial cubre menos de un año.",
+                float(days),
                 float(thresholds.short_history),
-                unit="sessions",
+                unit="days",
                 title="Historia corta",
             )
         )

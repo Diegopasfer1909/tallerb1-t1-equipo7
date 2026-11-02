@@ -565,7 +565,7 @@ class MainTests(unittest.TestCase):
                 plt.close("all")
         show.assert_called_once()
         write_file.assert_not_called()
-        references.assert_called_once()
+        references.assert_not_called()
 
     def test_currency_conversion_is_loaded_automatically(self):
         indicator = EconomicIndicator(

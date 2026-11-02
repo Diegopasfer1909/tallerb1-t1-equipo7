@@ -49,6 +49,7 @@ python src/main.py --provider alpha_vantage --assets cartera_ejemplo.txt --simul
 python src/main.py --assets IBM:0.6 MSFT:0.4 --start 2025-10-01 --end 2026-10-01 --report
 python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plots-report --report
 python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --benchmark ^IBEX --rebalance none --capital 50000 --report
+python src/main.py --assets IBM:0.6 MSFT:0.4 --report --benchmark ^IXIC
 ```
 
 | Opción | Uso |
@@ -65,6 +66,7 @@ python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --benchmark ^IBEX --rebalance 
 | `--report-detail compact` o `full` | Secciones en desplegables o todo a la vista; por defecto, `compact` |
 | `--output-dir CARPETA` | Carpeta de los informes; por defecto, `informes` dentro de la carpeta actual |
 | `--currency EUR` | Convertir los precios y las posiciones a la divisa indicada |
+| `--benchmark ^IXIC` | Índice o fondo de Yahoo Finance contra el que comparar la cartera, en lugar del predeterminado por divisa; requiere `--report` o `--plots-report` |
 | `--steps 252` | Sesiones futuras de la simulación |
 | `--simulations 10000` | Número de escenarios |
 | `--equity-premium 0.045` | Retorno anual de la renta variable sobre el tipo libre de riesgo |
@@ -76,6 +78,8 @@ python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --benchmark ^IBEX --rebalance 
 | `--seed 42` | Semilla para reproducir la simulación |
 | `--capital 10000` | Capital hipotético al inicio del histórico |
 | `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones |
+| `--report-detail compact` o `--report-detail full` | Informe con secciones plegadas (por defecto) o todo desplegado |
+| `--report-sections summary warnings ...` | Secciones del informe que se incluyen; por defecto, todas (ver [Lectura y selección del informe](#lectura-y-selección-del-informe)) |
 
 Cada peso debe estar entre 0 y 1, incluidos ambos extremos, y todos deben sumar 1.
 Por ejemplo, `IBM:0.6 MSFT:0.4` representa un 60 % y un 40 %. Se admite el redondeo
@@ -129,7 +133,8 @@ la cartera, y se puede analizar una estrategia sin reajustes con `rebalance=None
 rebalanceo a partir de las cantidades de cada activo.
 
 La cartera no cambia después de crearse, por lo que su valoración se calcula una sola
-vez y se reutiliza en cada consulta.
+vez y se reutiliza en cada consulta. No basta con declararla `frozen`: consulta
+[Instantáneas inmutables y estadísticos](#instantáneas-inmutables-y-estadísticos).
 
 ## Uso desde Python
 
@@ -146,7 +151,7 @@ yahoo = YahooFinanceAPI()
 alpha = AlphaVantageAPI(include_info=True, outputsize="compact", allow_partial=False)
 
 history = yahoo.get_prices("^GSPC", "2025-10-01", "2026-10-01")
-print(history.mean["Close"], history.std["Close"])  # calculadas a partir de los precios
+print(history.mean["Close"], history.std["Close"])  # calculadas al crear el historial
 
 portfolio = load_portfolio({"IBM": 0.6, "MSFT": 0.4}, yahoo, "2025-10-01", "2026-10-01")
 ```
@@ -352,7 +357,9 @@ cambio de FRED se descargan con `load_fred_fx_rates()`.
 
 Desde Python, las referencias se cargan con `load_references(divisa, inicio, fin)`
 (o con `load_market_references()` para elegir cada serie) y se pasan al análisis:
-`portfolio.analyze(references)`. Los tipos de cambio forman parte de la cartera
+`portfolio.analyze(references)`. `load_references("USD", inicio, fin,
+benchmark_symbol="^IXIC")` cambia solo el índice y conserva la inflación y el tipo de
+interés predeterminados. Los tipos de cambio forman parte de la cartera
 (`fx_rates`), porque sin ellos no se puede valorar; `load_portfolio()` los descarga
 con `load_fx_rates()` cuando se indica `reporting_currency`. Todas estas funciones
 admiten el proveedor como argumento, de modo que se pueden sustituir sin cambiar
@@ -409,33 +416,85 @@ quien tenía bonos, porque no recoge la variación de su precio. Por eso, en car
 del ETF `EXHD.DE` (deuda alemana a 5,5-10,5 años), con cupones y variación de precio, en las
 mismas fechas.
 
-## Validación de los datos de entrada
+## Validación de entradas: por qué un contrato estricto
 
-No se admite cualquier serie de precios: todo pasa por modelos que validan al crearse.
-Admitir "cualquier cosa con fechas y números" trasladaría los errores a las métricas, donde
-son silenciosos: un Sharpe calculado con divisas mezcladas da un número, pero falso. El
-criterio es que **lo que haría falsas las cifras detiene el programa; lo que solo las hace
-menos fiables se registra y aparece en la sección "Calidad de los datos" del informe.**
+El enunciado pide decidir si se valida la entrada o se admite cualquier serie. Validamos
+en las fronteras (consola, adaptadores y constructores de los modelos) porque un dato
+inválido rara vez falla donde entra: avanza varios pasos y produce un resultado plausible
+pero erróneo.
 
-| Situación | Tratamiento |
+| Regla | Qué evita |
 | --- | --- |
-| Fechas no válidas o repetidas, precios no positivos o no finitos | Error |
-| Pesos que no suman 1, fuera de 0-1 o que no coinciden con los activos; activos repetidos | Error |
-| Símbolo sin datos o rechazado por el proveedor | Error que indica cuál |
-| Activos en varias divisas sin `--currency`, o sin tipo de cambio reciente | Error |
-| Menos de tres fechas comunes | Error |
-| Menos de 252 sesiones | Advertencia alta |
-| Fechas con zona horaria o desordenadas | Se normalizan |
-| Calendarios distintos (festivos de cada bolsa) | Solo se usan las fechas comunes, sin rellenar precios, y se informa del % excluido |
-| Fechas sin precio de cierre | Se descartan y se cuentan |
-| Saltos diarios de más del 50 % | Se marcan sin tocarlos: suelen ser desdoblamientos mal ajustados |
-| Fallo de una fuente opcional (índice, VIX, Brent...) o falta de `FRED_API_KEY` | Se anota y sus medidas salen "No disponible" |
+| Pesos entre 0 y 1 que suman 1 (tolerancia 1e-5), sin convertir porcentajes | Que `IBM:60` se lea como un 6.000 %, o simular cortos y apalancamiento que el modelo no contempla |
+| `DatetimeIndex` sin fechas repetidas, vacías ni zona horaria | Alinear mal calendarios y calcular rentabilidades entre filas desordenadas |
+| `Close` obligatorio, positivo y finito; columnas únicas | Rentabilidades infinitas con un precio cero, logaritmos de negativos y NaN que se propagan |
+| Divisa conocida, nunca supuesta | Sumar dólares, euros o peniques como si fueran la misma unidad |
+| Fechas comunes sin rellenar huecos | Rentabilidades nulas inventadas que rebajan la volatilidad y las correlaciones |
+| Saltos diarios de más del 50 %: se marcan sin tocarlos | Ocultar desdoblamientos mal ajustados o errores de la fuente |
+| Antigüedad máxima de tipos de cambio y datos macro | Usar un dato de hace meses como si fuera de la fecha valorada |
+| Validar antes de descargar | Gastar cuota de Alpha Vantage en una petición cuyo resultado se rechazaría |
+
+Las consecuencias son deliberadas:
+
+- Los errores aparecen pronto, en español y con el motivo, antes de descargar nada.
+- Se rechazan datos que serían válidos en otros contextos, como precios negativos de
+  futuros o una ficha sin divisa; en ese caso hay que indicarla expresamente.
+- Los datos complementarios (ficha, índice, inflación, tipo de interés) no detienen el
+  análisis: la medida que dependa de ellos aparece como «No disponible», con su causa.
+
+Admitir cualquier serie simplificaría la carga, pero repartiría las comprobaciones por
+cada cálculo y no permitiría distinguir un resultado correcto de uno contaminado.
+
+**Descarga en lote.** `load_portfolio()` descarga los N activos uno tras otro con el mismo
+proveedor, una de las dos opciones del enunciado («simultánea o en lote»). Así se respeta
+la cuota diaria de Alpha Vantage sin coordinar hilos, cada error se atribuye a su símbolo y
+la caché evita repetir consultas; con pocas decenas de activos el tiempo no es relevante.
+Paralelizar sería un cambio local del cargador: el contrato `PriceProvider` no cambia.
+
+## Contrato temporal de las medidas
+
+La intersección de calendarios puede eliminar fechas intermedias. Para que eso no altere
+los resultados, cada medida declara cómo trata el tiempo:
+
+- **Crecimiento anualizado** (cartera, activos, comparación con el índice e inflación):
+  `(valor final / valor inicial) ^ (365,25 / días naturales) − 1`. Solo depende de las
+  fechas extremas, de modo que perder fechas intermedias no lo cambia. La cartera y el
+  índice se comparan entre las mismas fechas extremas.
+- **Dispersión** (volatilidad, Sharpe, Sortino, VaR por período y los μ y σ de Monte Carlo):
+  se calcula por observación y se escala con `periods_per_year` (252 por defecto). Supone
+  observaciones regulares. El informe avisa si la separación típica supera cinco días o si
+  hay menos del 90 % de las observaciones esperadas para la duración del historial.
+- **Historial corto**: se mide en días naturales (menos de 350), no en número de
+  observaciones, porque un año bursátil puede tener menos de 252 sesiones.
+
+La media aritmética (Sharpe, μ) y el crecimiento compuesto pueden tener signos opuestos:
+con +20 % y −19 %, la media es +0,5 %, pero el valor cae un 2,8 % (1,20 × 0,81 − 1). El
+informe lo explica junto a las medidas.
+
+## Instantáneas inmutables y estadísticos
+
+`frozen=True` impide reasignar atributos, pero no modificar el contenido de un
+`DataFrame` o una `Series`. Como la cartera memoriza su valoración, los datos de los que
+depende son instantáneas protegidas:
+
+- `PriceHistory` valida y guarda una copia ordenada; `history.prices` devuelve otra copia,
+  así que modificarla no altera el historial ni las carteras que lo usan.
+- `history.mean` y `history.std` se calculan al crear el historial, como pide el
+  enunciado, y solo sobre las columnas de precio (`Open`, `High`, `Low`, `Close`,
+  `Adj Close`). `Volume` no es un precio y no se resume.
+- `EconomicIndicator.values` (inflación, tipos y cambios) y `Portfolio.target_weights` son
+  de solo lectura: intentar modificarlos produce un `ValueError`.
+- Para otra composición se crea otra cartera, por ejemplo con
+  `dataclasses.replace(portfolio, target_weights={"IBM": 0.5, "MSFT": 0.5})`, que vuelve a
+  validar los pesos.
 
 ## Gráficos e informes
 
 `--plots-report` muestra los gráficos del informe, más el de la simulación si se añade
-`--simulate` o `--report`. No guarda archivos por sí solo. Puede combinarse con `--report`
-para ver los gráficos y guardar el informe completo.
+`--simulate` o `--report`. No guarda archivos por sí solo ni descarga las referencias económicas,
+por lo que la evolución de la cartera no incluye el índice, salvo que se elija uno con
+`--benchmark`, y tampoco hay gráficos de mercado. Puede combinarse con `--report` para ver los
+gráficos y guardar el informe completo.
 
 Desde Python, `portfolio.plots_report()` devuelve ese conjunto como un diccionario de
 figuras. Con `portfolio.plots_report("graficos")` también se guardan como PNG en esa carpeta.
@@ -469,8 +528,14 @@ completo: si algo falla, no quedan carpetas a medias ni gráficos abiertos.
 
 ## Documentación de arquitectura
 
-[docs/arquitectura.md](docs/arquitectura.md) contiene los diagramas de capas, de clases
-(UML) y del flujo de una ejecución.
+[ARQUITECTURA.md](ARQUITECTURA.md) reúne siete láminas UML: vista de componentes,
+modelo de dominio, contratos y proveedores, contrato de simulación, dependencias entre
+paquetes, actividad de la consola y secuencia de una consulta a Alpha Vantage con caché y
+cuota. Cada lámina está en `diagramas/` como SVG, PNG (para diapositivas), Excalidraw
+editable y Mermaid; [diagramas/README.md](diagramas/README.md) explica cómo regenerarlas.
+
+[docs/arquitectura.md](docs/arquitectura.md) resume en Mermaid las capas, las clases y el flujo de una
+ejecución con el proveedor del BCE y el contexto de mercado, posteriores a esas láminas.
 
 ## Comprobaciones
 

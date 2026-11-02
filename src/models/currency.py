@@ -60,6 +60,16 @@ class FxRates:
         if len(set(pairs)) != len(pairs):
             raise PortfolioError("Indica una sola serie de tipos de cambio por par de divisas.")
 
+    def combine(self, other: "FxRates") -> "FxRates":
+        """Añade los pares de other que aún no están; ante un mismo par, conserva el propio."""
+        pairs = {frozenset((rate.base_currency, rate.quote_currency)) for rate in self.rates}
+        extra = [
+            rate
+            for rate in other.rates
+            if frozenset((rate.base_currency, rate.quote_currency)) not in pairs
+        ]
+        return FxRates((*self.rates, *extra)) if extra else self
+
     def convert(self, prices: pd.Series, source: str, target: str) -> pd.Series:
         """Convierte una copia y conserva los precios originales y su divisa."""
         if not isinstance(prices.index, pd.DatetimeIndex):

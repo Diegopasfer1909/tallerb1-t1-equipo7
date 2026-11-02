@@ -1,6 +1,10 @@
 """Textos fijos del informe. Los que contienen llaves se completan con str.format()."""
 
+# Resumen
+BENCHMARK_COVERAGE = "Comparación con el índice {symbol}: {start} – {end}, {dates} fechas comunes."
+
 # Advertencias
+SECTOR_CONCENTRATION = "Concentración sectorial: {sector}."
 NO_RISK_WARNINGS = "Ninguna advertencia salta con los umbrales actuales."
 
 # Rentabilidad
@@ -15,6 +19,16 @@ CONVERTED_PRICES_NOTE = "Precios convertidos a {currency}."
 COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
     "se permite invertir en fracciones de cada activo: operar esta cartera rendiría menos."
+)
+
+# Rentabilidad ajustada al riesgo
+RETURN_MEASURES_NOTE = (
+    "**Por qué las medidas de rentabilidad pueden discrepar:** la rentabilidad anualizada es el "
+    "crecimiento compuesto entre la primera y la última fecha, repartido por los días naturales "
+    "transcurridos. Las ratios de Sharpe y Sortino usan la media aritmética de las rentabilidades "
+    "por período, que no es menor que el crecimiento compuesto equivalente: con +20 % y −19 %, la "
+    "media es +0,5 %, pero el valor cae un 2,8 % (1,20 × 0,81 − 1). Por eso un Sharpe positivo "
+    "puede convivir con una rentabilidad anualizada negativa."
 )
 
 # Simulación
@@ -72,6 +86,18 @@ SIMULATED_REBALANCE = "Mensual, a los pesos objetivo cada {interval} sesiones si
 SIMULATED_BUY_AND_HOLD = "Sin rebalanceo"
 
 # Calidad de los datos
+# Explicación de la base de precios según la columna utilizada en el análisis.
+PRICE_BASIS_NOTES = {
+    "Close": (
+        "La valoración usa Close. Adj Close incorpora además dividendos y otras distribuciones. "
+        "Tener Adj Close disponible no significa que se haya usado en este análisis."
+    ),
+    "Adj Close": (
+        "El análisis usa Adj Close, que incorpora dividendos y otras distribuciones: los valores "
+        "de la cartera estiman su crecimiento con reinversión y pueden diferir del valor de "
+        "mercado de las posiciones."
+    ),
+}
 NO_DATA_ISSUES = "**Incidencias de los datos:** ninguna."
 SHORT_HISTORY_NOTE = " — menos de un año: métricas poco fiables."
 UNADJUSTED_NOTE = (
