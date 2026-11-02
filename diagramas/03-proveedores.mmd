@@ -1,0 +1,66 @@
+%% Realización estructural: Yahoo/Alpha satisfacen Protocol sin herencia explícita.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#E4F7F3","primaryTextColor":"#14233D","primaryBorderColor":"#168575","lineColor":"#64748B"}}}%%
+classDiagram
+    direction TB
+    accTitle: B1-T1 · Contrato y adaptadores de proveedores
+    accDescr: Protocolo de precios, adaptadores Yahoo y Alpha, proveedor FRED, cliente HTTP y cuota persistente.
+    class PriceProvider {
+        <<Protocol>>
+        +get_prices(symbol, start, end, adjusted) PriceHistory
+    }
+    class YahooFinanceAPI {
+        +include_info : bool
+        +cache_ttl : float
+        +get_prices(symbol, start, end, adjusted) PriceHistory
+        +get_info(symbol) dict
+    }
+    class AlphaVantageAPI {
+        +outputsize : str
+        +allow_partial : bool
+        +include_info : bool
+        +get_prices(symbol, start, end, adjusted) PriceHistory
+        +get_info(symbol) dict
+    }
+    class FredAPI {
+        +get_series(series_id, start, end) EconomicIndicator
+    }
+    class ApiClient {
+        +cache_ttl : float
+        +min_interval : float
+        +before_request : Callable?
+        +on_rejection : Callable?
+        +get_json(url, params) dict
+    }
+    class AlphaVantageQuota {
+        +path : Path
+        +key_hash : str
+        -_blocked_until : float
+        +reserve()
+        +handle_rejection(status, reason)
+    }
+    class Session {
+        <<requests>>
+        +get(url, params, timeout, allow_redirects)
+    }
+    YahooFinanceAPI ..|> PriceProvider
+    AlphaVantageAPI ..|> PriceProvider
+    AlphaVantageAPI "1" *-- "1" ApiClient : client creado
+    AlphaVantageAPI "1" *-- "1" AlphaVantageQuota : quota creada
+    FredAPI "1" *-- "1" ApiClient : client creado
+    ApiClient "0..*" --> "1" Session : session propia o inyectada
+    ApiClient ..> AlphaVantageQuota : callbacks inyectados por Alpha
+    note for PriceProvider "FredAPI devuelve series económicas.\nNo realiza este Protocol."
+    note for YahooFinanceAPI "yfinance.Ticker y funciones de caché.\nNo utiliza ApiClient."
+    note for AlphaVantageQuota "SQLite independiente de la caché.\n25 reservas / ventana móvil de 24 h.\nHash de clave y marcas temporales."
+    note for ApiClient "Caché → ritmo → callback → HTTP.\nFRED no instala callbacks de cuota."
+    style PriceProvider fill:#14233D,stroke:#14233D,color:#FFFFFF
+    style YahooFinanceAPI fill:#E4F7F3,stroke:#168575,color:#14233D
+    style AlphaVantageAPI fill:#E4F7F3,stroke:#168575,color:#14233D
+    style FredAPI fill:#E4F7F3,stroke:#168575,color:#14233D
+    style ApiClient fill:#EAF2FF,stroke:#356CC9,color:#14233D
+    style AlphaVantageQuota fill:#FFF3D9,stroke:#BF861B,color:#14233D
+    style Session fill:#F8FAFC,stroke:#64748B,color:#14233D
+%% Excepciones reales (no confundidas con el contrato):
+%% ValueError <|-- PortfolioError <|-- ConfigurationError
+%% RuntimeError <|-- ProviderError <|-- DataCoverageError
+%% ProviderError <|-- AlphaVantageQuotaError (retry_at, remote)

@@ -78,6 +78,8 @@ python src/main.py --assets IBM:0.6 MSFT:0.4 --report --benchmark ^IXIC
 | `--seed 42` | Semilla para reproducir la simulación |
 | `--capital 10000` | Capital hipotético al inicio del histórico |
 | `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones |
+| `--report-detail compact` o `--report-detail full` | Informe con secciones plegadas (por defecto) o todo desplegado |
+| `--report-sections summary warnings ...` | Secciones del informe que se incluyen; por defecto, todas (ver [Lectura y selección del informe](#lectura-y-selección-del-informe)) |
 
 Cada peso debe estar entre 0 y 1, incluidos ambos extremos, y todos deben sumar 1.
 Por ejemplo, `IBM:0.6 MSFT:0.4` representa un 60 % y un 40 %. Se admite el redondeo
@@ -509,10 +511,11 @@ completo: si algo falla, no quedan carpetas a medias ni gráficos abiertos.
 
 ## Documentación de arquitectura
 
-[ARQUITECTURA.md](ARQUITECTURA.md) reúne los diagramas en Mermaid, que GitHub muestra
-directamente: vista de componentes, jerarquía de clases en UML, dependencias entre
-paquetes y flujo del sistema (actividad de la consola y secuencias de una ejecución con
-informe y de una consulta a Alpha Vantage con caché y cuota).
+[ARQUITECTURA.md](ARQUITECTURA.md) reúne siete láminas UML: vista de componentes,
+modelo de dominio, contratos y proveedores, contrato de simulación, dependencias entre
+paquetes, actividad de la consola y secuencia de una consulta a Alpha Vantage con caché y
+cuota. Cada lámina está en `diagramas/` como SVG, PNG (para diapositivas), Excalidraw
+editable y Mermaid; [diagramas/README.md](diagramas/README.md) explica cómo regenerarlas.
 
 ## Comprobaciones
 

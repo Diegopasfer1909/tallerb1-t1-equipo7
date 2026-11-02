@@ -1,0 +1,355 @@
+{
+  "generated_at": "2026-10-31T17:49:11.524896+00:00",
+  "head": "c10fe6905839d109759072453b7c8e3c2f0cf535",
+  "basis": "HEAD; src matches the commit",
+  "source_sha256": {
+    "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
+    "src/analysis/__init__.py": "1663ac5b6cb1ec8131559c29db0b1993d1acc77635a0d445b48aa81a9c8d6c40",
+    "src/analysis/messages.py": "c291964a8e4efd62ef24cdfe372fd65bfa416ca4264a6ae2a9da316810fef80f",
+    "src/analysis/metrics.py": "38e1c08ee538925fd8a456f055da4415913845ca35006f65c17618333c265651",
+    "src/analysis/portfolio_analysis.py": "9ec1b6b3f236961d711f5f21c0ee995a62e04a31a115b3fc033893c70efc4d16",
+    "src/analysis/result.py": "1246b4af185eda236aee3c3a9fd55a3c18f23b49469fd278988ed0a6a9f91eb2",
+    "src/analysis/warnings.py": "39f83b6b3e399f55af2799c2034ad75dbee897c5122eca7942dd37aae797bf9a",
+    "src/constants.py": "efb4b220bae16efe06f7aabcf22085b1f577bc528596917364f4f6869fab4755",
+    "src/errors.py": "95a70c46d61c39d6bf0e19ab525259cfa9ae891f534a46f208a664262ffdaefa",
+    "src/main.py": "e770b5d442d7d15c00444cf181a136ca36e38fce544b133f6559c9ffb0dd146b",
+    "src/market_loader.py": "81f6ea363b4b3ae077d4128af20f95611459bfe0c6d5806032122d4dd3ddffbb",
+    "src/models/__init__.py": "5048416cf8506225147ad352ad9a9d143421066a2de0e418f4c7581ef8d6166d",
+    "src/models/asset.py": "3d75b184bb709c33fa9e1882448873b864a148d4ea362aa512e3886e77c5381e",
+    "src/models/asset_profile.py": "6b7758896ce5c89e630840225145954f815b420184cae37da39c75bc6e7006a2",
+    "src/models/backtest.py": "4d853660a20e3dcc502c983cf390cf2e86b5484585354420b239ecc6e82c8eab",
+    "src/models/currency.py": "cdae6a1acf6d728f19224903aeb46f95019244b11d37bd2653e3363fac1b3650",
+    "src/models/economic_indicator.py": "a5fc73987077f3a20c66e19eb3edd6acb0ed2aec629e3ec875c13a5c064bf451",
+    "src/models/notice.py": "e570390f07ec9e88781ceedb1345f8ecf736c39e633366b46d139a90b614b879",
+    "src/models/portfolio.py": "539988ef60bf5f26c9e0407bf44133b4db22af3de9fb1fa652e4fcbab6e7689a",
+    "src/models/price_history.py": "f883ff5eab29d5bbb0c5577c0b1abc35bf29afe1bdba4d2f493c90f11bf7c49f",
+    "src/models/references.py": "fa1e97f1d6a4ad98a8a08c095853010e7d3276d187371e8c99d6156a163adb9d",
+    "src/models/snapshot.py": "e8d2ee8ca30db1dc4792c8afa58d1f5825821d81fa1921cad357e84239e5c996",
+    "src/portfolio_loader.py": "01707c55d5e7501ff789c6b28c7c50ddeaeacb86a8b508132b256116ccf31b7e",
+    "src/providers/__init__.py": "76cc7534fa99afb3937b68cb909b3edb187b20508d2501146ab8b7d4ff3562b3",
+    "src/providers/alpha_quota.py": "9396eefa0494ad015af7fb5254f459c0aef94df9be71d280b1be65917924247f",
+    "src/providers/alpha_vantage.py": "38a42809b90b72dea7739b27c9af7b8befef3fc212674c47d500b40fcc7788a0",
+    "src/providers/base.py": "e39b39bb645e14c1c114649b5ff5ca2fd2cb61c59de3060fe14f942ba2f6ba29",
+    "src/providers/fred.py": "bacf7b8637f79735d20f315c073444b13d59ea6d2be80bdf50714a254e6d3e0b",
+    "src/providers/yahoo.py": "de7805feae15eeee10cdbf9d27e088bb3ac53e8407ace5cfdc8e5f60ec35c28f",
+    "src/reporting/__init__.py": "c088b21cd6984c139589fc42150ac5854c290be3ce399908e380af96a44fa339",
+    "src/reporting/export.py": "428b2516d56f39d896d8f8d0b27909012c4ec83666ec74b1263067a21d9ad021",
+    "src/reporting/formatting.py": "6d41e54e1777c1c4540ec7afff3d0d3373814df5ed6b0734e442e9b37c7b3441",
+    "src/reporting/labels.py": "ecdcbe1d0cd2b094536b74eb60d3ed97d88e958cdcc8945da8724235b4418af3",
+    "src/reporting/plots.py": "06eb1e3f5167a5921ad5329b9a1b960696c05c790086a5117ec15f15495319c8",
+    "src/reporting/report.py": "dc1f2c29fb9e0fc84fdb0d726096dcd68b246d9f6c22cdc9dccca0683c38d73d",
+    "src/reporting/sections.py": "c3a3be5649a2cc382cd0aba4eb10ad34332045e9d345d4218791b2be4d8e9628",
+    "src/reporting/texts.py": "d8e51885a51b0bc939d819475f0187c52cba594b6af6f91a68dbf12177c818b2",
+    "src/simulation/__init__.py": "3c0e28af1beca50840603ab67cd2a8ce8cc19dcc31da02c0c5c8df505c671dd1",
+    "src/simulation/monte_carlo.py": "04d90600a798f4ce3081056607d71ecfa0c3723d0ac9a17175c3f142b741039c",
+    "src/simulation/result.py": "c4ab4749120039996c350070fa04d7cd54aee984379e9d1511c5c389c6b9b8ee",
+    "src/simulation/settings.py": "125e7ce371df9bc4b0bc4facf78b6578f7ad6fbba65fe890fa0d9f612a2154ce",
+    "src/validation.py": "e1d04b97022e5c9f3130706a9184209dd1e14eea737fd4fa0d41fa7ed94f6c66"
+  },
+  "symbols": {
+    "src/__init__.py": [],
+    "src/analysis/__init__.py": [],
+    "src/analysis/messages.py": [],
+    "src/analysis/metrics.py": [
+      "annualized_growth",
+      "annualized_return",
+      "drawdowns",
+      "DrawdownEpisode",
+      "drawdown_episode",
+      "calendar_returns",
+      "correlation_pairs",
+      "performance",
+      "risk_adjusted",
+      "beta",
+      "risk_contributions"
+    ],
+    "src/analysis/portfolio_analysis.py": [
+      "_Measures",
+      "_max_age",
+      "_reference_rate",
+      "_inflation",
+      "_comparable_benchmark",
+      "_benchmark",
+      "_quality",
+      "_asset_details",
+      "_quality_notices",
+      "_reference_table",
+      "analyze_portfolio"
+    ],
+    "src/analysis/result.py": [
+      "PortfolioAnalysis"
+    ],
+    "src/analysis/warnings.py": [
+      "WarningThresholds",
+      "RiskWarning",
+      "evaluate_risk"
+    ],
+    "src/constants.py": [],
+    "src/errors.py": [
+      "PortfolioError",
+      "ConfigurationError"
+    ],
+    "src/main.py": [
+      "ProviderOption",
+      "RunConfig",
+      "parse_values",
+      "_read_weights_file",
+      "_parse_number",
+      "_parse_pair",
+      "parse_assumptions",
+      "_assumption",
+      "build_parser",
+      "parse_arguments",
+      "_build_config",
+      "check_api_keys",
+      "run",
+      "show_plots",
+      "print_portfolio",
+      "print_simulation",
+      "main"
+    ],
+    "src/market_loader.py": [
+      "_days_before",
+      "load_fx_rates",
+      "_fx_rates",
+      "load_fred_fx_rates",
+      "load_market_references",
+      "load_references"
+    ],
+    "src/models/__init__.py": [],
+    "src/models/asset.py": [
+      "Asset"
+    ],
+    "src/models/asset_profile.py": [
+      "AssetProfile"
+    ],
+    "src/models/backtest.py": [
+      "backtest_allocation",
+      "_month_ends"
+    ],
+    "src/models/currency.py": [
+      "ExchangeRate",
+      "FxRates"
+    ],
+    "src/models/economic_indicator.py": [
+      "EconomicIndicator"
+    ],
+    "src/models/notice.py": [
+      "Notice"
+    ],
+    "src/models/portfolio.py": [
+      "Portfolio"
+    ],
+    "src/models/price_history.py": [
+      "period_returns",
+      "PriceHistory",
+      "_copy_of_prices"
+    ],
+    "src/models/references.py": [
+      "MarketReferences"
+    ],
+    "src/models/snapshot.py": [
+      "read_only"
+    ],
+    "src/portfolio_loader.py": [
+      "load_portfolio"
+    ],
+    "src/providers/__init__.py": [],
+    "src/providers/alpha_quota.py": [
+      "rejection_cooldown",
+      "AlphaVantageQuotaError",
+      "AlphaVantageQuota"
+    ],
+    "src/providers/alpha_vantage.py": [
+      "AlphaVantageAPI"
+    ],
+    "src/providers/base.py": [
+      "ProviderError",
+      "DataCoverageError",
+      "PriceProvider",
+      "build_profile",
+      "_number",
+      "has_api_key",
+      "drop_missing_closes",
+      "cache_path",
+      "_is_fresh",
+      "read_cache",
+      "write_cache",
+      "prune_cache",
+      "ApiClient"
+    ],
+    "src/providers/fred.py": [
+      "FredAPI",
+      "_value"
+    ],
+    "src/providers/yahoo.py": [
+      "YahooFinanceAPI",
+      "_frame"
+    ],
+    "src/reporting/__init__.py": [],
+    "src/reporting/export.py": [
+      "save_report",
+      "_new_report_folder",
+      "_check_simulation_matches"
+    ],
+    "src/reporting/formatting.py": [
+      "format_number",
+      "format_points",
+      "format_date",
+      "format_tick"
+    ],
+    "src/reporting/labels.py": [
+      "simulation_labels"
+    ],
+    "src/reporting/plots.py": [
+      "_numbers",
+      "_dates",
+      "plot_analysis",
+      "_plot_value",
+      "_plot_drawdown",
+      "_plot_correlations",
+      "_plot_risk_shares",
+      "plot_risk_return",
+      "plot_assets",
+      "plot_distribution",
+      "plot_simulation",
+      "ChartSpec",
+      "plot_report",
+      "save_charts",
+      "charts_by_section",
+      "close_figures",
+      "show_figures"
+    ],
+    "src/reporting/report.py": [
+      "ReportContext",
+      "_table",
+      "_bullets",
+      "holdings_table",
+      "_asset_information",
+      "_asset_performance",
+      "_asset_fundamentals",
+      "_estimated_parameters",
+      "_portfolio_metrics",
+      "_quality",
+      "_simulation_summary",
+      "_summary",
+      "_observed",
+      "_warning_message",
+      "_warnings",
+      "_drawdown_details",
+      "_calendar_details",
+      "_composition",
+      "_performance",
+      "_diversification",
+      "_simulation",
+      "_data",
+      "build_report"
+    ],
+    "src/reporting/sections.py": [
+      "select_sections"
+    ],
+    "src/reporting/texts.py": [],
+    "src/simulation/__init__.py": [],
+    "src/simulation/monte_carlo.py": [
+      "SimulationInputs",
+      "estimate_parameters",
+      "simulate",
+      "rebalance_interval",
+      "_apply_assumptions",
+      "_prepare_prices",
+      "_prepare_starting_values",
+      "_calculate_covariance",
+      "_covariance_factor",
+      "_generate_paths"
+    ],
+    "src/simulation/result.py": [
+      "SimulationResult"
+    ],
+    "src/simulation/settings.py": [
+      "_assumption_values",
+      "validate_assumptions",
+      "SimulationSettings"
+    ],
+    "src/validation.py": [
+      "is_finite_number",
+      "is_numeric_data",
+      "validate_dates",
+      "date_range",
+      "validate_symbols",
+      "validate_weights",
+      "validate_target_weights",
+      "validate_price_table",
+      "validate_positive_int",
+      "validate_capital",
+      "validate_rebalance",
+      "validate_currency_code"
+    ]
+  },
+  "diagrams": [
+    {
+      "name": "01-arquitectura",
+      "elements": 80,
+      "size": [
+        1920,
+        1330
+      ]
+    },
+    {
+      "name": "02-modelos-dominio",
+      "elements": 109,
+      "size": [
+        2140,
+        1580
+      ]
+    },
+    {
+      "name": "03-proveedores",
+      "elements": 94,
+      "size": [
+        2040,
+        1490
+      ]
+    },
+    {
+      "name": "04-simulacion",
+      "elements": 79,
+      "size": [
+        1920,
+        1380
+      ]
+    },
+    {
+      "name": "05-dependencias",
+      "elements": 83,
+      "size": [
+        2040,
+        1540
+      ]
+    },
+    {
+      "name": "06-flujo-cli",
+      "elements": 125,
+      "size": [
+        1900,
+        2340
+      ]
+    },
+    {
+      "name": "07-secuencia-alpha",
+      "elements": 102,
+      "size": [
+        2160,
+        2200
+      ]
+    }
+  ],
+  "checks": [
+    "unique Excalidraw IDs",
+    "element bounds",
+    "text fits its cards",
+    "SVG XML parses",
+    "PNG decodes",
+    "source stable during render"
+  ],
+  "note": "Mermaid files are independent semantic sources. Visual review is separate from structural validation."
+}

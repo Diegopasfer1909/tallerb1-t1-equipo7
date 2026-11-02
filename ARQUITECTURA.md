@@ -2,7 +2,7 @@
 
 Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** árbol de trabajo local del 31 de octubre de 2026, con cambios sobre `main` **`141bc12`**. No representa exclusivamente el commit. [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas.
+**Referencia:** código del commit **`c10fe69`** (31 de octubre de 2026). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 `FxRates` agrupa pares directos o inversos y `ExchangeRate` añade significado de divisa a un `EconomicIndicator`. `MarketReferences` contiene referencias opcionales de benchmark, inflación y tipo libre de riesgo, además de cambios de divisa para el benchmark. `FxRates.combine()` permite reunirlos con los de la cartera para la comparación.
 
-La versión local incorpora copias defensivas en `PriceHistory`, estadísticas de niveles de precio calculadas al construirlo y protección del almacenamiento numérico de pesos e indicadores. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
+`PriceHistory` guarda copias defensivas y calcula las estadísticas de los niveles de precio al construirse; los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
 
 **Fuentes:** [models/portfolio.py](src/models/portfolio.py), [asset.py](src/models/asset.py), [price_history.py](src/models/price_history.py), [currency.py](src/models/currency.py), [references.py](src/models/references.py), [snapshot.py](src/models/snapshot.py).
 
@@ -143,6 +143,6 @@ Los rechazos remotos pasan por `on_rejection`; el control de cuota puede persist
 
 [La guía de diagramas](diagramas/README.md) explica cómo editar y regenerar las láminas. Excalidraw conserva elementos editables; SVG es la vista vectorial y PNG sirve para insertar en diapositivas. Los `.mmd` recogen el modelo semántico en Mermaid; su disposición automática no pretende reproducir exactamente la composición gráfica.
 
-El generador mantiene **Excalidraw, SVG y PNG**. Mermaid se mantiene manualmente y debe revisarse junto al código. Los diagramas anteriores de `docs/diagramas/` quedan como material histórico, no como la referencia vigente. El respaldo del documento anterior se conserva fuera del repositorio en `../.codex-backups/arquitectura-2026-10-31-antes-diagramas.md`.
+El generador mantiene **Excalidraw, SVG y PNG**. Mermaid se mantiene manualmente y debe revisarse junto al código.
 
 Los diagramas documentan contratos y decisiones observados. Su generación y comprobación visual no equivalen a ejecutar consultas reales de proveedores ni a certificar todos los comportamientos de la práctica.

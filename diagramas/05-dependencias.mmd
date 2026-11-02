@@ -1,0 +1,78 @@
+%% Imports internos extraídos del AST. Tres vistas separadas evitan confundir
+%% importación al cargar un módulo, importación al llamar y anotaciones de tipos.
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B","clusterBkg":"#F8FAFC","clusterBorder":"#CBD5E1"},"flowchart":{"curve":"basis","nodeSpacing":30,"rankSpacing":50}}}%%
+flowchart TB
+    accTitle: B1-T1 · Dependencias entre paquetes
+    accDescr: Imports de módulo sin ciclos, imports diferidos de conveniencia e imports exclusivos de TYPE_CHECKING.
+    subgraph MODULE["A · IMPORTS DE MÓDULO · grafo acíclico"]
+        direction TB
+        M["main"]:::navy
+        PL["portfolio_loader"]:::blue
+        ML["market_loader"]:::blue
+        P["providers"]:::teal
+        D["models"]:::blue
+        A["analysis"]:::violet
+        S["simulation"]:::violet
+        R["reporting"]:::violet
+        M --> PL
+        M --> ML
+        M --> P
+        M --> D
+        M --> A
+        M --> S
+        M --> R
+        PL --> ML
+        PL --> P
+        PL --> D
+        ML --> P
+        ML --> D
+        P --> D
+        A --> D
+        A --> S
+        D --> S
+    end
+    subgraph DEFERRED["B · IMPORTS DIFERIDOS · al llamar al método"]
+        direction LR
+        DD["models"]:::blue
+        DA["analysis"]:::violet
+        DS["simulation"]:::violet
+        DR["reporting"]:::violet
+        DD -. "Portfolio.analyze()" .-> DA
+        DD -. "Portfolio.report(): sections" .-> DR
+        DA -. "markdown() · report()<br/>plot() · plots_report()" .-> DR
+        DS -. "SimulationResult.plot()" .-> DR
+    end
+    subgraph TYPES["C · TYPE_CHECKING · solo anotaciones, sin import runtime"]
+        direction LR
+        TD["models"]:::blue
+        TA["analysis"]:::violet
+        TS["simulation"]:::violet
+        TR["reporting"]:::violet
+        TD -. "tipos" .-> TA
+        TA -. "tipos" .-> TD
+        TR -. "tipos" .-> TA
+        TR -. "tipos" .-> TS
+    end
+    CORE["Infraestructura transversal<br/>constants · errors · validation<br/>validation importa constants y errors"]:::amber
+    classDef navy fill:#14233D,stroke:#14233D,color:#FFFFFF;
+    classDef blue fill:#EAF2FF,stroke:#356CC9,color:#14233D;
+    classDef teal fill:#E4F7F3,stroke:#168575,color:#14233D;
+    classDef violet fill:#F0EBFF,stroke:#7953BF,color:#14233D;
+    classDef amber fill:#FFF3D9,stroke:#BF861B,color:#14233D;
+    linkStyle 16,17,18,19 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
+    linkStyle 20,21,22,23 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
+
+%% Imports transversales omitidos visualmente:
+%% origen           | constants | errors | validation
+%% main             | sí        | sí     | sí
+%% portfolio_loader | sí        | no     | sí
+%% market_loader    | sí        | sí     | no
+%% providers        | sí        | sí     | sí
+%% models           | sí        | sí     | sí
+%% analysis         | sí        | sí     | sí
+%% simulation       | sí        | sí     | sí
+%% reporting        | sí        | sí     | sí
+%% validation       | sí        | sí     | --
+%% constants y errors no importan otros paquetes internos.
+%% 4 aristas diferidas = 7 sentencias de importación.
+%% Los imports internos dentro del mismo paquete no se representan.

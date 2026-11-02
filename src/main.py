@@ -13,7 +13,7 @@ from src.analysis import PortfolioAnalysis
 from src.constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
 from src.errors import ConfigurationError, PortfolioError
 from src.market_loader import REPORT_DEFAULTS, load_market_references, load_references
-from src.models import Portfolio
+from src.models import MarketReferences, Portfolio
 from src.portfolio_loader import load_portfolio
 from src.providers import (
     ALPHA_VANTAGE_KEY,
@@ -384,28 +384,7 @@ def run(config: RunConfig) -> None:
         print_simulation(simulation)
     if not (config.report or config.plots_report):
         return
-    # Las referencias económicas solo se descargan para el informe; los gráficos solo
-    # necesitan el índice, y únicamente si se elige uno.
-    references = None
-    if config.report:
-        references = load_references(
-            portfolio.currency,
-            config.start,
-            config.end,
-            benchmark_symbol=config.benchmark,
-            cache_dir=CACHE_DIR,
-        )
-    elif config.benchmark:
-        references = load_market_references(
-            config.start,
-            config.end,
-            benchmark_symbol=config.benchmark,
-            cache_dir=CACHE_DIR,
-            currency=portfolio.currency,
-        )
-        for notice in references.notices:
-            print(f"Aviso: {notice.message}", file=sys.stderr)
-    analysis = portfolio.analyze(references)
+    analysis = portfolio.analyze(load_run_references(config, portfolio.currency))
     if config.report:
         path = analysis.report(
             simulation,
@@ -416,6 +395,31 @@ def run(config: RunConfig) -> None:
         print(f"Informe generado: {path.resolve()}")
     if config.plots_report:
         show_plots(analysis, simulation)
+
+
+def load_run_references(config: RunConfig, currency: str) -> MarketReferences | None:
+    """El informe usa todas las referencias; los gráficos, solo el índice elegido, si lo hay."""
+    if config.report:
+        return load_references(
+            currency,
+            config.start,
+            config.end,
+            benchmark_symbol=config.benchmark,
+            cache_dir=CACHE_DIR,
+        )
+    if not config.benchmark:
+        return None
+    references = load_market_references(
+        config.start,
+        config.end,
+        benchmark_symbol=config.benchmark,
+        cache_dir=CACHE_DIR,
+        currency=currency,
+    )
+    # Sin informe no hay otro lugar donde explicar por qué falta la comparación.
+    for notice in references.notices:
+        print(f"Aviso: {notice.message}", file=sys.stderr)
+    return references
 
 
 def show_plots(analysis: PortfolioAnalysis, simulation: SimulationResult | None = None) -> None:

@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2160" height="2200" viewBox="0 0 2160 2200" role="img">
+<title>07-secuencia-alpha</title>
+<desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
+<rect x="0" y="0" width="2160" height="2200" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="2200" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
+<text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Una consulta a Alpha Vantage</text>
+<text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML de secuencia · caché, reserva persistente de cuota y transporte HTTP</text>
+<rect x="2014" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="2033.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">07</text>
+<rect x="50" y="250" width="360" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="51" y="251" width="7" height="128" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="297.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">AlphaVantageAPI</text>
+<text x="74" y="335.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">adaptador</text>
+<polyline points="230,380 230,2020" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="470" y="250" width="360" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="471" y="251" width="7" height="128" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="494" y="297.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">ApiClient</text>
+<text x="494" y="335.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">get_json()</text>
+<polyline points="650,380 650,2020" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="870" y="250" width="360" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="871" y="251" width="7" height="128" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="894" y="297.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Caché local</text>
+<text x="894" y="335.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">JSON + TTL</text>
+<polyline points="1050,380 1050,2020" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="1290" y="250" width="360" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1291" y="251" width="7" height="128" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1314" y="297.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">AlphaVantageQuota</text>
+<text x="1314" y="335.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">SQLite</text>
+<polyline points="1470,380 1470,2020" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="1750" y="250" width="360" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1751" y="251" width="7" height="128" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1774" y="297.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Session HTTP</text>
+<text x="1774" y="335.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">requests</text>
+<polyline points="1930,380 1930,2020" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="230,450 650,450" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="636.4932934647098,456.52448301166845 650,450 636.4932934647098,443.47551698833155" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="331.0" y="412" width="218.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="338.0" y="434.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">get_json(url, params)</text>
+<polyline points="650,515 1050,515" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1036.49329346471,521.5244830116685 1050,515 1036.49329346471,508.47551698833155" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="762.5" y="477" width="175.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="769.5" y="499.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">read_cache(key)</text>
+<polyline points="1050,585 650,585" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="663.5067065352902,578.4755169883315 650,585 663.5067065352902,591.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="743.5" y="547" width="213.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="750.5" y="569.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">contenido / ausencia</text>
+<rect x="65" y="630" width="2030" height="1390" rx="0" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<rect x="73" y="637" width="35.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="79" y="658.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#142D43">alt</text>
+<rect x="94" y="676" width="160.0" height="36.16" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="699.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#087D76">[caché vigente]</text>
+<polyline points="650,750 230,750" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="243.50670653529016,743.4755169883315 230,750 243.50670653529016,756.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="311.5" y="712" width="257.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="318.5" y="734.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">JSON sin consumir cuota</text>
+<polyline points="65,810 2095,810" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="94" y="837" width="285.0" height="36.16" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="100" y="860.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#2464AD">[caché ausente o caducada]</text>
+<polyline points="650,920 730,920 730,962 650,962" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="663.5067065352902,955.4755169883315 650,962 663.5067065352902,968.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
+<rect x="754" y="915" width="299.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="760" y="937.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Esperar intervalo local ≥ 1,1 s</text>
+<polyline points="650,1040 1470,1040" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1456.49329346471,1046.5244830116685 1470,1040 1456.49329346471,1033.4755169883315" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="921.0" y="1002" width="278.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="928.0" y="1024.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">before_request → reserve()</text>
+<rect x="1504" y="1075" width="202.984375" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1510" y="1097.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Transacción SQLite</text>
+<text x="1510" y="1124.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">BEGIN IMMEDIATE</text>
+<rect x="100" y="1140" width="1940" height="190" rx="0" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<rect x="108" y="1147" width="447.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="114" y="1168.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#142D43">break [bloqueo, cuota agotada o fallo al persistir]</text>
+<polyline points="1470,1225 650,1225" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="663.5067065352902,1218.4755169883315 650,1225 663.5067065352902,1231.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="940.0" y="1187" width="240.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="947.0" y="1209.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">rechazo antes de la red</text>
+<polyline points="650,1290 230,1290" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="243.50670653529016,1283.4755169883315 230,1290 243.50670653529016,1296.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="297.5" y="1252" width="285.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="304.5" y="1274.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">excepción; no se envía GET</text>
+<polyline points="1470,1410 650,1410" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="663.5067065352902,1403.4755169883315 650,1410 663.5067065352902,1416.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="960.5" y="1372" width="199.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="967.5" y="1394.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">reserva confirmada</text>
+<polyline points="650,1490 1930,1490" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1916.49329346471,1496.5244830116685 1930,1490 1916.49329346471,1483.4755169883315" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1115.0" y="1452" width="350.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1122.0" y="1474.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">GET · timeout=30 · redirects=False</text>
+<polyline points="1930,1570 650,1570" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="663.5067065352902,1563.4755169883315 650,1570 663.5067065352902,1576.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1204.0" y="1532" width="172.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1211.0" y="1554.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">respuesta / error</text>
+<rect x="100" y="1620" width="1940" height="350" rx="0" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<rect x="108" y="1627" width="35.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="114" y="1648.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#142D43">alt</text>
+<rect x="114" y="1655" width="184.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="120" y="1677.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#087D76">[respuesta válida]</text>
+<polyline points="650,1725 1050,1725" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1036.49329346471,1731.5244830116685 1050,1725 1036.49329346471,1718.4755169883315" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="737.5" y="1687" width="225.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="744.5" y="1709.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">write_cache() atómico</text>
+<polyline points="650,1785 230,1785" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="243.50670653529016,1778.4755169883315 230,1785 243.50670653529016,1791.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="405.0" y="1747" width="70.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="412.0" y="1769.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">JSON</text>
+<polyline points="100,1820 2040,1820" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<rect x="114" y="1835" width="66.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="120" y="1857.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#B34545">[fallo]</text>
+<polyline points="650,1900 1470,1900" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1456.49329346471,1906.5244830116685 1470,1900 1456.49329346471,1893.4755169883315" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="896.0" y="1862" width="328.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="903.0" y="1884.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">si cuota / 429: handle_rejection()</text>
+<polyline points="650,1950 230,1950" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="243.50670653529016,1943.4755169883315 230,1950 243.50670653529016,1956.5244830116685" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="322.0" y="1912" width="236.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="329.0" y="1934.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">excepción normalizada</text>
+<text x="82" y="2074.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">El intento fallido conserva su reserva.  ·  Cuota local: 25 intentos / 24 h.  ·  Bloqueo remoto: 24 h (diario) o 60 s (ritmo).</text>
+<polyline points="72,2110 2088,2110" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="2146.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Una consulta OVERVIEW es independiente; su fallo puede anotarse en AssetProfile.issue manteniendo los precios. Caché y cuota usan almacenes distintos.</text>
+</svg>
