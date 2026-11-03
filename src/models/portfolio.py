@@ -27,6 +27,7 @@ from ..validation import (
     validate_currency_code,
     validate_rebalance,
     validate_symbols,
+    validate_units,
     validate_weights,
 )
 from .asset import Asset
@@ -50,6 +51,10 @@ class Portfolio:
     de crearse: los historiales, los tipos de cambio y los pesos no se pueden modificar, por lo
     que la valoración se calcula una sola vez por columna de precios. Para otra composición,
     crea otra cartera, por ejemplo con dataclasses.replace().
+
+    units guarda el número de acciones de una cartera creada con from_units(); en ese caso
+    no hay rebalanceo y los pesos objetivo son los pesos iniciales que resultan de las
+    cantidades.
     """
 
     assets: Sequence[Asset]
@@ -58,6 +63,7 @@ class Portfolio:
     fx_rates: FxRates = field(default_factory=FxRates)
     initial_capital: float = DEFAULT_CAPITAL
     rebalance: Rebalance = MONTHLY
+    units: Mapping[str, float] | pd.Series | None = None
     _cache: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -80,8 +86,12 @@ class Portfolio:
                 "Todos los activos deben utilizar la misma divisa y unidad de cotización; en caso "
                 "contrario, indica la divisa del informe y los tipos de cambio."
             )
+        if self.units is not None:
+            object.__setattr__(self, "units", self._ordered_units())
         # Comprueba al crear la cartera que haya fechas comunes y tipos de cambio suficientes.
         self.close_prices()
+        if self.units is not None:
+            self._check_units_match_weights()
 
     @classmethod
     def from_units(
@@ -103,13 +113,20 @@ class Portfolio:
         first = cls(assets, equal, reporting_currency, fx_rates, rebalance=None).close_prices()
         if set(units) != set(first.columns):
             raise PortfolioError("Indica una cantidad por cada activo.")
+        validate_units(list(units.values()))
         amounts = first.iloc[0] * pd.Series(units, dtype=float)
         capital = float(amounts.sum())
         if not capital > 0:
             raise PortfolioError("Las cantidades deben tener un valor inicial positivo.")
         weights = (amounts / capital).to_dict()
         return cls(
-            assets, weights, reporting_currency, fx_rates, initial_capital=capital, rebalance=None
+            assets,
+            weights,
+            reporting_currency,
+            fx_rates,
+            initial_capital=capital,
+            rebalance=None,
+            units=units,
         )
 
     def _ordered_weights(self) -> pd.Series:
@@ -125,13 +142,45 @@ class Portfolio:
         ordered = pd.Series(values, index=symbols, dtype=float)
         return read_only(ordered / ordered.sum())
 
+    def _ordered_units(self) -> pd.Series:
+        """Una cantidad por activo, en su orden; solo tiene sentido sin rebalanceo."""
+        if not isinstance(self.units, Mapping | pd.Series):
+            raise TypeError("Indica las cantidades como un diccionario {símbolo: acciones}.")
+        units = dict(self.units)
+        symbols = [asset.symbol for asset in self.assets]
+        if set(units) != set(symbols):
+            raise PortfolioError("Indica una cantidad por cada activo.")
+        values = [units[symbol] for symbol in symbols]
+        validate_units(values)
+        if self.rebalance is not None:
+            raise PortfolioError(
+                "Una cartera definida por número de acciones no se rebalancea: las cantidades "
+                "no cambian."
+            )
+        return read_only(pd.Series(values, index=symbols, dtype=float, name="shares"))
+
+    def _check_units_match_weights(self) -> None:
+        """Los pesos deben ser los que resultan de las cantidades en la primera fecha común."""
+        amounts = self._prices(CLOSE).iloc[0] * self.units
+        implied = amounts / amounts.sum()
+        if not np.allclose(implied.to_numpy(), self.target_weights.to_numpy(), atol=1e-9):
+            raise PortfolioError(
+                "Los pesos no corresponden a las cantidades; crea la cartera con from_units()."
+            )
+
     @property
     def currency(self) -> str:
         return self.reporting_currency or self.assets[0].currency
 
     @property
     def preferred_price_column(self) -> PriceColumn:
-        """Adj Close incluye dividendos en las rentabilidades, si lo publican todos los activos."""
+        """Adj Close incluye dividendos en las rentabilidades, si lo publican todos los activos.
+
+        Una cartera definida por número de acciones usa Close: así su valor es exactamente el
+        número de acciones por el precio, sin dividendos reinvertidos que no se han comprado.
+        """
+        if self.units is not None:
+            return CLOSE
         available = all(ADJ_CLOSE in asset.history.prices.columns for asset in self.assets)
         return ADJ_CLOSE if available else CLOSE
 
@@ -170,6 +219,9 @@ class Portfolio:
                 "weight": values / total,
             }
         )
+        if self.units is not None:
+            # Una copia: compartir memoria permitiría modificar units a través de la tabla.
+            table.insert(0, "shares", self.units.copy())
         return table.rename_axis("asset")
 
     def returns(self, log: bool = False, price_column: PriceColumn = CLOSE) -> pd.DataFrame:

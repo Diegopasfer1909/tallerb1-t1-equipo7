@@ -16,7 +16,14 @@ import pandas as pd
 import requests
 
 from src.errors import ConfigurationError
-from src.main import build_parser, check_api_keys, main, parse_arguments, parse_values
+from src.main import (
+    build_parser,
+    check_api_keys,
+    main,
+    parse_arguments,
+    parse_shares,
+    parse_values,
+)
 from src.models import (
     AssetProfile,
     EconomicIndicator,
@@ -236,6 +243,78 @@ class MainTests(unittest.TestCase):
         self.assertIn("Valor total: 10.000,00 USD", output.getvalue())
         self.assertIn("Peso objetivo", output.getvalue())
         write_file.assert_not_called()
+
+    def test_shares_define_the_portfolio_by_number_of_shares(self):
+        msft = PriceHistory(
+            "MSFT",
+            "yahoo",
+            pd.DataFrame(
+                {"Close": [200, 210, 190, 250], "Adj Close": [190, 200, 185, 250]},
+                index=self.dates,
+            ),
+            profile=AssetProfile(currency="USD", name="Microsoft"),
+        )
+        histories = {"IBM": self.history, "MSFT": msft}
+        with tempfile.TemporaryDirectory() as folder:
+            reports = Path(folder) / "informes"
+            with (
+                patch("src.main.load_dotenv"),
+                patch("src.main.YahooFinanceAPI") as yahoo,
+                patch("src.main.load_references", return_value=MarketReferences()),
+                redirect_stdout(io.StringIO()) as output,
+                redirect_stderr(io.StringIO()),
+            ):
+                yahoo.return_value.get_prices.side_effect = lambda symbol, *a, **k: histories[
+                    symbol
+                ]
+                arguments = ["--shares", "IBM:10", "MSFT:2", "--report", "--simulate"]
+                self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
+            report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
+        # Valor = acciones × precio de cierre: 10 × 100 + 2 × 250 al final; 10 × 100 + 2 × 200
+        # al principio. Adj Close no se usa, para no sumar dividendos.
+        self.assertIn("Valor total: 1.500,00 USD", output.getvalue())
+        self.assertIn("Valor inicial de las acciones (01/01/2026): 1.400,00 USD", output.getvalue())
+        self.assertIn("Acciones", output.getvalue())
+        self.assertIn("Peso inicial", report)
+        self.assertIn("Valor final de 1.400,00 USD", report)
+        self.assertIn("número de acciones fijo", report)
+        self.assertIn("--shares IBM:10 MSFT:2", report)
+        self.assertNotIn("Rebalanceo mensual", report)
+
+    def test_shares_are_parsed_from_console_and_files(self):
+        self.assertEqual(parse_shares(["AAPL:10", "SPY:2.5"]), {"AAPL": 10, "SPY": 2.5})
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "acciones.txt"
+            path.write_text("# Mi cartera\nAAPL:10\nSPY:2.5\n", encoding="utf-8")
+            self.assertEqual(parse_shares([str(path)]), {"AAPL": 10, "SPY": 2.5})
+        config = parse_arguments(
+            ["--shares", "AAPL:10", "SPY:5", "--simulate", "--return", "spy:0.07"]
+        )
+        self.assertEqual(config.shares, {"AAPL": 10, "SPY": 5})
+        self.assertIsNone(config.rebalance)
+        self.assertEqual(config.simulation.expected_returns, {"SPY": 0.07})
+
+    def test_invalid_shares_fail_before_downloading(self):
+        invalid = [
+            ["--shares", "AAPL:-1"],
+            ["--shares", "AAPL:0"],
+            ["--shares", "AAPL"],
+            ["--shares", "AAPL:10", "aapl:5"],
+            ["--shares", "AAPL:10", "--assets", "AAPL:1"],
+            ["--shares", "AAPL:10", "--capital", "5000"],
+            ["--shares", "AAPL:10", "--rebalance", "monthly"],
+        ]
+        for arguments in invalid:
+            with (
+                self.subTest(arguments=arguments),
+                patch("src.main.load_dotenv"),
+                patch("src.main.YahooFinanceAPI") as yahoo,
+                redirect_stderr(io.StringIO()),
+            ):
+                with self.assertRaises(SystemExit) as error:
+                    main(arguments)
+                self.assertEqual(error.exception.code, 2)
+                yahoo.assert_not_called()
 
     def test_simulation_uses_internal_defaults(self):
         with (

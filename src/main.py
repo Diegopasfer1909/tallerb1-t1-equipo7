@@ -19,7 +19,7 @@ from src.market_loader import (
     load_risk_free_rate,
 )
 from src.models import MarketReferences, Portfolio
-from src.portfolio_loader import load_portfolio
+from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
 from src.providers import (
     ALPHA_VANTAGE_KEY,
     FRED_KEY,
@@ -39,6 +39,7 @@ from src.validation import (
     validate_capital,
     validate_currency_code,
     validate_symbols,
+    validate_units,
     validate_weights,
 )
 
@@ -90,21 +91,35 @@ class RunConfig:
     report_detail: str
     output_dir: Path | None
     benchmark: str | None = None
+    # Con --shares, número de acciones por símbolo; weights queda vacío.
+    shares: dict[str, float] | None = None
 
 
 def parse_values(items: list[str]) -> dict[str, float]:
     """Interpreta los pesos indicados en consola o en un archivo de texto."""
+    weights = _parse_allocation(items, "PESO", "IBM:0.6")
+    validate_weights(list(weights.values()))
+    return weights
+
+
+def parse_shares(items: list[str]) -> dict[str, float]:
+    """Interpreta el número de acciones de cada activo, en consola o en un archivo de texto."""
+    shares = _parse_allocation(items, "ACCIONES", "AAPL:10")
+    validate_units(list(shares.values()))
+    return shares
+
+
+def _parse_allocation(items: list[str], value_name: str, example: str) -> dict[str, float]:
+    """Lee pares SÍMBOLO:VALOR de la consola o de un único archivo .txt."""
     if len(items) == 1 and items[0].lower().endswith(".txt"):
         items = _read_weights_file(Path(items[0]).expanduser())
     elif any(item.lower().endswith(".txt") for item in items):
         raise PortfolioError(
-            "Indica un solo archivo .txt o los pesos en consola, sin mezclar ambos formatos."
+            "Indica un solo archivo .txt o los valores en consola, sin mezclar ambos formatos."
         )
-    pairs = [_parse_pair(item) for item in items]
+    pairs = [_parse_pair(item, value_name, example) for item in items]
     validate_symbols(symbol for symbol, _ in pairs)
-    weights = dict(pairs)
-    validate_weights(list(weights.values()))
-    return weights
+    return dict(pairs)
 
 
 def _read_weights_file(path: Path) -> list[str]:
@@ -125,14 +140,14 @@ def _parse_number(text: str) -> float | None:
         return None
 
 
-def _parse_pair(item: str) -> tuple[str, float]:
+def _parse_pair(item: str, value_name: str = "PESO", example: str = "IBM:0.6") -> tuple[str, float]:
     symbol, separator, text = item.rpartition(":")
-    weight = _parse_number(text) if separator else None
-    if weight is None:
+    value = _parse_number(text) if separator else None
+    if value is None:
         raise PortfolioError(
-            f"Usa el formato SÍMBOLO:PESO, por ejemplo IBM:0.6. Has indicado: {item!r}."
+            f"Usa el formato SÍMBOLO:{value_name}, por ejemplo {example}. Has indicado: {item!r}."
         )
-    return symbol.strip(), weight
+    return symbol.strip(), value
 
 
 def parse_assumptions(items: list[str] | None, weights: dict[str, float]):
@@ -171,12 +186,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Proveedor de precios: yahoo (sin clave, por defecto) o alpha_vantage "
         f"(necesita {ALPHA_VANTAGE_KEY})",
     )
-    options.add_argument(
+    # La cartera se define por pesos o por número de acciones, nunca por ambos.
+    composition = options.add_mutually_exclusive_group(required=True)
+    composition.add_argument(
         "--assets",
         nargs="+",
-        required=True,
         metavar="SÍMBOLO:PESO",
         help="Pesos objetivo, por ejemplo IBM:0.6 MSFT:0.4, o la ruta de un archivo .txt",
+    )
+    composition.add_argument(
+        "--shares",
+        nargs="+",
+        metavar="SÍMBOLO:ACCIONES",
+        help="Número de acciones de cada activo, por ejemplo AAPL:10 SPY:5, o la ruta de un "
+        "archivo .txt. Se mantienen durante todo el historial, sin rebalanceo",
     )
     options.add_argument(
         "--start",
@@ -256,14 +279,12 @@ def build_parser() -> argparse.ArgumentParser:
     options.add_argument(
         "--capital",
         type=float,
-        default=DEFAULT_CAPITAL,
-        help=f"Capital hipotético inicial ({DEFAULT_CAPITAL})",
+        help=f"Capital hipotético inicial ({DEFAULT_CAPITAL}); no se usa con --shares",
     )
     options.add_argument(
         "--rebalance",
         choices=["monthly", "none"],
-        default="monthly",
-        help="Rebalanceo mensual o sin reajustes",
+        help="Rebalanceo mensual (por defecto) o sin reajustes; no se usa con --shares",
     )
     options.add_argument(
         "--return",
@@ -306,12 +327,23 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         (date.today() - timedelta(days=provider.default_history_days)).isoformat()
     )
     date_range(start, args.end)
-    weights = parse_values(args.assets)
+    shares = None
+    if args.shares is not None:
+        if args.capital is not None or args.rebalance is not None:
+            raise PortfolioError(
+                "--capital y --rebalance no se usan con --shares: el valor inicial sale del "
+                "número de acciones y las cantidades no se reajustan."
+            )
+        shares = parse_shares(args.shares)
+        weights = {}
+    else:
+        weights = parse_values(args.assets)
+    capital = DEFAULT_CAPITAL if args.capital is None else args.capital
     options = {
         name: getattr(args, name) for name in SIMULATION_OPTIONS if getattr(args, name) is not None
     }
     for name in ("expected_returns", "volatilities"):
-        assumption = parse_assumptions(getattr(args, name), weights)
+        assumption = parse_assumptions(getattr(args, name), shares or weights)
         if assumption is not None:
             options[name] = assumption
     if options and not run_simulation:
@@ -325,7 +357,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
             raise PortfolioError("--benchmark requiere --report o --plots-report.")
         validate_symbols([args.benchmark])
         benchmark = args.benchmark.strip()
-    validate_capital(args.capital)
+    validate_capital(capital)
     currency = args.currency.strip().upper()
     if currency:
         validate_currency_code(currency, "La divisa de destino")
@@ -335,8 +367,8 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         start=start,
         end=args.end,
         currency=currency,
-        capital=args.capital,
-        rebalance=None if args.rebalance == "none" else MONTHLY,
+        capital=capital,
+        rebalance=None if shares is not None or args.rebalance == "none" else MONTHLY,
         simulation=SimulationSettings(**options) if run_simulation else None,
         report=args.report,
         plots_report=args.plots_report,
@@ -344,6 +376,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         report_detail=detail,
         output_dir=args.output_dir,
         benchmark=benchmark,
+        shares=shares,
     )
 
 
@@ -378,16 +411,26 @@ def run(config: RunConfig) -> None:
     fx_provider = None
     if config.currency:
         fx_provider = YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False)
-    portfolio = load_portfolio(
-        config.weights,
-        PROVIDERS[config.provider].create(),
-        config.start,
-        config.end,
-        reporting_currency=config.currency,
-        initial_capital=config.capital,
-        rebalance=config.rebalance,
-        fx_provider=fx_provider,
-    )
+    if config.shares is not None:
+        portfolio = load_portfolio_from_shares(
+            config.shares,
+            PROVIDERS[config.provider].create(),
+            config.start,
+            config.end,
+            reporting_currency=config.currency,
+            fx_provider=fx_provider,
+        )
+    else:
+        portfolio = load_portfolio(
+            config.weights,
+            PROVIDERS[config.provider].create(),
+            config.start,
+            config.end,
+            reporting_currency=config.currency,
+            initial_capital=config.capital,
+            rebalance=config.rebalance,
+            fx_provider=fx_provider,
+        )
     # Con Adj Close las rentabilidades, la simulación y el informe incluyen los dividendos.
     price_column = portfolio.preferred_price_column
     print_portfolio(portfolio, price_column)
@@ -462,8 +505,18 @@ def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> 
     holdings = portfolio.holdings(price_column)
     print(f"Fecha de valoración: {format_date(portfolio.valuation_date)} ({currency})")
     print(holdings_table(holdings).to_string())
-    print(f"Capital hipotético inicial: {format_number(portfolio.initial_capital)} {currency}")
-    print("Rebalanceo: mensual" if portfolio.rebalance == MONTHLY else "Rebalanceo: sin reajustes")
+    if portfolio.units is not None:
+        start = format_date(portfolio.close_prices().index[0])
+        print(
+            f"Valor inicial de las acciones ({start}): "
+            f"{format_number(portfolio.initial_capital)} {currency}"
+        )
+        print("Rebalanceo: sin reajustes (el número de acciones no cambia)")
+    else:
+        print(f"Capital hipotético inicial: {format_number(portfolio.initial_capital)} {currency}")
+        print(
+            "Rebalanceo: mensual" if portfolio.rebalance == MONTHLY else "Rebalanceo: sin reajustes"
+        )
     print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
     print(f"Fechas con precios para todos los activos: {len(portfolio.close_prices())}")
 

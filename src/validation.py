@@ -70,6 +70,16 @@ def validate_weights(weights: list[float]) -> None:
         raise PortfolioError("Los pesos deben sumar 1. Por ejemplo: IBM:0.6 MSFT:0.4.")
 
 
+def validate_units(units: list[float]) -> None:
+    """Número de acciones de cada activo: no negativo, y al menos uno positivo."""
+    if not units:
+        raise PortfolioError("Indica al menos un activo y su número de acciones.")
+    if not all(is_finite_number(amount) and amount >= 0 for amount in units):
+        raise PortfolioError("Cada número de acciones debe ser un número positivo o cero.")
+    if not any(amount > 0 for amount in units):
+        raise PortfolioError("Indica al menos un activo con un número de acciones positivo.")
+
+
 def validate_target_weights(weights: pd.Series, columns: pd.Index) -> np.ndarray:
     """Exige un peso por columna y los devuelve en el mismo orden que las columnas."""
     if not weights.index.is_unique or set(weights.index) != set(columns):

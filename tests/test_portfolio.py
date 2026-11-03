@@ -2,6 +2,7 @@
 
 import tempfile
 import unittest
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -12,7 +13,7 @@ import pandas as pd
 
 import src.models.portfolio as portfolio_module
 from src.models import Asset, AssetProfile, Portfolio, PriceHistory
-from src.portfolio_loader import load_portfolio
+from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
 from src.providers import AlphaVantageAPI, YahooFinanceAPI
 
 asset = partial(fixtures.asset, start="2026-10-01")
@@ -155,6 +156,49 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(portfolio.total_value, 2000)
         with self.assertRaisesRegex(ValueError, "una cantidad por cada activo"):
             Portfolio.from_units([a, b], {"A": 10})
+
+    def test_units_are_kept_and_shown_in_holdings(self):
+        a = asset("A", [80, 90, 100])
+        b = asset("B", [40, 45, 50])
+        portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 2.5})
+        holdings = portfolio.holdings()
+        self.assertEqual(list(holdings.columns)[0], "shares")
+        np.testing.assert_allclose(holdings["shares"], [10, 2.5])
+        # El valor final es el número de acciones por el último precio.
+        np.testing.assert_allclose(holdings["value"], [1000, 125])
+        with self.assertRaises(ValueError):
+            portfolio.units["A"] = 1
+        self.assertNotIn("shares", Portfolio([a, b], {"A": 0.5, "B": 0.5}).holdings())
+
+    def test_invalid_units_are_rejected(self):
+        a = asset("A", [80, 90, 100])
+        b = asset("B", [40, 45, 50])
+        for units in ({"A": -1, "B": 2}, {"A": 0, "B": 0}, {"A": float("nan"), "B": 1}):
+            with self.subTest(units=units), self.assertRaises(ValueError):
+                Portfolio.from_units([a, b], units)
+        portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 20})
+        with self.assertRaisesRegex(ValueError, "no se rebalancea"):
+            replace(portfolio, rebalance="monthly")
+        with self.assertRaisesRegex(ValueError, "no corresponden a las cantidades"):
+            replace(portfolio, target_weights={"A": 0.9, "B": 0.1})
+
+    def test_load_portfolio_from_shares_downloads_each_symbol_once(self):
+        provider = Mock(spec=YahooFinanceAPI)
+        histories = {
+            "A": fixtures.history("A", [80, 90, 100]),
+            "B": fixtures.history("B", [40, 45, 50]),
+        }
+        provider.get_prices.side_effect = lambda symbol, *args, **kwargs: histories[symbol]
+        portfolio = load_portfolio_from_shares(
+            {"A": 10, "B": 20}, provider, "2026-01-01", "2026-01-04"
+        )
+        self.assertEqual(provider.get_prices.call_count, 2)
+        self.assertEqual(portfolio.initial_capital, 1600)
+        self.assertEqual(portfolio.total_value, 2000)
+        self.assertIsNone(portfolio.rebalance)
+        with self.assertRaises(ValueError):
+            load_portfolio_from_shares({"A": -1}, provider, "2026-01-01", "2026-01-04")
+        self.assertEqual(provider.get_prices.call_count, 2)
 
     def test_reject_mixed_currencies_and_minor_price_units(self):
         for first, second in [("USD", "EUR"), ("GBP", "GBp")]:

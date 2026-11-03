@@ -16,6 +16,12 @@ NOMINAL_RETURNS_NOTE = (
 # Composición
 DAILY_VALUES_NOTE = "Valores diarios: se entienden mejor anualizados en las secciones 4 y 5."
 CONVERTED_PRICES_NOTE = "Precios convertidos a {currency}."
+SHARES_NOTE = (
+    "Cartera definida por número de acciones: el importe inicial es el valor de esas acciones en "
+    "la primera fecha y los pesos iniciales resultan de él. Las cantidades no cambian (sin "
+    "rebalanceo) y se valoran con el precio de cierre sin ajustar, de modo que el valor de cada "
+    "posición es su número de acciones por el precio; no se suman dividendos."
+)
 COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
     "se permite invertir en fracciones de cada activo: operar esta cartera rendiría menos."
@@ -45,7 +51,7 @@ SIMULATION_CUSTOM_CRITERIA = (
     "cambiarlos, ejecuta `{command}`."
 )
 SIMULATION_COMMAND = (
-    "python src/main.py --assets {assets} --simulate --simulations 50000 --steps 126 "
+    "python src/main.py {option} {assets} --simulate --simulations 50000 --steps 126 "
     "--equity-premium 0.04 --volatility 0.2 --confidence 0.99 --seed 7 --report"
 )
 SIMULATION_START_NOTE = (
