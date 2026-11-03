@@ -295,6 +295,40 @@ class ReportSelectionTests(unittest.TestCase):
             self.assertEqual(list(Path(folder).iterdir()), [])
         self.assertEqual(plt.get_fignums(), [])
 
+    def test_export_retries_when_windows_briefly_locks_the_folder(self):
+        # El antivirus de Windows puede bloquear un gráfico recién guardado unos instantes.
+        rename = Path.rename
+        attempts = []
+
+        def locked_twice(source, target):
+            attempts.append(target)
+            if len(attempts) <= 2:
+                raise PermissionError("[WinError 5] Acceso denegado")
+            return rename(source, target)
+
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.object(Path, "rename", locked_twice),
+            patch("src.reporting.export.time.sleep") as wait,
+        ):
+            path = self.analysis.report(sections=["summary"], directory=folder)
+            self.assertTrue(path.exists())
+            self.assertEqual([p.name for p in Path(folder).iterdir()], [path.parent.name])
+        self.assertEqual(len(attempts), 3)
+        self.assertEqual(wait.call_count, 2)
+
+    def test_export_gives_up_cleanly_if_the_folder_stays_locked(self):
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            patch.object(Path, "rename", side_effect=PermissionError("Acceso denegado")),
+            patch("src.reporting.export.time.sleep") as wait,
+        ):
+            with self.assertRaises(PermissionError):
+                self.analysis.report(sections=["summary"], directory=folder)
+            self.assertEqual(list(Path(folder).iterdir()), [])
+        self.assertEqual(wait.call_count, 5)
+        self.assertEqual(plt.get_fignums(), [])
+
     def test_reports_default_to_a_folder_in_the_current_directory(self):
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as folder:

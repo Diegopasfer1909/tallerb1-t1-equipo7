@@ -1,6 +1,9 @@
 """Precios históricos y ficha del activo en Yahoo Finance."""
 
 import json
+import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -70,7 +73,8 @@ class YahooFinanceAPI:
             return cached
         try:
             ticker = yf.Ticker(symbol)
-            info = dict(ticker.get_info())
+            with _quiet_yfinance():
+                info = dict(ticker.get_info())
         except Exception:
             # yfinance no documenta sus excepciones; se traducen al error común.
             raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.") from None
@@ -130,9 +134,12 @@ class YahooFinanceAPI:
                 pass
 
         try:
-            history = yf.Ticker(symbol).history(
-                start=first.date().isoformat(), end=last.date().isoformat(), auto_adjust=adjusted
-            )
+            with _quiet_yfinance():
+                history = yf.Ticker(symbol).history(
+                    start=first.date().isoformat(),
+                    end=last.date().isoformat(),
+                    auto_adjust=adjusted,
+                )
         except Exception:
             # yfinance no documenta sus excepciones; se traducen al error común.
             raise ProviderError(f"Yahoo no ha podido descargar los precios de {symbol}.") from None
@@ -158,10 +165,25 @@ class YahooFinanceAPI:
         return history
 
 
+@contextmanager
+def _quiet_yfinance() -> Iterator[None]:
+    """Oculta los avisos de obsolescencia que yfinance provoca en pandas 3 (Pandas4Warning).
+
+    Son internos de yfinance, no afectan a los datos y llenan la consola en cada descarga.
+    Solo se ocultan los avisos originados en el código de yfinance; los demás se muestran.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"yfinance(\.|$)")
+        warnings.filterwarnings("ignore", category=FutureWarning, module=r"yfinance(\.|$)")
+        yield
+
+
 def _asset_classes(ticker) -> dict | None:
     """La composición es complementaria: sin ella, el activo queda sin clasificar."""
     try:
-        return {name: float(value) for name, value in ticker.funds_data.asset_classes.items()}
+        with _quiet_yfinance():
+            classes = ticker.funds_data.asset_classes
+        return {name: float(value) for name, value in classes.items()}
     except Exception:
         # yfinance no documenta sus excepciones.
         return None

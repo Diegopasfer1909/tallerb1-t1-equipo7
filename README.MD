@@ -5,6 +5,36 @@ uno. El programa consulta sus precios y la información de las empresas y analiz
 una cartera hipotética con rebalanceo mensual. Genera gráficos, simulaciones de
 Monte Carlo e informes en español.
 
+## Inicio rápido
+
+**Requisitos previos:** [Python](https://www.python.org/downloads/) 3.11 o posterior y
+[Git](https://git-scm.com/downloads). No hace falta ninguna clave de API. En Windows, al
+instalar Python, marca «Add Python to PATH».
+
+```bash
+git clone https://github.com/Diegopasfer1909/tallerb1-t1-equipo7.git
+cd tallerb1-t1-equipo7
+python -m venv .venv
+```
+
+Activa el entorno (cada vez que abras una terminal nueva):
+
+| Sistema | Comando |
+| --- | --- |
+| Windows (PowerShell) | `.\.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `source .venv/bin/activate` |
+
+Instala el proyecto y genera un primer informe con la cartera de ejemplo:
+
+```bash
+python -m pip install -e .
+python src/main.py --assets cartera_ejemplo.txt --simulate --report
+```
+
+En consola aparecen las posiciones y el resumen de la simulación; el informe Markdown y sus
+gráficos se guardan en una carpeta nueva dentro de `informes/`, cuya ruta se indica al final.
+Ábrelo con cualquier visor de Markdown (en VS Code, `Ctrl+Shift+V`).
+
 ## Instalación
 
 El proyecto admite Python 3.11 o posterior. El equipo desarrolla y comprueba con
@@ -12,13 +42,32 @@ Python 3.14, indicado en `.python-version`; es la versión recomendada para
 obtener los mismos resultados. Desde la carpeta del proyecto:
 
 ```powershell
+# Windows (PowerShell)
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 ```
 
-La instalación editable permite ejecutar el archivo principal utilizando los
-paquetes de `src`. Al trasladar el proyecto, recrea el entorno e instala de nuevo.
+```bash
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+`[dev]` añade Ruff, la herramienta de comprobación de código; para usar el programa basta
+con `python -m pip install -e .`. La instalación editable permite ejecutar el archivo
+principal utilizando los paquetes de `src`. Al trasladar el proyecto, recrea el entorno e
+instala de nuevo.
+
+### Problemas frecuentes
+
+| Mensaje | Solución |
+| --- | --- |
+| `python` no se reconoce (macOS / Linux) | Usa `python3` para crear el entorno; una vez activado, `python` ya funciona |
+| «la ejecución de scripts está deshabilitada» al activar el entorno (Windows) | Ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y vuelve a activarlo |
+| `Yahoo no ha podido descargar los precios` | Yahoo limita las consultas seguidas: espera unos minutos y repite; las respuestas ya descargadas se reutilizan desde la caché |
+| Aviso de que falta `FRED_API_KEY` | No es un error: el informe se genera sin las medidas que dependen de FRED (ver [Claves de API](#claves-de-api-opcionales)) |
 
 ### Claves de API (opcionales)
 

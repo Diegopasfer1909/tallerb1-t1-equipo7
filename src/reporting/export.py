@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -58,13 +59,31 @@ def save_report(
             )
             target = _new_report_folder(reports, generated_on)
             (staging / f"{target.name}.md").write_text(text, encoding="utf-8")
-            staging.rename(target)
+            _publish(staging, target)
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
             raise
     finally:
         close_figures(figures)
     return target / f"{target.name}.md"
+
+
+# En Windows, el antivirus o el indexador pueden tener abierto un gráfico recién guardado
+# durante unos instantes; renombrar la carpeta en ese momento da «Acceso denegado».
+PUBLISH_ATTEMPTS = 6
+PUBLISH_WAIT_SECONDS = 0.5
+
+
+def _publish(staging: Path, target: Path) -> None:
+    """Renombra la carpeta temporal a la definitiva, reintentando si está bloqueada."""
+    for attempt in range(1, PUBLISH_ATTEMPTS + 1):
+        try:
+            staging.rename(target)
+            return
+        except PermissionError:
+            if attempt == PUBLISH_ATTEMPTS:
+                raise
+            time.sleep(PUBLISH_WAIT_SECONDS)
 
 
 def _new_report_folder(reports: Path, generated_on: datetime) -> Path:
