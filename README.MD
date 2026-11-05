@@ -121,7 +121,7 @@ python src/main.py --shares AAPL:10 SPY:5 --simulate --report
 | `--output-dir CARPETA` | Carpeta de los informes; por defecto, `informes` dentro de la carpeta actual |
 | `--currency EUR` | Convertir los precios y las posiciones a la divisa indicada |
 | `--benchmark ^IXIC` | Índice o fondo de Yahoo Finance contra el que comparar la cartera, en lugar del predeterminado por divisa; requiere `--report` o `--plots-report` |
-| `--steps 252` | Sesiones futuras de la simulación |
+| `--steps 252` | Sesiones futuras de la simulación; por defecto, un año (252, o 365 si la cartera es solo cripto) |
 | `--simulations 10000` | Número de escenarios |
 | `--equity-premium 0.045` | Retorno anual de la renta variable sobre el tipo libre de riesgo |
 | `--return 0.08` | Retorno anual μ para todos los activos |
@@ -131,7 +131,7 @@ python src/main.py --shares AAPL:10 SPY:5 --simulate --report
 | `--confidence 0.95` | Confianza de las medidas de cola VaR y CVaR; debe estar entre 0,5 y 1 |
 | `--seed 42` | Semilla para reproducir la simulación |
 | `--capital 10000` | Capital hipotético al inicio del histórico; no se usa con `--shares` |
-| `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones; no se usa con `--shares` |
+| `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones; por defecto, `monthly` con `--assets` y `none` con `--shares` |
 | `--report-detail compact` o `--report-detail full` | Informe con secciones plegadas (por defecto) o todo desplegado |
 | `--report-sections summary warnings ...` | Secciones del informe que se incluyen; por defecto, todas (ver [Lectura y selección del informe](#lectura-y-selección-del-informe)) |
 
@@ -168,21 +168,33 @@ En lugar de pesos, puedes indicar cuántas acciones o participaciones tienes de 
 ```powershell
 python src/main.py --shares AAPL:10 SPY:5 MSFT:2.5 --simulate --report
 python src/main.py --shares SAN.MC:100 ITX.MC:20 SPY:5 --currency EUR --report
+python src/main.py --shares AAPL:10 SPY:5 --rebalance monthly --report
 ```
 
 También puedes usar un archivo `.txt` con el mismo formato que los pesos, una línea por
 activo (`AAPL:10`). `--assets` y `--shares` no se pueden combinar. Cada cantidad debe ser
 positiva: incluye solo los activos que tienes.
 
-- El valor de la cartera es el número de acciones por el último precio de cierre.
+Por defecto, sin rebalanceo:
+
 - El historial supone que se han mantenido esas mismas acciones durante todo el período,
-  sin compras, ventas ni rebalanceo. Los pesos iniciales resultan de las cantidades en la
-  primera fecha común y los actuales, de su evolución.
-- Se valora con `Close`, no con `Adj Close`: así cada posición vale exactamente sus
-  acciones por su precio. Los dividendos cobrados no se suman.
+  sin compras ni ventas. Los pesos iniciales resultan de las cantidades en la primera
+  fecha común y los actuales, de su evolución.
+- Las rentabilidades, el riesgo, Monte Carlo y el informe usan `Adj Close`, como cualquier
+  cartera: los dividendos se reinvierten y no se infravalora la rentabilidad. Por eso el
+  valor de la cartera incluye esos dividendos.
+- La consola y el informe muestran además el valor de mercado de las acciones: su número
+  por el último precio de cierre, el que mostraría un bróker.
 - Monte Carlo parte del valor actual y tampoco rebalancea: las cantidades no cambian.
-- `--capital` y `--rebalance` no se admiten con `--shares`, porque el valor inicial sale de
-  las cantidades y estas no se reajustan.
+
+Con `--rebalance monthly`, las acciones indicadas son la cartera de la primera fecha común
+y cada mes se vuelve a los pesos que tenían ese día. Equivale a `--assets` con esos pesos y
+`--capital` igual a su valor inicial: las cantidades cambian cada mes, el valor actual ya no
+es acciones × precio y Monte Carlo rebalancea igual que con pesos.
+
+En los dos casos:
+
+- `--capital` no se admite con `--shares`, porque el valor inicial sale de las cantidades.
 - Solo con Yahoo Finance: Alpha Vantage publica cierres sin ajustar por splits, y un split
   dentro del período multiplicaría el valor de las fechas anteriores.
 - El programa no conoce el precio ni la fecha de compra: la rentabilidad se mide desde el
@@ -191,9 +203,10 @@ positiva: incluye solo los activos que tienes.
 Desde Python, `load_portfolio_from_shares({"AAPL": 10, "SPY": 5}, YahooFinanceAPI(), inicio,
 fin)` (en `src.portfolio_loader`) descarga los precios y crea la cartera con
 `Portfolio.from_units()`; `portfolio.units` conserva las cantidades y
-`portfolio.holdings()` las muestra en la columna `shares`. Si analizas esa cartera con
-`price_column="Adj Close"`, los dividendos se reinvierten: el valor deja de ser acciones ×
-precio, así que `holdings()` no incluye esa columna y el informe lo explica.
+`portfolio.holdings()` las muestra en la columna `shares`. Con
+`price_column="Adj Close"`, la que usa el programa, `holdings()` añade `market_value`
+(acciones × último cierre) y `value` incluye los dividendos reinvertidos; con
+`price_column="Close"`, ambos coinciden y los dividendos no se suman.
 
 ## Capital de referencia y rebalanceo mensual
 
@@ -219,7 +232,8 @@ el orden de los activos y `portfolio.current_weights` muestra los pesos al final
 histórico. El capital se puede cambiar con `initial_capital`, que se valida al crear
 la cartera, y se puede analizar una estrategia sin reajustes con `rebalance=None`.
 `Portfolio.from_units(assets, {"IBM": 10, "MSFT": 5})` crea una cartera sin
-rebalanceo a partir de las cantidades de cada activo.
+rebalanceo a partir de las cantidades de cada activo; con `rebalance="monthly"`, vuelve
+cada mes a los pesos que resultan de esas cantidades en la primera fecha común.
 
 La cartera no cambia después de crearse, por lo que su valoración se calcula una sola
 vez y se reutiliza en cada consulta. No basta con declararla `frozen`: consulta
@@ -311,10 +325,13 @@ invalida toda la descarga: se descarta y el informe lo indica.
 `mean` y `std` se calculan con los precios cada vez que se consultan, por lo que
 siempre corresponden a los datos. Los modelos no se modifican después de crearse.
 
-La consola trabaja con precios diarios. Si construyes historiales con otra
-frecuencia, indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()`
-(por ejemplo, 12 para datos mensuales); el análisis avisa si las fechas no
-parecen diarias y se anualiza con 252 períodos.
+La consola trabaja con precios diarios y anualiza con 252 sesiones. Si las fechas
+comunes incluyen los fines de semana, como en una cartera solo de criptomonedas, usa
+365 días: el horizonte por defecto de Monte Carlo pasa a 365 días y el rebalanceo
+mensual, a cada 30. Una cartera que mezcla criptomonedas y acciones solo conserva
+sesiones bursátiles y sigue con 252. Si construyes historiales con otra frecuencia,
+indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()` (por ejemplo,
+12 para datos mensuales); el análisis avisa si las fechas no parecen diarias.
 
 ## Parámetros de Monte Carlo
 
@@ -472,8 +489,9 @@ internacionales.
 
 Las rentabilidades, la simulación y el informe utilizan Adj Close, que incluye los
 dividendos, cuando lo publican todos los activos; si no, usan Close y el informe lo indica
-en la sección de calidad de los datos. Se toman 252 períodos por año. La simulación de
-Monte Carlo genera por defecto 10.000 escenarios de 252 períodos, con la semilla 42,
+en la sección de calidad de los datos. Se toman 252 períodos por año, o 365 si la cartera
+es solo de criptomonedas. La simulación de Monte Carlo genera por defecto 10.000 escenarios
+de un año (252 sesiones, o 365 días), con la semilla 42,
 volatilidad histórica y el retorno explicado en "Parámetros de Monte Carlo". El informe indica
 si se han usado estos criterios y qué comando los cambia. Salvo la rentabilidad real, todas las
 cifras son nominales: incluyen dividendos y no descuentan la inflación.
@@ -550,7 +568,8 @@ los resultados, cada medida declara cómo trata el tiempo:
   fechas extremas, de modo que perder fechas intermedias no lo cambia. La cartera y el
   índice se comparan entre las mismas fechas extremas.
 - **Dispersión** (volatilidad, Sharpe, Sortino, VaR por período y los μ y σ de Monte Carlo):
-  se calcula por observación y se escala con `periods_per_year` (252 por defecto). Supone
+  se calcula por observación y se escala con `periods_per_year` (252 por defecto; 365 si
+  las fechas incluyen los fines de semana, como en una cartera solo de criptomonedas). Supone
   observaciones regulares. El informe avisa si la separación típica supera cinco días o si
   hay menos del 90 % de las observaciones esperadas para la duración del historial.
 - **Historial corto**: se mide en días naturales (menos de 350), no en número de

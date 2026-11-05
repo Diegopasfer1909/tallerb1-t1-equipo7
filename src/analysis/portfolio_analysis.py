@@ -19,6 +19,7 @@ from ..constants import (
     PriceColumn,
 )
 from ..errors import PortfolioError
+from ..frequency import periods_per_year as dates_periods_per_year
 from ..models import EconomicIndicator, FxRates, MarketReferences, Notice, PriceHistory
 from ..models.price_history import period_returns
 from ..simulation import estimate_parameters
@@ -405,16 +406,27 @@ def _reference_table(references: MarketReferences, fx_rates: FxRates) -> pd.Data
     return pd.DataFrame(rows, columns=["reference", "series", "source"]).set_index("reference")
 
 
+def _periods_per_year(periods_per_year: int | None, dates: pd.DatetimeIndex) -> int:
+    """El valor indicado o, si falta, el que corresponde a las fechas comunes."""
+    if periods_per_year is None:
+        return dates_periods_per_year(dates)
+    validate_positive_int("periods_per_year", periods_per_year)
+    return periods_per_year
+
+
 def analyze_portfolio(
     portfolio: "Portfolio",
     references: MarketReferences | None = None,
     *,
-    periods_per_year: int = PERIODS_PER_YEAR,
+    periods_per_year: int | None = None,
     price_column: PriceColumn = CLOSE,
     warning_thresholds: WarningThresholds | None = None,
 ) -> PortfolioAnalysis:
-    """Calcula los resultados históricos sin descargas; las referencias son opcionales."""
-    validate_positive_int("periods_per_year", periods_per_year)
+    """Calcula los resultados históricos sin descargas; las referencias son opcionales.
+
+    Sin periods_per_year, se anualiza con 252 sesiones, o con 365 días si los precios
+    incluyen los fines de semana, como en una cartera solo de criptomonedas.
+    """
     if warning_thresholds is not None and not isinstance(warning_thresholds, WarningThresholds):
         raise TypeError("warning_thresholds debe ser WarningThresholds.")
     if references is not None and not isinstance(references, MarketReferences):
@@ -427,6 +439,7 @@ def analyze_portfolio(
             "Para realizar el análisis hacen falta precios de todos los activos en al menos "
             "tres fechas."
         )
+    periods_per_year = _periods_per_year(periods_per_year, prices.index)
     values = portfolio.position_values(price_column).sum(axis=1).rename("portfolio_value")
     if not np.isfinite(values).all() or (values <= 0).any():
         raise PortfolioError("Los valores históricos de la cartera deben ser positivos y finitos.")

@@ -211,7 +211,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="+",
         metavar="SÍMBOLO:ACCIONES",
         help="Número de acciones de cada activo, por ejemplo AAPL:10 SPY:5, o la ruta de un "
-        "archivo .txt. Se mantienen durante todo el historial, sin rebalanceo",
+        "archivo .txt. Se mantienen durante todo el historial, salvo con --rebalance monthly",
     )
     options.add_argument(
         "--start",
@@ -272,7 +272,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Secciones del informe; por defecto, todas",
     )
     options.add_argument(
-        "--steps", type=int, help=f"Sesiones futuras de Monte Carlo ({defaults.steps})"
+        "--steps",
+        type=int,
+        help="Sesiones futuras de Monte Carlo (un año: 252, o 365 si la cartera es solo cripto)",
     )
     options.add_argument(
         "--simulations", type=int, help=f"Número de escenarios ({defaults.simulations})"
@@ -296,7 +298,8 @@ def build_parser() -> argparse.ArgumentParser:
     options.add_argument(
         "--rebalance",
         choices=["monthly", "none"],
-        help="Rebalanceo mensual (por defecto) o sin reajustes; no se usa con --shares",
+        help="Rebalanceo mensual o sin reajustes. Por defecto, mensual con --assets y sin "
+        "reajustes con --shares; con --shares, monthly vuelve cada mes a los pesos iniciales",
     )
     options.add_argument(
         "--return",
@@ -341,10 +344,9 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     date_range(start, args.end)
     weights = shares = None
     if args.shares is not None:
-        if args.capital is not None or args.rebalance is not None:
+        if args.capital is not None:
             raise PortfolioError(
-                "--capital y --rebalance no se usan con --shares: el valor inicial sale del "
-                "número de acciones y las cantidades no se reajustan."
+                "--capital no se usa con --shares: el valor inicial sale del número de acciones."
             )
         if not provider.split_adjusted:
             raise PortfolioError(
@@ -373,7 +375,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         end=args.end,
         currency=currency,
         capital=capital,
-        rebalance=None if shares is not None or args.rebalance == "none" else MONTHLY,
+        rebalance=_rebalance(args.rebalance, by_shares=shares is not None),
         simulation=SimulationSettings(**options) if run_simulation else None,
         report=args.report,
         plots_report=args.plots_report,
@@ -383,6 +385,13 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         benchmark=benchmark,
         shares=shares,
     )
+
+
+def _rebalance(option: str | None, by_shares: bool) -> Rebalance:
+    """Mensual por defecto con pesos; con acciones, solo si se pide."""
+    if option is None:
+        return None if by_shares else MONTHLY
+    return MONTHLY if option == "monthly" else None
 
 
 def _simulation_options(
@@ -443,6 +452,7 @@ def run(config: RunConfig) -> None:
             config.end,
             reporting_currency=config.currency,
             fx_provider=fx_provider,
+            rebalance=config.rebalance,
         )
     else:
         portfolio = load_portfolio(
@@ -528,20 +538,31 @@ def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> 
     currency = portfolio.currency
     holdings = portfolio.holdings(price_column)
     print(f"Fecha de valoración: {format_date(portfolio.valuation_date)} ({currency})")
-    print(holdings_table(holdings, by_shares=portfolio.units is not None).to_string())
+    print(holdings_table(holdings, by_shares=portfolio.fixed_units).to_string())
     if portfolio.units is not None:
         start = format_date(portfolio.close_prices().index[0])
         print(
             f"Valor inicial de las acciones ({start}): "
             f"{format_number(portfolio.initial_capital)} {currency}"
         )
-        print("Rebalanceo: sin reajustes (el número de acciones no cambia)")
+        print(
+            "Rebalanceo: sin reajustes (el número de acciones no cambia)"
+            if portfolio.fixed_units
+            else "Rebalanceo: mensual, a los pesos iniciales de las acciones"
+        )
     else:
         print(f"Capital hipotético inicial: {format_number(portfolio.initial_capital)} {currency}")
         print(
             "Rebalanceo: mensual" if portfolio.rebalance == MONTHLY else "Rebalanceo: sin reajustes"
         )
-    print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
+    if "market_value" in holdings:
+        print(
+            f"Valor de mercado de las acciones (acciones × último cierre): "
+            f"{format_number(holdings['market_value'].sum())} {currency}"
+        )
+        print(f"Valor total con dividendos: {format_number(holdings['value'].sum())} {currency}")
+    else:
+        print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
     print(f"Fechas con precios para todos los activos: {len(portfolio.close_prices())}")
 
 

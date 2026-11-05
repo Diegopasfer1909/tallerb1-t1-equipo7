@@ -15,13 +15,17 @@ import src.models.portfolio as portfolio_module
 from src.models import Asset, AssetProfile, Portfolio, PriceHistory
 from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
 from src.providers import AlphaVantageAPI, YahooFinanceAPI
+from src.reporting.report import holdings_table
 
 asset = partial(fixtures.asset, start="2026-10-01")
 
 
 class PortfolioTests(unittest.TestCase):
     def test_report_accepts_parameters_and_matches_a_direct_simulation(self):
-        portfolio = Portfolio([asset("A", [100, 101, 100])], {"A": 1}, initial_capital=100)
+        sessions = pd.bdate_range("2026-10-01", periods=3)
+        portfolio = Portfolio(
+            [asset("A", [100, 101, 100], dates=sessions)], {"A": 1}, initial_capital=100
+        )
         options = dict(
             steps=21, simulations=5, expected_returns=0.08, volatilities=0, confidence=0.99, seed=7
         )
@@ -170,18 +174,24 @@ class PortfolioTests(unittest.TestCase):
             portfolio.units["A"] = 1
         self.assertNotIn("shares", Portfolio([a, b], {"A": 0.5, "B": 0.5}).holdings())
 
-    def test_shares_are_only_shown_when_value_is_shares_times_price(self):
+    def test_shares_include_dividends_and_show_their_market_value(self):
         data = fixtures.history("A", [100, 100, 100], extra={"Adj Close": [90, 95, 100]})
         portfolio = Portfolio.from_units([Asset(data)], {"A": 10})
-        self.assertEqual(portfolio.preferred_price_column, "Close")
+        # Como cualquier cartera, las rentabilidades incluyen los dividendos.
+        self.assertEqual(portfolio.preferred_price_column, "Adj Close")
         close = portfolio.holdings("Close")
         self.assertEqual(
             close.loc["A", "shares"] * close.loc["A", "price"], close.loc["A", "value"]
         )
-        # Con Adj Close se reinvierten los dividendos: 10 acciones ya no explican el valor.
+        self.assertNotIn("market_value", close)
+        # Con Adj Close se reinvierten los dividendos: el valor de mercado se muestra aparte.
         adjusted = portfolio.holdings("Adj Close")
-        self.assertNotIn("shares", adjusted)
+        self.assertEqual(adjusted.loc["A", "shares"], 10)
+        self.assertEqual(adjusted.loc["A", "market_value"], 1000)
         self.assertAlmostEqual(adjusted.loc["A", "value"], 1000 * 100 / 90)
+        table = holdings_table(adjusted, by_shares=True)
+        self.assertEqual(table.loc["A", "Valor de mercado"], "1.000,00")
+        self.assertEqual(table.loc["A", "Valor con dividendos"], "1.111,11")
 
     def test_invalid_units_are_rejected(self):
         a = asset("A", [80, 90, 100])
@@ -196,10 +206,32 @@ class PortfolioTests(unittest.TestCase):
             with self.subTest(units=units), self.assertRaises(ValueError):
                 Portfolio.from_units([a, b], units)
         portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 20})
-        with self.assertRaisesRegex(ValueError, "no se rebalancea"):
-            replace(portfolio, rebalance="monthly")
         with self.assertRaisesRegex(ValueError, "no corresponden a las cantidades"):
             replace(portfolio, target_weights={"A": 0.9, "B": 0.1})
+
+    def test_units_with_rebalancing_return_to_the_initial_weights(self):
+        dates = pd.to_datetime(["2026-01-29", "2026-01-30", "2026-02-02", "2026-02-27"])
+        a = asset("A", [80, 100, 100, 120], dates=dates, extra={"Adj Close": [80, 100, 101, 121]})
+        b = asset("B", [40, 40, 40, 40], dates=dates, extra={"Adj Close": [40, 40, 40, 40]})
+        portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 20}, rebalance="monthly")
+        self.assertEqual(portfolio.rebalance, "monthly")
+        self.assertFalse(portfolio.fixed_units)
+        np.testing.assert_allclose(portfolio.target_weights, [0.5, 0.5])
+        # Equivale a la cartera por pesos con el mismo capital inicial.
+        weights = Portfolio([a, b], {"A": 0.5, "B": 0.5}, initial_capital=1600)
+        for column in ("Close", "Adj Close"):
+            pd.testing.assert_frame_equal(
+                portfolio.position_values(column), weights.position_values(column)
+            )
+        # El 30/01 cierra el mes: se vuelve al 50 % y las 10 acciones de A dejan de serlo.
+        self.assertNotAlmostEqual(portfolio.holdings().loc["A", "value"], 10 * 120)
+        self.assertNotIn("shares", portfolio.holdings())
+        self.assertEqual(portfolio.preferred_price_column, "Adj Close")
+        np.testing.assert_allclose(portfolio.simulation_inputs().rebalance_weights, [0.5, 0.5])
+        fixed = replace(portfolio, rebalance=None)
+        self.assertTrue(fixed.fixed_units)
+        # Rebalancear no cambia el tratamiento de los dividendos.
+        self.assertEqual(fixed.preferred_price_column, "Adj Close")
 
     def test_load_portfolio_from_shares_downloads_each_symbol_once(self):
         provider = Mock(spec=YahooFinanceAPI)
@@ -216,9 +248,15 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(portfolio.initial_capital, 1600)
         self.assertEqual(portfolio.total_value, 2000)
         self.assertIsNone(portfolio.rebalance)
+        rebalanced = load_portfolio_from_shares(
+            {"A": 10, "B": 20}, provider, "2026-01-01", "2026-01-04", rebalance="monthly"
+        )
+        self.assertEqual(rebalanced.rebalance, "monthly")
+        self.assertEqual(rebalanced.initial_capital, 1600)
+        self.assertEqual(provider.get_prices.call_count, 4)
         with self.assertRaises(ValueError):
             load_portfolio_from_shares({"A": -1}, provider, "2026-01-01", "2026-01-04")
-        self.assertEqual(provider.get_prices.call_count, 2)
+        self.assertEqual(provider.get_prices.call_count, 4)
         # Con cierres sin ajustar, un split en el período falsearía el valor de las acciones.
         with self.assertRaisesRegex(ValueError, "sin ajustar por splits \\(C\\)"):
             load_portfolio_from_shares({"A": 1, "C": 1}, provider, "2026-01-01", "2026-01-04")
