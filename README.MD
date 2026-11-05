@@ -5,6 +5,38 @@ uno. El programa consulta sus precios y la información de las empresas y analiz
 una cartera hipotética con rebalanceo mensual. Genera gráficos, simulaciones de
 Monte Carlo e informes en español.
 
+## Inicio rápido
+
+**Requisitos previos:** [Python](https://www.python.org/downloads/) 3.11 o posterior y
+[Git](https://git-scm.com/downloads). No hace falta ninguna clave de API. En Windows, al
+instalar Python, marca «Add Python to PATH».
+
+```bash
+git clone https://github.com/Diegopasfer1909/tallerb1-t1-equipo7.git
+cd tallerb1-t1-equipo7
+```
+
+Crea el entorno virtual una vez y actívalo cada vez que abras una terminal nueva:
+
+| Sistema | Crear (una vez) | Activar |
+| --- | --- | --- |
+| Windows (PowerShell) | `python -m venv .venv` | `.\.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `python3 -m venv .venv` | `source .venv/bin/activate` |
+
+Con el entorno activado, `python` funciona igual en todos los sistemas. Instala el proyecto
+y genera un primer informe con la cartera de ejemplo:
+
+```bash
+python -m pip install -e .
+python src/main.py --assets cartera_ejemplo.txt --simulate --report
+```
+
+En consola aparecen las posiciones y el resumen de la simulación; el informe Markdown y sus
+gráficos se guardan en una carpeta nueva dentro de `informes/`, cuya ruta se indica al final.
+Ábrelo con cualquier visor de Markdown (en VS Code, `Ctrl+Shift+V`). Si prefieres indicar
+cuántas acciones tienes de cada activo en lugar de pesos, usa `--shares` (por ejemplo,
+`--shares AAPL:10 SPY:5`; ver [Cartera por número de acciones](#cartera-por-número-de-acciones)).
+
 ## Instalación
 
 El proyecto admite Python 3.11 o posterior. El equipo desarrolla y comprueba con
@@ -12,13 +44,33 @@ Python 3.14, indicado en `.python-version`; es la versión recomendada para
 obtener los mismos resultados. Desde la carpeta del proyecto:
 
 ```powershell
+# Windows (PowerShell)
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 ```
 
-La instalación editable permite ejecutar el archivo principal utilizando los
-paquetes de `src`. Al trasladar el proyecto, recrea el entorno e instala de nuevo.
+```bash
+# macOS / Linux
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+`[dev]` añade Ruff, la herramienta de comprobación de código; para usar el programa basta
+con `python -m pip install -e .`. La instalación editable permite ejecutar el archivo
+principal utilizando los paquetes de `src`. Al trasladar el proyecto, recrea el entorno e
+instala de nuevo.
+
+### Problemas frecuentes
+
+| Mensaje | Solución |
+| --- | --- |
+| `python` no se reconoce (macOS / Linux) | Usa `python3` para crear el entorno; una vez activado, `python` ya funciona |
+| `python` no se reconoce o abre la Microsoft Store (Windows) | Crea el entorno con `py -m venv .venv`, o reinstala Python marcando «Add Python to PATH» |
+| «la ejecución de scripts está deshabilitada» al activar el entorno (Windows) | Ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y vuelve a activarlo |
+| `Yahoo no ha podido descargar los precios` | Yahoo limita las consultas seguidas: espera unos minutos y repite; las respuestas ya descargadas se reutilizan desde la caché |
+| Aviso de que falta `FRED_API_KEY` | No es un error: el informe se genera sin las medidas que dependen de FRED (ver [Claves de API](#claves-de-api-opcionales)) |
 
 ### Claves de API (opcionales)
 

@@ -11,10 +11,9 @@ build/
 dist/
 *.egg-info/
 informes/
-docs
 arquitectura
 
-# Rama Carlos
+# Archivos locales de pruebas: no se suben al repositorio
 taller1/
 informe/
 src/example.json

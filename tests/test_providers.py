@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -446,6 +447,33 @@ class ProviderTests(unittest.TestCase):
         with self.assertRaises(ProviderError):
             FredAPI("test-key", session=session).get_series("DGS10", "2026-10-22", "2026-10-25")
         self.assertEqual(session.get.call_count, 1)
+
+    def test_yfinance_deprecation_noise_is_hidden_but_other_warnings_are_not(self):
+        # Con pandas 3, yfinance provoca avisos Pandas4Warning en cada descarga.
+        def noisy_history(**kwargs):
+            warnings.warn_explicit(
+                "The inplace keyword is deprecated",
+                DeprecationWarning,
+                "utils.py",
+                1,
+                module="yfinance.utils",
+            )
+            warnings.warn("aviso propio", UserWarning, stacklevel=1)
+            return pd.DataFrame(
+                {"Close": [10.0, 11.0]},
+                index=pd.DatetimeIndex(["2026-10-22", "2026-10-23"]),
+            )
+
+        with (
+            patch("src.providers.yahoo.yf.Ticker") as ticker,
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always")
+            ticker.return_value.history.side_effect = noisy_history
+            YahooFinanceAPI(include_info=False).get_prices("IBM", "2026-10-22", "2026-10-24")
+        messages = [str(warning.message) for warning in caught]
+        self.assertNotIn("The inplace keyword is deprecated", messages)
+        self.assertIn("aviso propio", messages)
 
 
 if __name__ == "__main__":
