@@ -9,7 +9,7 @@ El usuario trabaja con la consola (`src/main.py`) o con `Portfolio`. La capa de 
 ```mermaid
 flowchart TB
     usuario(["Usuario"])
-    main["main.py · --assets --report --simulate --benchmark..."]
+    main["main.py · --assets o --shares --report --simulate --benchmark..."]
     loaders["portfolio_loader · market_loader"]
 
     subgraph providers["providers · se conectan a las APIs"]
