@@ -593,7 +593,7 @@ def _simulation_criteria(simulation: SimulationResult, analysis: PortfolioAnalys
         source != "supuesto"
         and historical_volatility
         and simulation.equity_premium == defaults.equity_premium
-        and steps == defaults.steps
+        and steps == simulation.periods_per_year
         and scenarios == defaults.simulations
         and simulation.confidence == defaults.confidence
         and simulation.seed == defaults.seed

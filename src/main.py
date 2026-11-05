@@ -272,7 +272,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Secciones del informe; por defecto, todas",
     )
     options.add_argument(
-        "--steps", type=int, help=f"Sesiones futuras de Monte Carlo ({defaults.steps})"
+        "--steps",
+        type=int,
+        help="Sesiones futuras de Monte Carlo (un año: 252, o 365 si la cartera es solo cripto)",
     )
     options.add_argument(
         "--simulations", type=int, help=f"Número de escenarios ({defaults.simulations})"

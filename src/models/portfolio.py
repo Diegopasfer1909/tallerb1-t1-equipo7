@@ -16,7 +16,6 @@ from ..constants import (
     CLOSE,
     DEFAULT_CAPITAL,
     MONTHLY,
-    PERIODS_PER_YEAR,
     PriceColumn,
     Rebalance,
 )
@@ -250,7 +249,7 @@ class Portfolio:
         self,
         settings: SimulationSettings | None = None,
         *,
-        periods_per_year: int = PERIODS_PER_YEAR,
+        periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
         **options,
     ) -> SimulationResult:
@@ -265,7 +264,7 @@ class Portfolio:
         self,
         references: MarketReferences | None = None,
         *,
-        periods_per_year: int = PERIODS_PER_YEAR,
+        periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
         warning_thresholds: WarningThresholds | None = None,
     ) -> PortfolioAnalysis:
@@ -290,7 +289,7 @@ class Portfolio:
         detail: str = "compact",
         directory: str | Path | None = None,
         generated_on: datetime | None = None,
-        periods_per_year: int = PERIODS_PER_YEAR,
+        periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
         warning_thresholds: WarningThresholds | None = None,
         **simulation_options,
@@ -332,7 +331,7 @@ class Portfolio:
         show: bool = False,
         *,
         references: MarketReferences | None = None,
-        periods_per_year: int = PERIODS_PER_YEAR,
+        periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
     ) -> dict:
         """Devuelve todos los gráficos históricos y solo los guarda si se indica una carpeta."""

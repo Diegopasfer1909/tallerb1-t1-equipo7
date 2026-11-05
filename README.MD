@@ -121,7 +121,7 @@ python src/main.py --shares AAPL:10 SPY:5 --simulate --report
 | `--output-dir CARPETA` | Carpeta de los informes; por defecto, `informes` dentro de la carpeta actual |
 | `--currency EUR` | Convertir los precios y las posiciones a la divisa indicada |
 | `--benchmark ^IXIC` | Índice o fondo de Yahoo Finance contra el que comparar la cartera, en lugar del predeterminado por divisa; requiere `--report` o `--plots-report` |
-| `--steps 252` | Sesiones futuras de la simulación |
+| `--steps 252` | Sesiones futuras de la simulación; por defecto, un año (252, o 365 si la cartera es solo cripto) |
 | `--simulations 10000` | Número de escenarios |
 | `--equity-premium 0.045` | Retorno anual de la renta variable sobre el tipo libre de riesgo |
 | `--return 0.08` | Retorno anual μ para todos los activos |
@@ -311,10 +311,13 @@ invalida toda la descarga: se descarta y el informe lo indica.
 `mean` y `std` se calculan con los precios cada vez que se consultan, por lo que
 siempre corresponden a los datos. Los modelos no se modifican después de crearse.
 
-La consola trabaja con precios diarios. Si construyes historiales con otra
-frecuencia, indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()`
-(por ejemplo, 12 para datos mensuales); el análisis avisa si las fechas no
-parecen diarias y se anualiza con 252 períodos.
+La consola trabaja con precios diarios y anualiza con 252 sesiones. Si las fechas
+comunes incluyen los fines de semana, como en una cartera solo de criptomonedas, usa
+365 días: el horizonte por defecto de Monte Carlo pasa a 365 días y el rebalanceo
+mensual, a cada 30. Una cartera que mezcla criptomonedas y acciones solo conserva
+sesiones bursátiles y sigue con 252. Si construyes historiales con otra frecuencia,
+indica `periods_per_year` en `analyze()`, `report()` y `monte_carlo()` (por ejemplo,
+12 para datos mensuales); el análisis avisa si las fechas no parecen diarias.
 
 ## Parámetros de Monte Carlo
 
@@ -472,8 +475,9 @@ internacionales.
 
 Las rentabilidades, la simulación y el informe utilizan Adj Close, que incluye los
 dividendos, cuando lo publican todos los activos; si no, usan Close y el informe lo indica
-en la sección de calidad de los datos. Se toman 252 períodos por año. La simulación de
-Monte Carlo genera por defecto 10.000 escenarios de 252 períodos, con la semilla 42,
+en la sección de calidad de los datos. Se toman 252 períodos por año, o 365 si la cartera
+es solo de criptomonedas. La simulación de Monte Carlo genera por defecto 10.000 escenarios
+de un año (252 sesiones, o 365 días), con la semilla 42,
 volatilidad histórica y el retorno explicado en "Parámetros de Monte Carlo". El informe indica
 si se han usado estos criterios y qué comando los cambia. Salvo la rentabilidad real, todas las
 cifras son nominales: incluyen dividendos y no descuentan la inflación.
@@ -550,7 +554,8 @@ los resultados, cada medida declara cómo trata el tiempo:
   fechas extremas, de modo que perder fechas intermedias no lo cambia. La cartera y el
   índice se comparan entre las mismas fechas extremas.
 - **Dispersión** (volatilidad, Sharpe, Sortino, VaR por período y los μ y σ de Monte Carlo):
-  se calcula por observación y se escala con `periods_per_year` (252 por defecto). Supone
+  se calcula por observación y se escala con `periods_per_year` (252 por defecto; 365 si
+  las fechas incluyen los fines de semana, como en una cartera solo de criptomonedas). Supone
   observaciones regulares. El informe avisa si la separación típica supera cinco días o si
   hay menos del 90 % de las observaciones esperadas para la duración del historial.
 - **Historial corto**: se mide en días naturales (menos de 350), no en número de

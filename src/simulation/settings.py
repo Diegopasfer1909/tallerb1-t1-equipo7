@@ -3,7 +3,7 @@
 from dataclasses import dataclass, replace
 from numbers import Integral
 
-from ..constants import DEFAULT_EQUITY_PREMIUM, DEFAULT_SEED, PERIODS_PER_YEAR
+from ..constants import DEFAULT_EQUITY_PREMIUM, DEFAULT_SEED
 from ..errors import PortfolioError
 from ..validation import is_finite_number, validate_positive_int
 
@@ -27,14 +27,14 @@ def validate_assumptions(expected_returns: Assumption, volatilities: Assumption)
 
 @dataclass(frozen=True)
 class SimulationSettings:
-    """steps son sesiones futuras; confidence fija la cola del VaR y CVaR.
+    """steps son sesiones futuras, un año si no se indican; confidence fija la cola del VaR y CVaR.
 
     expected_returns y volatilities admiten un valor para todos los activos o un diccionario
     por símbolo. Sin supuesto, la volatilidad es la histórica y el retorno, risk_free_rate más
     equity_premium por la parte del activo en renta variable; sin risk_free_rate, el histórico.
     """
 
-    steps: int = PERIODS_PER_YEAR
+    steps: int | None = None
     simulations: int = 10_000
     seed: int | None = DEFAULT_SEED
     confidence: float = 0.95
@@ -44,7 +44,8 @@ class SimulationSettings:
     risk_free_rate: float | None = None
 
     def __post_init__(self) -> None:
-        validate_positive_int("steps", self.steps)
+        if self.steps is not None:
+            validate_positive_int("steps", self.steps)
         validate_positive_int("simulations", self.simulations)
         if self.seed is not None and (
             isinstance(self.seed, bool) or not isinstance(self.seed, Integral) or self.seed < 0
