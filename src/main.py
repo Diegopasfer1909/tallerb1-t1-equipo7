@@ -55,11 +55,16 @@ ASSUMPTIONS_FORMAT = (
 
 @dataclass(frozen=True)
 class ProviderOption:
-    """Cómo crear cada proveedor, cuántos días pedir por defecto y qué clave necesita."""
+    """Cómo crear cada proveedor, cuántos días pedir por defecto y qué clave necesita.
+
+    split_adjusted indica si sus cierres están ajustados por splits, algo que necesita una
+    cartera definida por número de acciones.
+    """
 
     create: Callable[[], PriceProvider]
     default_history_days: int
     api_key_env: str | None = None
+    split_adjusted: bool = True
 
 
 PROVIDERS = {
@@ -69,16 +74,20 @@ PROVIDERS = {
         lambda: AlphaVantageAPI(cache_dir=CACHE_DIR, include_info=True),
         120,
         api_key_env=ALPHA_VANTAGE_KEY,
+        split_adjusted=False,
     ),
 }
 
 
 @dataclass(frozen=True)
 class RunConfig:
-    """Opciones de la consola ya validadas; simulation es None si no se pide Monte Carlo."""
+    """Opciones de la consola ya validadas; simulation es None si no se pide Monte Carlo.
+
+    La cartera se define con weights (--assets) o con shares (--shares): uno de los dos es None.
+    """
 
     provider: str
-    weights: dict[str, float]
+    weights: dict[str, float] | None
     start: str
     end: str
     currency: str
@@ -91,8 +100,11 @@ class RunConfig:
     report_detail: str
     output_dir: Path | None
     benchmark: str | None = None
-    # Con --shares, número de acciones por símbolo; weights queda vacío.
     shares: dict[str, float] | None = None
+
+    def __post_init__(self) -> None:
+        if (self.weights is None) == (self.shares is None):
+            raise ValueError("Indica la cartera con weights o con shares, no con ambos.")
 
 
 def parse_values(items: list[str]) -> dict[str, float]:
@@ -112,7 +124,7 @@ def parse_shares(items: list[str]) -> dict[str, float]:
 def _parse_allocation(items: list[str], value_name: str, example: str) -> dict[str, float]:
     """Lee pares SÍMBOLO:VALOR de la consola o de un único archivo .txt."""
     if len(items) == 1 and items[0].lower().endswith(".txt"):
-        items = _read_weights_file(Path(items[0]).expanduser())
+        items = _read_allocation_file(Path(items[0]).expanduser())
     elif any(item.lower().endswith(".txt") for item in items):
         raise PortfolioError(
             "Indica un solo archivo .txt o los valores en consola, sin mezclar ambos formatos."
@@ -122,8 +134,8 @@ def _parse_allocation(items: list[str], value_name: str, example: str) -> dict[s
     return dict(pairs)
 
 
-def _read_weights_file(path: Path) -> list[str]:
-    """Una asignación por línea; se admiten líneas vacías y comentarios con #."""
+def _read_allocation_file(path: Path) -> list[str]:
+    """Un par SÍMBOLO:VALOR por línea; se admiten líneas vacías y comentarios con #."""
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError:
@@ -327,15 +339,19 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         (date.today() - timedelta(days=provider.default_history_days)).isoformat()
     )
     date_range(start, args.end)
-    shares = None
+    weights = shares = None
     if args.shares is not None:
         if args.capital is not None or args.rebalance is not None:
             raise PortfolioError(
                 "--capital y --rebalance no se usan con --shares: el valor inicial sale del "
                 "número de acciones y las cantidades no se reajustan."
             )
+        if not provider.split_adjusted:
+            raise PortfolioError(
+                f"--shares necesita cierres ajustados por splits y {args.provider} no los "
+                "ofrece: un split dentro del período falsearía el valor. Usa --provider yahoo."
+            )
         shares = parse_shares(args.shares)
-        weights = {}
     else:
         weights = parse_values(args.assets)
     capital = DEFAULT_CAPITAL if args.capital is None else args.capital
@@ -504,7 +520,7 @@ def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> 
     currency = portfolio.currency
     holdings = portfolio.holdings(price_column)
     print(f"Fecha de valoración: {format_date(portfolio.valuation_date)} ({currency})")
-    print(holdings_table(holdings).to_string())
+    print(holdings_table(holdings, by_shares=portfolio.units is not None).to_string())
     if portfolio.units is not None:
         start = format_date(portfolio.close_prices().index[0])
         print(

@@ -119,7 +119,8 @@ python src/main.py --shares SAN.MC:100 ITX.MC:20 SPY:5 --currency EUR --report
 ```
 
 También puedes usar un archivo `.txt` con el mismo formato que los pesos, una línea por
-activo (`AAPL:10`). `--assets` y `--shares` no se pueden combinar.
+activo (`AAPL:10`). `--assets` y `--shares` no se pueden combinar. Cada cantidad debe ser
+positiva: incluye solo los activos que tienes.
 
 - El valor de la cartera es el número de acciones por el último precio de cierre.
 - El historial supone que se han mantenido esas mismas acciones durante todo el período,
@@ -130,13 +131,17 @@ activo (`AAPL:10`). `--assets` y `--shares` no se pueden combinar.
 - Monte Carlo parte del valor actual y tampoco rebalancea: las cantidades no cambian.
 - `--capital` y `--rebalance` no se admiten con `--shares`, porque el valor inicial sale de
   las cantidades y estas no se reajustan.
+- Solo con Yahoo Finance: Alpha Vantage publica cierres sin ajustar por splits, y un split
+  dentro del período multiplicaría el valor de las fechas anteriores.
 - El programa no conoce el precio ni la fecha de compra: la rentabilidad se mide desde el
   inicio del período analizado, no desde la compra.
 
 Desde Python, `load_portfolio_from_shares({"AAPL": 10, "SPY": 5}, YahooFinanceAPI(), inicio,
 fin)` (en `src.portfolio_loader`) descarga los precios y crea la cartera con
 `Portfolio.from_units()`; `portfolio.units` conserva las cantidades y
-`portfolio.holdings()` las muestra en la columna `shares`.
+`portfolio.holdings()` las muestra en la columna `shares`. Si analizas esa cartera con
+`price_column="Adj Close"`, los dividendos se reinvierten: el valor deja de ser acciones ×
+precio, así que `holdings()` no incluye esa columna y el informe lo explica.
 
 ## Capital de referencia y rebalanceo mensual
 

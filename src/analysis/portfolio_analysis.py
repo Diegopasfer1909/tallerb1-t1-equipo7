@@ -518,6 +518,7 @@ def analyze_portfolio(
         benchmark_name=_benchmark_name(references.benchmark),
         risk_free_series=references.risk_free_rate.series_id if references.risk_free_rate else "",
         warning_thresholds=thresholds,
+        units=None if portfolio.units is None else portfolio.units.copy(),
     )
 
 

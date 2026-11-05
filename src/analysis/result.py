@@ -29,7 +29,8 @@ class PortfolioAnalysis:
     """notices reúne los avisos de datos y metodología; risk_warnings, las reglas de riesgo.
 
     metric_notes explica por qué falta cada medida sin calcular, y reference_table cita la
-    serie y la fuente de cada referencia utilizada.
+    serie y la fuente de cada referencia utilizada. units es el número de acciones de una
+    cartera creada con Portfolio.from_units(), o None si se definió por pesos.
     """
 
     currency: str
@@ -57,6 +58,7 @@ class PortfolioAnalysis:
     benchmark_name: str
     risk_free_series: str
     warning_thresholds: WarningThresholds
+    units: pd.Series | None = None
 
     @property
     def drawdown(self) -> pd.Series:

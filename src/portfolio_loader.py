@@ -1,6 +1,7 @@
 """Descarga los precios antes de crear los activos y la cartera."""
 
 from .constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
+from .errors import PortfolioError
 from .market_loader import load_fx_rates
 from .models import Asset, FxRates, Portfolio
 from .providers import PriceProvider
@@ -58,12 +59,19 @@ def load_portfolio_from_shares(
     Las cantidades se mantienen durante todo el historial, sin rebalanceo: el valor final es
     el número de acciones por el último precio, y los pesos resultan de esos importes. Se
     admiten fracciones de acciones. Las demás opciones funcionan como en load_portfolio().
+    Los cierres deben estar ajustados por splits, como los de Yahoo Finance.
     """
     validate_symbols(shares)
     validate_units(list(shares.values()))
     assets, fx_rates = _load_assets(
         shares, provider, start, end, currency, reporting_currency, fx_rates, fx_provider
     )
+    unadjusted = [asset.symbol for asset in assets if asset.history.price_basis == "unadjusted"]
+    if unadjusted:
+        raise PortfolioError(
+            f"Cierres sin ajustar por splits ({', '.join(unadjusted)}): con un número de acciones "
+            "fijo, un split dentro del período falsearía el valor. Usa Yahoo Finance."
+        )
     units = {asset.symbol: amount for asset, amount in zip(assets, shares.values(), strict=True)}
     return Portfolio.from_units(assets, units, reporting_currency, fx_rates)
 

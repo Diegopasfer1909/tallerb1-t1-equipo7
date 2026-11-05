@@ -1,4 +1,4 @@
-"""Cartera definida por pesos objetivo y un capital hipotético de referencia."""
+"""Cartera definida por pesos objetivo y un capital de referencia, o por número de acciones."""
 
 from __future__ import annotations
 
@@ -52,9 +52,11 @@ class Portfolio:
     que la valoración se calcula una sola vez por columna de precios. Para otra composición,
     crea otra cartera, por ejemplo con dataclasses.replace().
 
-    units guarda el número de acciones de una cartera creada con from_units(); en ese caso
-    no hay rebalanceo y los pesos objetivo son los pesos iniciales que resultan de las
-    cantidades.
+    units guarda el número de acciones de una cartera creada con from_units(). En ese caso no
+    hay rebalanceo, target_weights contiene los pesos iniciales que resultan de las cantidades
+    (no un objetivo) e initial_capital, su valor en la primera fecha común. Con Close, la
+    columna preferida, cada posición vale exactamente sus acciones por su precio. Con Adj Close
+    los dividendos se reinvierten, así que holdings() no muestra el número de acciones.
     """
 
     assets: Sequence[Asset]
@@ -103,7 +105,9 @@ class Portfolio:
     ) -> Portfolio:
         """Cartera sin rebalanceo que empieza con las cantidades indicadas de cada activo.
 
-        El capital inicial es el valor de esas cantidades en la primera fecha común.
+        El capital inicial es el valor de esas cantidades en la primera fecha común. Los cierres
+        deben estar ajustados por splits: con cierres sin ajustar, un split dentro del período
+        multiplicaría el valor de las fechas anteriores.
         """
         assets = tuple(assets)
         if not assets:
@@ -219,7 +223,9 @@ class Portfolio:
                 "weight": values / total,
             }
         )
-        if self.units is not None:
+        # Solo con Close el valor es el número de acciones por el precio: con Adj Close los
+        # dividendos se reinvierten y las acciones iniciales ya no explican el valor.
+        if self.units is not None and price_column == CLOSE:
             # Una copia: compartir memoria permitiría modificar units a través de la tabla.
             table.insert(0, "shares", self.units.copy())
         return table.rename_axis("asset")

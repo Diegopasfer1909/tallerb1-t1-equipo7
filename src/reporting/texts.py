@@ -19,8 +19,14 @@ CONVERTED_PRICES_NOTE = "Precios convertidos a {currency}."
 SHARES_NOTE = (
     "Cartera definida por número de acciones: el importe inicial es el valor de esas acciones en "
     "la primera fecha y los pesos iniciales resultan de él. Las cantidades no cambian (sin "
-    "rebalanceo) y se valoran con el precio de cierre sin ajustar, de modo que el valor de cada "
-    "posición es su número de acciones por el precio; no se suman dividendos."
+    "rebalanceo) y se valoran con el precio de cierre sin ajustar por dividendos, de modo que el "
+    "valor de cada posición es su número de acciones por el precio; no se suman dividendos."
+)
+SHARES_ADJUSTED_NOTE = (
+    "Cartera definida por número de acciones: el importe inicial es el valor de esas acciones en "
+    "la primera fecha y los pesos iniciales resultan de él. Sin rebalanceo, pero valorada con Adj "
+    "Close: los dividendos se reinvierten, así que la columna Acciones indica las cantidades "
+    "iniciales y el valor actual ya no es su número por el precio de cierre."
 )
 COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
