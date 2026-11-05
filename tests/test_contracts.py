@@ -4,6 +4,7 @@ import io
 import os
 import tempfile
 import unittest
+import warnings
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import replace
 from pathlib import Path
@@ -45,6 +46,36 @@ class SnapshotTests(unittest.TestCase):
         other = replace(portfolio, target_weights={"A": 0.5, "B": 0.5})
         np.testing.assert_allclose(other.target_weights, [0.5, 0.5])
         np.testing.assert_allclose(portfolio.target_weights, [0.6, 0.4])
+
+    def test_snapshots_reject_new_labels_and_inplace_changes(self):
+        weighted = Portfolio([asset("A", [1, 2, 3]), asset("B", [1, 2, 3])], {"A": 0.6, "B": 0.4})
+        shares = buy_and_hold([asset("A", [1, 2, 3])], [10])
+        rates = indicator([1.1, 1.2], pd.date_range("2026-01-01", periods=2))
+        value = weighted.total_value
+        changes = {
+            "nueva etiqueta": lambda series: series.loc.__setitem__("NEW", 0.25),
+            "drop": lambda series: series.drop(series.index[0], inplace=True),
+            "rename": lambda series: series.rename(str, inplace=True),
+            "nombre": lambda series: setattr(series, "name", "otro"),
+            "índice": lambda series: setattr(series, "index", range(len(series))),
+        }
+        for snapshot in (weighted.target_weights, shares.units, rates.values):
+            for label, change in changes.items():
+                with (
+                    self.subTest(change=label),
+                    self.assertRaisesRegex(ValueError, "inmutable"),
+                    warnings.catch_warnings(),
+                ):
+                    # pandas anuncia la retirada de inplace; aquí se prueba que no cambie nada.
+                    warnings.simplefilter("ignore")
+                    change(snapshot)
+        self.assertEqual(list(weighted.target_weights.index), ["A", "B"])
+        self.assertEqual(len(rates.values), 2)
+        self.assertEqual(weighted.total_value, value)
+        # Lo que se calcula a partir de una instantánea es una Series normal.
+        doubled = weighted.target_weights * 2
+        doubled["NEW"] = 1
+        self.assertEqual(len(doubled), 3)
 
     def test_statistics_are_computed_at_creation_for_price_columns_only(self):
         data = history("A", [100, 104], extra={"Open": [99, 103], "Volume": [10, 2_000]})
