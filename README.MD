@@ -630,7 +630,6 @@ ejecución con el proveedor del BCE y el contexto de mercado, posteriores a esas
 
 ```powershell
 python -B -m ruff check --no-cache .
-python -B -m ruff check --no-cache --extend-select C901,PLR0912,PLR0915 src
 python -B -m ruff format --no-cache --check .
 python -B -m coverage run -m unittest discover -s tests -v
 python -B -m coverage report
@@ -638,14 +637,14 @@ python -B -m coverage html
 ```
 
 Ruff limita en `src` la complejidad McCabe a 10 (`C901`), las ramas de cada función a
-12 (`PLR0912`) y sus sentencias a 50 (`PLR0915`). El lint general y el formato siguen
-revisando también las pruebas y el generador de diagramas.
+12 (`PLR0912`) y sus sentencias a 50 (`PLR0915`). Las reglas están en `pyproject.toml`,
+así que `ruff check .` y el editor las aplican igual que CI; las pruebas y el generador de
+diagramas quedan exentos de esos límites, pero no del resto del lint ni del formato.
 
 La cobertura incluye todo `src`, también los módulos no importados por las pruebas,
 y cuenta líneas y ramas. El mínimo combinado es **94 %** en cada versión de Python;
-por debajo, CI falla. Se parte de un 94,81 % medido con la suite sin red en Python
-3.14, sin excluir código de producción para alcanzar el umbral. `coverage report`
-muestra los huecos y `coverage html` genera un informe navegable en
+por debajo, CI falla. El umbral se alcanza sin excluir código de producción.
+`coverage report` muestra los huecos y `coverage html` genera un informe navegable en
 `htmlcov/index.html`. GitHub Actions publica la tabla en su resumen y conserva
 los informes HTML y XML por versión de Python durante siete días. Estos archivos
 son locales y están excluidos de Git.
