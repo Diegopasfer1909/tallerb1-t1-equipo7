@@ -23,7 +23,8 @@ Crea el entorno virtual una vez y actívalo cada vez que abras una terminal nuev
 | Windows (PowerShell) | `python -m venv .venv` | `.\.venv\Scripts\Activate.ps1` |
 | macOS / Linux | `python3 -m venv .venv` | `source .venv/bin/activate` |
 
-Con el entorno activado, `python` funciona igual en todos los sistemas. Instala el proyecto y genera un primer informe con la cartera de ejemplo:
+Con el entorno activado, `python` funciona igual en todos los sistemas. Instala el proyecto
+y genera un primer informe con la cartera de ejemplo:
 
 ```bash
 python -m pip install -e .
@@ -32,7 +33,9 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --report
 
 En consola aparecen las posiciones y el resumen de la simulación; el informe Markdown y sus
 gráficos se guardan en una carpeta nueva dentro de `informes/`, cuya ruta se indica al final.
-Ábrelo con cualquier visor de Markdown (en VS Code, `Ctrl+Shift+V`).
+Ábrelo con cualquier visor de Markdown (en VS Code, `Ctrl+Shift+V`). Si prefieres indicar
+cuántas acciones tienes de cada activo en lugar de pesos, usa `--shares` (por ejemplo,
+`--shares AAPL:10 SPY:5`; ver [Cartera por número de acciones](#cartera-por-número-de-acciones)).
 
 ## Instalación
 
