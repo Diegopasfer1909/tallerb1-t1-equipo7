@@ -499,8 +499,9 @@ def domain():
         270,
         500,
         "Portfolio",
-        "assets: tuple[Asset, ...]\ntarget_weights: Series\nreporting_currency; rebalance",
-        "+ close_prices() / holdings()\n+ analyze() / monte_carlo()",
+        "assets: tuple[Asset, ...]\ntarget_weights: Series\nunits: Series | None\n"
+        "reporting_currency; rebalance",
+        "+ from_units() / close_prices()\n+ holdings() / analyze()\n+ monte_carlo()",
     )
     fx = d.cls(
         1600, 270, 460, "FxRates", "rates: tuple[ExchangeRate, ...]", "+ convert() / combine()"
@@ -897,7 +898,7 @@ def activity():
         520,
         160,
         "Cargar y mostrar cartera",
-        "Proveedor elegido → activos\nFX si hace falta → Portfolio\nImprimir composición",
+        "Pesos o número de acciones\nproveedor → activos → FX → Portfolio\nImprimir composición",
         BLUE,
         size=22,
     )
