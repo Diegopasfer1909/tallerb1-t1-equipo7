@@ -630,9 +630,35 @@ ejecución con el proveedor del BCE y el contexto de mercado, posteriores a esas
 
 ```powershell
 python -B -m ruff check --no-cache .
+python -B -m ruff check --no-cache --extend-select C901,PLR0912,PLR0915 src
 python -B -m ruff format --no-cache --check .
-python -B -m unittest discover -s tests -v
+python -B -m coverage run -m unittest discover -s tests -v
+python -B -m coverage report
+python -B -m coverage html
 ```
+
+Ruff limita en `src` la complejidad McCabe a 10 (`C901`), las ramas de cada función a
+12 (`PLR0912`) y sus sentencias a 50 (`PLR0915`). El lint general y el formato siguen
+revisando también las pruebas y el generador de diagramas.
+
+La cobertura incluye todo `src`, también los módulos no importados por las pruebas,
+y cuenta líneas y ramas. El mínimo combinado es **94 %** en cada versión de Python;
+por debajo, CI falla. Se parte de un 94,81 % medido con la suite sin red en Python
+3.14, sin excluir código de producción para alcanzar el umbral. `coverage report`
+muestra los huecos y `coverage html` genera un informe navegable en
+`htmlcov/index.html`. GitHub Actions publica la tabla en su resumen y conserva
+los informes HTML y XML por versión de Python durante siete días. Estos archivos
+son locales y están excluidos de Git.
+
+CodeQL usa la configuración predeterminada gestionada por GitHub para analizar Python
+y los workflows de Actions con la suite de consultas ampliada (`extended`), en paralelo
+al resto de comprobaciones. Se configura en **Settings → Advanced Security → CodeQL
+analysis → Default setup**; no se duplica en `ci.yml`. Las alertas se consultan
+en **Security → Code scanning**. El análisis es gratuito para este repositorio público
+y no necesita cuentas ni tokens adicionales. La regla de protección `codeql-quality`
+de `main` exige resultados de CodeQL y bloquea las alertas nuevas de seguridad alta o
+crítica y las de nivel error. El éxito del trabajo de análisis por sí solo no significa
+que no haya alertas: la regla de GitHub comprueba los resultados.
 
 Las pruebas no necesitan claves ni acceso a las API. GitHub Actions comprueba
 código y formato con Python 3.14 (la de `.python-version`) y las pruebas con la
@@ -661,8 +687,9 @@ consulta siempre. Si la cuota está agotada, la prueba se omite con un aviso en 
 resumen de la ejecución en lugar de fallar.
 
 El trabajo «Comprobaciones completas» resume el resultado: solo se supera si la
-calidad, las pruebas con Python 3.11 y 3.14, el paquete, la búsqueda de claves y la
-integración se superan. Es la comprobación obligatoria para integrar en `main`. Las
+calidad, las pruebas y cobertura con Python 3.11 y 3.14, el paquete, la búsqueda de
+claves y la integración se superan. Es la comprobación
+obligatoria para integrar en `main`, junto con la regla de alertas de CodeQL. Las
 ramas se prueban al abrir su pull request; el push solo lanza el pipeline en `main`. En
 local, las pruebas de integración usan las claves de `.env` o del entorno:
 

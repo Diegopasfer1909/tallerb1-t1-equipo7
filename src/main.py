@@ -355,18 +355,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     else:
         weights = parse_values(args.assets)
     capital = DEFAULT_CAPITAL if args.capital is None else args.capital
-    options = {
-        name: getattr(args, name) for name in SIMULATION_OPTIONS if getattr(args, name) is not None
-    }
-    for name in ("expected_returns", "volatilities"):
-        assumption = parse_assumptions(getattr(args, name), shares or weights)
-        if assumption is not None:
-            options[name] = assumption
-    if options and not run_simulation:
-        raise PortfolioError(
-            "Los parámetros de Monte Carlo requieren --simulate o la sección simulation de "
-            "--report."
-        )
+    options = _simulation_options(args, shares or weights, run_simulation)
     benchmark = None
     if args.benchmark is not None:
         if not (args.report or args.plots_report):
@@ -394,6 +383,25 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         benchmark=benchmark,
         shares=shares,
     )
+
+
+def _simulation_options(
+    args: argparse.Namespace, holdings: dict[str, float], enabled: bool
+) -> dict:
+    """Normaliza los supuestos y rechaza opciones de simulación si no se va a simular."""
+    options = {
+        name: getattr(args, name) for name in SIMULATION_OPTIONS if getattr(args, name) is not None
+    }
+    for name in ("expected_returns", "volatilities"):
+        assumption = parse_assumptions(getattr(args, name), holdings)
+        if assumption is not None:
+            options[name] = assumption
+    if options and not enabled:
+        raise PortfolioError(
+            "Los parámetros de Monte Carlo requieren --simulate o la sección simulation de "
+            "--report."
+        )
+    return options
 
 
 def check_api_keys(config: RunConfig) -> list[str]:

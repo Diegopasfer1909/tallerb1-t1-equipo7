@@ -7,6 +7,11 @@ examples*
 __pycache__/
 .venv/
 .ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
 build/
 dist/
 *.egg-info/

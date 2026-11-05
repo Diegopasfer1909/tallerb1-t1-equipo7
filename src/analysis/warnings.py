@@ -74,6 +74,20 @@ def evaluate_risk(
 
     Una comparación con NaN nunca se cumple, de modo que un dato ausente no activa ninguna regla.
     """
+    warnings = _diversification_warnings(metrics, weights, sectors, pairs, thresholds)
+    warnings.extend(_performance_warnings(metrics, episode, thresholds))
+    warnings.extend(_context_warnings(metrics, thresholds, currencies, excluded_dates, vix))
+    return sorted(warnings, key=lambda warning: warning.severity != "high")
+
+
+def _diversification_warnings(
+    metrics: pd.Series,
+    weights: pd.Series,
+    sectors: pd.Series,
+    pairs: pd.Series,
+    thresholds: WarningThresholds,
+) -> list[RiskWarning]:
+    """Concentración de las posiciones y correlación entre activos."""
     warnings = []
     largest = weights.idxmax()
     if weights[largest] > thresholds.asset_weight:
@@ -139,6 +153,14 @@ def evaluate_risk(
                 title="Poca diversificación",
             )
         )
+    return warnings
+
+
+def _performance_warnings(
+    metrics: pd.Series, episode: DrawdownEpisode, thresholds: WarningThresholds
+) -> list[RiskWarning]:
+    """Rentabilidad frente al riesgo asumido, caídas e inflación."""
+    warnings = []
     sharpe = metrics.get("sharpe", float("nan"))
     premium = metrics.get("excess_annualized_return", float("nan"))
     if sharpe < 0:
@@ -206,6 +228,18 @@ def evaluate_risk(
                 title="Pérdida frente a la inflación",
             )
         )
+    return warnings
+
+
+def _context_warnings(
+    metrics: pd.Series,
+    thresholds: WarningThresholds,
+    currencies: pd.Series | None,
+    excluded_dates: pd.Series | None,
+    vix: float,
+) -> list[RiskWarning]:
+    """Divisas, estrés de mercado y suficiencia de los datos históricos."""
+    warnings = []
     if currencies is not None and len(currencies) > 1:
         warnings.append(
             RiskWarning(
@@ -256,7 +290,7 @@ def evaluate_risk(
                     title="Datos poco fiables",
                 )
             )
-    return sorted(warnings, key=lambda warning: warning.severity != "high")
+    return warnings
 
 
 def evaluate_simulation(
