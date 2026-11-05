@@ -145,7 +145,7 @@ def beta(returns: pd.Series, market: pd.Series) -> float:
 
 
 def jensen_alpha(
-    returns: pd.Series, market: pd.Series, reference: pd.Series, periods_per_year: int
+    returns: pd.Series, market: pd.Series, reference: pd.Series, periods_per_year: float
 ) -> float:
     """Alfa anual: rentabilidad no explicada por la beta, ambas por encima de la referencia."""
     data = pd.concat({"market": market - reference, "asset": returns - reference}, axis=1).dropna()

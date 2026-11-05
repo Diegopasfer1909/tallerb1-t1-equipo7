@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from fixtures import buy_and_hold, history, indicator
 
+from src.analysis.metrics import annualized_growth
 from src.errors import ConfigurationError
 from src.market_loader import (
     load_fred_fx_rates,
@@ -352,6 +353,44 @@ class AnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(analysis.metrics["difference_from_benchmark"], 0)
         comparison = [notice for notice in analysis.notices if "4 fechas comunes" in notice.message]
         self.assertEqual([notice.kind for notice in comparison], ["method"])
+
+    def test_alpha_uses_the_same_intervals_as_beta_when_the_index_skips_dates(self):
+        dates = pd.bdate_range("2025-01-01", periods=9)
+        closes = np.cumprod([100, 1.01, 1.02, 0.99, 1.03, 1.02, 0.98, 1.04, 1.01])
+        data = history("A", closes, dates=dates)
+        # Réplica del activo que solo cotiza una de cada dos fechas de la cartera.
+        selected = [0, 2, 4, 6, 8]
+        benchmark = history("INDEX", closes[selected], dates=dates[selected])
+        for rate in (0, 2):
+            with self.subTest(rate=rate):
+                references = MarketReferences(
+                    benchmark=benchmark, risk_free_rate=indicator([rate] * 9, dates)
+                )
+                metrics = buy_and_hold([Asset(data)], [1]).analyze(references).metrics
+                self.assertAlmostEqual(metrics["beta"], 1)
+                self.assertAlmostEqual(metrics["alpha"], 0, places=10)
+
+    def test_market_references_need_recent_closes_on_every_date(self):
+        dates = pd.bdate_range("2025-01-01", periods=65)
+        portfolio = buy_and_hold(
+            [Asset(history("E", np.linspace(100, 110, 65), "EUR", dates))], [1]
+        )
+        single = history("EXHD.DE", [100], "EUR", dates[:1])
+        analysis = portfolio.analyze(MarketReferences(bund_etf=single, gold=single))
+        self.assertTrue(np.isnan(analysis.metrics["bund_etf_annualized_return"]))
+        self.assertTrue(np.isnan(analysis.market.gold_correlation))
+        self.assertIn("ETF de Bunds", analysis.metric_notes["difference_from_bund_etf"])
+        stale = [
+            notice.message for notice in analysis.notices if "faltan cierres" in notice.message
+        ]
+        self.assertEqual(len(stale), 2, stale)
+        # Un festivo de otra bolsa se cubre con el cierre anterior.
+        holiday = history("EXHD.DE", np.linspace(100, 101, 64), "EUR", dates.delete(30))
+        analysis = portfolio.analyze(MarketReferences(bund_etf=holiday))
+        self.assertAlmostEqual(
+            analysis.metrics["bund_etf_annualized_return"],
+            annualized_growth(holiday.closing_prices()),
+        )
 
     def test_missing_fundamentals_are_nan_and_zero_beta_is_kept(self):
         data = history("A", [100, 120, 96], beta=0.0, pe_ratio=float("nan"), asset_type="stock")
