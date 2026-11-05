@@ -53,11 +53,13 @@ def load_portfolio_from_shares(
     reporting_currency: str = "",
     fx_rates: FxRates | None = None,
     fx_provider: PriceProvider | None = None,
+    rebalance: Rebalance = None,
 ) -> Portfolio:
     """Descarga los activos de una cartera como {"AAPL": 10, "SPY": 5} (número de acciones).
 
-    Las cantidades se mantienen durante todo el historial, sin rebalanceo: el valor final es
-    el número de acciones por el último precio, y los pesos resultan de esos importes. Se
+    Los pesos resultan de los importes de esas acciones en la primera fecha. Sin rebalanceo,
+    las cantidades se mantienen durante todo el historial y el valor final es el número de
+    acciones por el último precio; con rebalance="monthly", cada mes se vuelve a esos pesos. Se
     admiten fracciones de acciones. Las demás opciones funcionan como en load_portfolio().
     Los cierres deben estar ajustados por splits, como los de Yahoo Finance.
     """
@@ -73,7 +75,7 @@ def load_portfolio_from_shares(
             "fijo, un split dentro del período falsearía el valor. Usa Yahoo Finance."
         )
     units = {asset.symbol: amount for asset, amount in zip(assets, shares.values(), strict=True)}
-    return Portfolio.from_units(assets, units, reporting_currency, fx_rates)
+    return Portfolio.from_units(assets, units, reporting_currency, fx_rates, rebalance)
 
 
 def _load_assets(

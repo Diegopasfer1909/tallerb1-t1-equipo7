@@ -14,7 +14,6 @@ from .models import Asset, EconomicIndicator, ExchangeRate, FxRates, MarketRefer
 from .models.currency import MINOR_UNITS
 from .providers import (
     AAA_3M_YIELD,
-    FRED_KEY,
     EcbAPI,
     FredAPI,
     PriceProvider,
@@ -49,7 +48,7 @@ MARKET_PRICES = {
 
 NO_FRED_KEY = (
     "No se han descargado las series de FRED (inflación, VIX, Brent y tipo de interés en USD) "
-    f"porque falta {FRED_KEY}. Configúrala en el archivo .env o en el entorno."
+    "porque falta la clave de FRED. El README explica cómo configurarla."
 )
 
 
