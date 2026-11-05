@@ -2,7 +2,7 @@
 
 Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** código del commit **`c10fe69`** (31 de octubre de 2026). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
+**Referencia:** código del commit **`36e080f`** (5 de noviembre de 2026). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -47,7 +47,7 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 [PNG](diagramas/02-modelos-dominio.png) · [Editar en Excalidraw](diagramas/02-modelos-dominio.excalidraw) · [Fuente Mermaid](diagramas/02-modelos-dominio.mmd)
 
-`PriceHistory` conserva precios y procedencia; `AssetProfile`, los metadatos; `Asset`, la identidad y divisa del activo. `Portfolio` reúne activos y asigna pesos, capital y política de rebalanceo. Un activo puede participar en varias carteras: su peso pertenece a cada cartera, no al propio activo. Por eso las relaciones del dominio usan asociación o agregación compartida.
+`PriceHistory` conserva precios y procedencia; `AssetProfile`, los metadatos; `Asset`, la identidad y divisa del activo. `Portfolio` reúne activos y asigna pesos, capital y política de rebalanceo; `Portfolio.from_units()` la crea a partir del número de acciones, que conserva en `units`, sin rebalanceo. Un activo puede participar en varias carteras: su peso pertenece a cada cartera, no al propio activo. Por eso las relaciones del dominio usan asociación o agregación compartida.
 
 `FxRates` agrupa pares directos o inversos y `ExchangeRate` añade significado de divisa a un `EconomicIndicator`. `MarketReferences` contiene referencias opcionales de benchmark, inflación y tipo libre de riesgo, además de cambios de divisa para el benchmark. `FxRates.combine()` permite reunirlos con los de la cartera para la comparación.
 

@@ -7,7 +7,7 @@ flowchart TB
     CLI["main.py · entrada CLI<br/>RunConfig · registro PROVIDERS"]
     PY["API Python<br/>objetos y proveedores inyectables"]
     subgraph LOAD["01 · CARGA Y NORMALIZACIÓN"]
-        PL["portfolio_loader<br/>load_portfolio()"]
+        PL["portfolio_loader<br/>load_portfolio() · load_portfolio_from_shares()"]
         ML["market_loader<br/>load_fx_rates() · load_references()"]
     end
     subgraph ADAPTERS["02 · ADAPTADORES EXTERNOS"]

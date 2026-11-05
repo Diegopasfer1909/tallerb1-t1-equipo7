@@ -23,6 +23,7 @@ from .labels import (
     SECTORS,
     SENSITIVITY_CASES,
     SEVERITIES,
+    SHARES_HOLDINGS_COLUMNS,
     SOURCES,
     WEIGHT_COLUMNS,
 )
@@ -55,10 +56,18 @@ def _bullets(items) -> str:
     return "\n".join(f"- {item}" for item in items)
 
 
-def holdings_table(holdings: pd.DataFrame) -> pd.DataFrame:
-    """Posiciones con etiquetas en español y números con coma decimal."""
+def holdings_table(holdings: pd.DataFrame, by_shares: bool = False) -> pd.DataFrame:
+    """Posiciones con etiquetas en español y números con coma decimal.
+
+    by_shares indica una cartera definida por número de acciones: sus pesos de partida no son
+    un objetivo y su valor no es hipotético. Portfolio.holdings() solo incluye la columna
+    shares con Close; con Adj Close la tabla no muestra las acciones.
+    """
     table = pd.DataFrame(index=holdings.index.rename("Activo"))
-    for column, label in HOLDINGS_COLUMNS.items():
+    columns = SHARES_HOLDINGS_COLUMNS if by_shares else HOLDINGS_COLUMNS
+    for column, label in columns.items():
+        if column == "shares" and column not in holdings:
+            continue
         percentage = column in WEIGHT_COLUMNS
         table[label] = [format_number(value, percentage) for value in holdings[column]]
     return table
@@ -113,6 +122,8 @@ def _read_sign(value, positive: str, negative: str):
 
 
 def _strategy(analysis: PortfolioAnalysis) -> str:
+    if analysis.units is not None:
+        return "número de acciones fijo, sin rebalanceo"
     if analysis.rebalance == MONTHLY:
         return "rebalanceo mensual"
     return "sin rebalanceo (comprar y mantener)"
@@ -235,12 +246,16 @@ def _warnings(report: ReportContext) -> str:
 def _composition(report: ReportContext) -> str:
     analysis = report.analysis
     returns = analysis.asset_returns
+    units = analysis.units
+    shares = units is not None
     rows = []
     for symbol, asset in analysis.asset_details.iterrows():
         target = analysis.target_weights[symbol]
+        amount = [format_number(units[symbol])] if shares else []
         rows.append(
             [
                 symbol,
+                *amount,
                 asset["name"],
                 SECTORS.get(asset["sector"], asset["sector"]),
                 asset["quote_currency"],
@@ -255,14 +270,18 @@ def _composition(report: ReportContext) -> str:
     notes = texts.DAILY_VALUES_NOTE
     if (analysis.asset_details["quote_currency"] != analysis.currency).any():
         notes += " " + texts.CONVERTED_PRICES_NOTE.format(currency=analysis.currency)
+    if shares:
+        adjusted = analysis.price_column == ADJ_CLOSE
+        notes += "\n\n" + (texts.SHARES_ADJUSTED_NOTE if adjusted else texts.SHARES_NOTE)
     table = _table(
         [
             "Ticker",
+            *(["Acciones"] if shares else []),
             "Nombre",
             "Sector",
             "Divisa",
             "País",
-            "Peso objetivo",
+            "Peso inicial" if shares else "Peso objetivo",
             "Importe inicial",
             "Peso actual",
             "Media diaria",
@@ -591,11 +610,15 @@ def _simulation_criteria(simulation: SimulationResult, analysis: PortfolioAnalys
         + f", {steps} sesiones, confianza del {simulation.confidence * 100:g} %".replace(".", ",")
         + f", semilla {seed} y {assumption}"
     )
-    assets = " ".join(f"{s}:{w:g}" for s, w in analysis.target_weights.items())
+    if analysis.units is not None:
+        option = "--shares"
+        assets = " ".join(f"{s}:{n:g}" for s, n in analysis.units.items())
+    else:
+        option = "--assets"
+        assets = " ".join(f"{s}:{w:g}" for s, w in analysis.target_weights.items())
     template = texts.SIMULATION_DEFAULT_CRITERIA if is_default else texts.SIMULATION_CUSTOM_CRITERIA
-    return template.format(
-        criteria=criteria, command=texts.SIMULATION_COMMAND.format(assets=assets)
-    )
+    command = texts.SIMULATION_COMMAND.format(option=option, assets=assets)
+    return template.format(criteria=criteria, command=command)
 
 
 def _sensitivity_row(
@@ -859,7 +882,8 @@ def build_report(
     charts = charts or {}
     report = ReportContext(analysis, simulation)
     dates = analysis.values.index
-    strategy = "Rebalanceo mensual" if analysis.rebalance == MONTHLY else "Sin rebalanceo"
+    # La misma estrategia que en el resumen, para que la cabecera no la describa de otra forma.
+    strategy = _strategy(analysis).capitalize()
     blocks = [
         "# Informe de cartera",
         f"**Período:** {format_date(dates[0])} — {format_date(dates[-1])} · "

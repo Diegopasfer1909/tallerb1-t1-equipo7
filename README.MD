@@ -50,12 +50,14 @@ python src/main.py --assets IBM:0.6 MSFT:0.4 --start 2025-10-01 --end 2026-10-01
 python src/main.py --assets cartera_ejemplo.txt --currency EUR --simulate --plots-report --report
 python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --benchmark ^IBEX --rebalance none --capital 50000 --report
 python src/main.py --assets IBM:0.6 MSFT:0.4 --report --benchmark ^IXIC
+python src/main.py --shares AAPL:10 SPY:5 --simulate --report
 ```
 
 | Opción | Uso |
 | --- | --- |
 | `--provider yahoo` o `--provider alpha_vantage` | Proveedor de precios; por defecto, Yahoo Finance |
-| `--assets SÍMBOLO:PESO ...` o `--assets archivo.txt` | Pesos objetivo de la cartera; obligatorio |
+| `--assets SÍMBOLO:PESO ...` o `--assets archivo.txt` | Pesos objetivo de la cartera; obligatorio salvo con `--shares` |
+| `--shares SÍMBOLO:ACCIONES ...` o `--shares archivo.txt` | Número de acciones de cada activo, en lugar de pesos (ver [Cartera por número de acciones](#cartera-por-número-de-acciones)) |
 | `--start AAAA-MM-DD` | Fecha de inicio incluida; por defecto, hace un año con Yahoo y 120 días con Alpha Vantage (el modo `compact` ofrece unas 100 sesiones) |
 | `--end AAAA-MM-DD` | Fecha de fin excluida; por defecto, hoy |
 | `--simulate` | Simular la evolución de la cartera a partir de los datos históricos |
@@ -76,8 +78,8 @@ python src/main.py --assets IBM:0.6 MSFT:0.4 --report --benchmark ^IXIC
 | `--volatility IBM:0.20 MSFT:0.30` | Cambiar σ por activo manteniendo las correlaciones históricas |
 | `--confidence 0.95` | Confianza de las medidas de cola VaR y CVaR; debe estar entre 0,5 y 1 |
 | `--seed 42` | Semilla para reproducir la simulación |
-| `--capital 10000` | Capital hipotético al inicio del histórico |
-| `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones |
+| `--capital 10000` | Capital hipotético al inicio del histórico; no se usa con `--shares` |
+| `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones; no se usa con `--shares` |
 | `--report-detail compact` o `--report-detail full` | Informe con secciones plegadas (por defecto) o todo desplegado |
 | `--report-sections summary warnings ...` | Secciones del informe que se incluyen; por defecto, todas (ver [Lectura y selección del informe](#lectura-y-selección-del-informe)) |
 
@@ -105,6 +107,41 @@ destino y descarga los cambios necesarios automáticamente. Si falta un tipo de
 cambio necesario, el programa explica el problema y detiene la conversión.
 
 Sin `--currency`, todos los activos deben compartir divisa y unidad de cotización.
+
+### Cartera por número de acciones
+
+En lugar de pesos, puedes indicar cuántas acciones o participaciones tienes de cada activo
+(acciones, ETF o fondos de Yahoo Finance). Se admiten fracciones:
+
+```powershell
+python src/main.py --shares AAPL:10 SPY:5 MSFT:2.5 --simulate --report
+python src/main.py --shares SAN.MC:100 ITX.MC:20 SPY:5 --currency EUR --report
+```
+
+También puedes usar un archivo `.txt` con el mismo formato que los pesos, una línea por
+activo (`AAPL:10`). `--assets` y `--shares` no se pueden combinar. Cada cantidad debe ser
+positiva: incluye solo los activos que tienes.
+
+- El valor de la cartera es el número de acciones por el último precio de cierre.
+- El historial supone que se han mantenido esas mismas acciones durante todo el período,
+  sin compras, ventas ni rebalanceo. Los pesos iniciales resultan de las cantidades en la
+  primera fecha común y los actuales, de su evolución.
+- Se valora con `Close`, no con `Adj Close`: así cada posición vale exactamente sus
+  acciones por su precio. Los dividendos cobrados no se suman.
+- Monte Carlo parte del valor actual y tampoco rebalancea: las cantidades no cambian.
+- `--capital` y `--rebalance` no se admiten con `--shares`, porque el valor inicial sale de
+  las cantidades y estas no se reajustan.
+- Solo con Yahoo Finance: Alpha Vantage publica cierres sin ajustar por splits, y un split
+  dentro del período multiplicaría el valor de las fechas anteriores.
+- El programa no conoce el precio ni la fecha de compra: la rentabilidad se mide desde el
+  inicio del período analizado, no desde la compra.
+
+Desde Python, `load_portfolio_from_shares({"AAPL": 10, "SPY": 5}, YahooFinanceAPI(), inicio,
+fin)` (en `src.portfolio_loader`) descarga los precios y crea la cartera con
+`Portfolio.from_units()`; `portfolio.units` conserva las cantidades y
+`portfolio.holdings()` las muestra en la columna `shares`. Si analizas esa cartera con
+`price_column="Adj Close"`, los dividendos se reinvierten: el valor deja de ser acciones ×
+precio, así que `holdings()` no incluye esa columna y el informe lo explica.
 
 ## Capital de referencia y rebalanceo mensual
 

@@ -95,6 +95,15 @@ HOLDINGS_COLUMNS = {
     "value": "Valor hipotético",
     "weight": "Peso actual",
 }
+# Con una cartera definida por número de acciones, los pesos de partida no son un objetivo
+# y el valor no es hipotético: es el de esas acciones.
+SHARES_HOLDINGS_COLUMNS = {
+    "shares": "Acciones",
+    "target_weight": "Peso inicial",
+    "price": "Precio de cierre",
+    "value": "Valor",
+    "weight": "Peso actual",
+}
 WEIGHT_COLUMNS = ("target_weight", "weight")
 # Resultados de SimulationResult.summary() que son rentabilidades o probabilidades.
 PERCENT_RESULTS = ("mean_return", "probability_of_loss")
