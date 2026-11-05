@@ -278,6 +278,8 @@ class MainTests(unittest.TestCase):
         self.assertIn("Peso inicial", report)
         self.assertIn("Valor final de 1.400,00 USD", report)
         self.assertIn("número de acciones fijo", report)
+        # La cabecera describe la estrategia igual que el resumen.
+        self.assertIn("**Precios:** Close · Número de acciones fijo, sin rebalanceo", report)
         self.assertIn("--shares IBM:10 MSFT:2", report)
         self.assertNotIn("Rebalanceo mensual", report)
 
@@ -298,23 +300,28 @@ class MainTests(unittest.TestCase):
         invalid = [
             ["--shares", "AAPL:-1"],
             ["--shares", "AAPL:0"],
+            ["--shares", "AAPL:10", "SPY:0"],
             ["--shares", "AAPL"],
             ["--shares", "AAPL:10", "aapl:5"],
             ["--shares", "AAPL:10", "--assets", "AAPL:1"],
             ["--shares", "AAPL:10", "--capital", "5000"],
             ["--shares", "AAPL:10", "--rebalance", "monthly"],
+            # Alpha Vantage publica cierres sin ajustar por splits.
+            ["--shares", "AAPL:10", "--provider", "alpha_vantage"],
         ]
         for arguments in invalid:
             with (
                 self.subTest(arguments=arguments),
                 patch("src.main.load_dotenv"),
                 patch("src.main.YahooFinanceAPI") as yahoo,
+                patch("src.main.AlphaVantageAPI") as alpha,
                 redirect_stderr(io.StringIO()),
             ):
                 with self.assertRaises(SystemExit) as error:
                     main(arguments)
                 self.assertEqual(error.exception.code, 2)
                 yahoo.assert_not_called()
+                alpha.assert_not_called()
 
     def test_simulation_uses_internal_defaults(self):
         with (

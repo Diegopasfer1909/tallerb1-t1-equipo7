@@ -71,13 +71,13 @@ def validate_weights(weights: list[float]) -> None:
 
 
 def validate_units(units: list[float]) -> None:
-    """Número de acciones de cada activo: no negativo, y al menos uno positivo."""
+    """Número de acciones de cada activo: positivo, porque la cartera solo incluye lo que se tiene."""
     if not units:
         raise PortfolioError("Indica al menos un activo y su número de acciones.")
-    if not all(is_finite_number(amount) and amount >= 0 for amount in units):
-        raise PortfolioError("Cada número de acciones debe ser un número positivo o cero.")
-    if not any(amount > 0 for amount in units):
-        raise PortfolioError("Indica al menos un activo con un número de acciones positivo.")
+    if not all(is_finite_number(amount) and amount > 0 for amount in units):
+        raise PortfolioError(
+            "Cada número de acciones debe ser positivo; quita los activos que no tengas."
+        )
 
 
 def validate_target_weights(weights: pd.Series, columns: pd.Index) -> np.ndarray:
