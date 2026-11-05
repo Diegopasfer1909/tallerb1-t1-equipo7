@@ -177,19 +177,20 @@ positiva: incluye solo los activos que tienes.
 
 Por defecto, sin rebalanceo:
 
-- El valor de la cartera es el número de acciones por el último precio de cierre.
 - El historial supone que se han mantenido esas mismas acciones durante todo el período,
   sin compras ni ventas. Los pesos iniciales resultan de las cantidades en la primera
   fecha común y los actuales, de su evolución.
-- Se valora con `Close`, no con `Adj Close`: así cada posición vale exactamente sus
-  acciones por su precio. Los dividendos cobrados no se suman.
+- Las rentabilidades, el riesgo, Monte Carlo y el informe usan `Adj Close`, como cualquier
+  cartera: los dividendos se reinvierten y no se infravalora la rentabilidad. Por eso el
+  valor de la cartera incluye esos dividendos.
+- La consola y el informe muestran además el valor de mercado de las acciones: su número
+  por el último precio de cierre, el que mostraría un bróker.
 - Monte Carlo parte del valor actual y tampoco rebalancea: las cantidades no cambian.
 
 Con `--rebalance monthly`, las acciones indicadas son la cartera de la primera fecha común
 y cada mes se vuelve a los pesos que tenían ese día. Equivale a `--assets` con esos pesos y
 `--capital` igual a su valor inicial: las cantidades cambian cada mes, el valor actual ya no
-es acciones × precio, se usa `Adj Close` si lo publican todos los activos y Monte Carlo
-rebalancea igual que con pesos.
+es acciones × precio y Monte Carlo rebalancea igual que con pesos.
 
 En los dos casos:
 
@@ -202,9 +203,10 @@ En los dos casos:
 Desde Python, `load_portfolio_from_shares({"AAPL": 10, "SPY": 5}, YahooFinanceAPI(), inicio,
 fin)` (en `src.portfolio_loader`) descarga los precios y crea la cartera con
 `Portfolio.from_units()`; `portfolio.units` conserva las cantidades y
-`portfolio.holdings()` las muestra en la columna `shares`. Si analizas esa cartera con
-`price_column="Adj Close"`, los dividendos se reinvierten: el valor deja de ser acciones ×
-precio, así que `holdings()` no incluye esa columna y el informe lo explica.
+`portfolio.holdings()` las muestra en la columna `shares`. Con
+`price_column="Adj Close"`, la que usa el programa, `holdings()` añade `market_value`
+(acciones × último cierre) y `value` incluye los dividendos reinvertidos; con
+`price_column="Close"`, ambos coinciden y los dividendos no se suman.
 
 ## Capital de referencia y rebalanceo mensual
 

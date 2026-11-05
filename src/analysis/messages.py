@@ -5,8 +5,7 @@ NO_RISK_FREE_RATE = (
     "Sharpe y Sortino ni se presupone un tipo del 0 %."
 )
 NO_RISK_FREE_RATE_NOTE = (
-    "No se ha cargado un tipo de interés de referencia. Consulta las incidencias de descarga y "
-    "la clave FRED_API_KEY."
+    "No se ha cargado un tipo de interés de referencia. Consulta las incidencias de descarga."
 )
 RATE_UNITS = (
     "El tipo de interés de referencia debe ser una tasa anual expresada en porcentaje. No se "
@@ -31,8 +30,7 @@ SORTINO_UNDEFINED = (
 )
 
 NO_INFLATION_NOTE = (
-    "No se ha cargado un índice de precios de consumo. Consulta las incidencias de descarga y "
-    "la clave FRED_API_KEY."
+    "No se ha cargado un índice de precios de consumo. Consulta las incidencias de descarga."
 )
 INFLATION_UNITS = (
     "Para calcular la inflación se necesita un índice de precios de consumo, no una tasa de "
@@ -63,7 +61,7 @@ BENCHMARK_COVERAGE_NOTE = (
 )
 BENCHMARK_COMPARISON = (
     "Comparación con el índice {symbol} basada en {dates} fechas comunes, con la misma divisa y "
-    "columna de precios. Ambas rentabilidades se anualizan por los días naturales entre las "
+    "el mismo tipo de precio. Ambas rentabilidades se anualizan por los días naturales entre las "
     "mismas fechas extremas. Revisa si el índice incorpora dividendos."
 )
 NO_ALPHA_NOTE = (
@@ -76,8 +74,8 @@ BETA_UNDEFINED = (
 
 ANNUALIZATION_GAP = (
     "Las fechas están separadas unos {gap:.0f} días, pero se anualiza con {periods} períodos "
-    "por año. Indica periods_per_year según la frecuencia de los datos (por ejemplo, 12 si son "
-    "mensuales)."
+    "por año, como si los datos fueran diarios: la volatilidad, las ratios de Sharpe y Sortino y "
+    "los parámetros de Monte Carlo no son fiables."
 )
 SHORT_HISTORY = (
     "El historial cubre {days} días naturales, menos de un año. Las estimaciones anuales pueden "

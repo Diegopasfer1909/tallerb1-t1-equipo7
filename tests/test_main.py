@@ -173,7 +173,7 @@ class MainTests(unittest.TestCase):
             "VaR al horizonte (99 %)",
             "Percentiles 1 y 99",
             "21 sesiones",
-            "Autovalores (matriz singular)",
+            "Por activos, con sus correlaciones",
         ):
             self.assertIn(text, report)
 
@@ -279,7 +279,10 @@ class MainTests(unittest.TestCase):
         self.assertIn("Valor final de 1.400,00 USD", report)
         self.assertIn("número de acciones fijo", report)
         # La cabecera describe la estrategia igual que el resumen.
-        self.assertIn("**Precios:** Close · Número de acciones fijo, sin rebalanceo", report)
+        self.assertIn(
+            "**Precios:** cierre sin ajustar por dividendos · Número de acciones fijo, sin rebalanceo",
+            report,
+        )
         self.assertIn("--shares IBM:10 MSFT:2", report)
         self.assertNotIn("Rebalanceo mensual", report)
 
@@ -601,7 +604,7 @@ class MainTests(unittest.TestCase):
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
         fred_requests.assert_not_called()
         self.assertIn("Aviso: FRED_API_KEY no está configurada", errors.getvalue())
-        self.assertIn("porque falta FRED_API_KEY", report)
+        self.assertIn("porque falta la clave de FRED", report)
         self.assertIn("Comparación con el índice", report)
 
     def test_no_key_warnings_when_the_keys_are_configured(self):

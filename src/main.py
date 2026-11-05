@@ -555,7 +555,14 @@ def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> 
         print(
             "Rebalanceo: mensual" if portfolio.rebalance == MONTHLY else "Rebalanceo: sin reajustes"
         )
-    print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
+    if "market_value" in holdings:
+        print(
+            f"Valor de mercado de las acciones (acciones × último cierre): "
+            f"{format_number(holdings['market_value'].sum())} {currency}"
+        )
+        print(f"Valor total con dividendos: {format_number(holdings['value'].sum())} {currency}")
+    else:
+        print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
     print(f"Fechas con precios para todos los activos: {len(portfolio.close_prices())}")
 
 

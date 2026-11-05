@@ -15,6 +15,7 @@ import src.models.portfolio as portfolio_module
 from src.models import Asset, AssetProfile, Portfolio, PriceHistory
 from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
 from src.providers import AlphaVantageAPI, YahooFinanceAPI
+from src.reporting.report import holdings_table
 
 asset = partial(fixtures.asset, start="2026-10-01")
 
@@ -173,18 +174,24 @@ class PortfolioTests(unittest.TestCase):
             portfolio.units["A"] = 1
         self.assertNotIn("shares", Portfolio([a, b], {"A": 0.5, "B": 0.5}).holdings())
 
-    def test_shares_are_only_shown_when_value_is_shares_times_price(self):
+    def test_shares_include_dividends_and_show_their_market_value(self):
         data = fixtures.history("A", [100, 100, 100], extra={"Adj Close": [90, 95, 100]})
         portfolio = Portfolio.from_units([Asset(data)], {"A": 10})
-        self.assertEqual(portfolio.preferred_price_column, "Close")
+        # Como cualquier cartera, las rentabilidades incluyen los dividendos.
+        self.assertEqual(portfolio.preferred_price_column, "Adj Close")
         close = portfolio.holdings("Close")
         self.assertEqual(
             close.loc["A", "shares"] * close.loc["A", "price"], close.loc["A", "value"]
         )
-        # Con Adj Close se reinvierten los dividendos: 10 acciones ya no explican el valor.
+        self.assertNotIn("market_value", close)
+        # Con Adj Close se reinvierten los dividendos: el valor de mercado se muestra aparte.
         adjusted = portfolio.holdings("Adj Close")
-        self.assertNotIn("shares", adjusted)
+        self.assertEqual(adjusted.loc["A", "shares"], 10)
+        self.assertEqual(adjusted.loc["A", "market_value"], 1000)
         self.assertAlmostEqual(adjusted.loc["A", "value"], 1000 * 100 / 90)
+        table = holdings_table(adjusted, by_shares=True)
+        self.assertEqual(table.loc["A", "Valor de mercado"], "1.000,00")
+        self.assertEqual(table.loc["A", "Valor con dividendos"], "1.111,11")
 
     def test_invalid_units_are_rejected(self):
         a = asset("A", [80, 90, 100])
@@ -223,7 +230,8 @@ class PortfolioTests(unittest.TestCase):
         np.testing.assert_allclose(portfolio.simulation_inputs().rebalance_weights, [0.5, 0.5])
         fixed = replace(portfolio, rebalance=None)
         self.assertTrue(fixed.fixed_units)
-        self.assertEqual(fixed.preferred_price_column, "Close")
+        # Rebalancear no cambia el tratamiento de los dividendos.
+        self.assertEqual(fixed.preferred_price_column, "Adj Close")
 
     def test_load_portfolio_from_shares_downloads_each_symbol_once(self):
         provider = Mock(spec=YahooFinanceAPI)

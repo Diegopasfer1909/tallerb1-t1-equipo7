@@ -54,10 +54,11 @@ class Portfolio:
     units guarda el número de acciones de una cartera creada con from_units(). target_weights
     contiene los pesos que resultan de las cantidades en la primera fecha común e
     initial_capital, su valor en esa fecha. Sin rebalanceo, las cantidades no cambian: con
-    Close, la columna preferida, cada posición vale exactamente sus acciones por su precio; con
-    Adj Close los dividendos se reinvierten, así que holdings() no muestra el número de
-    acciones. Con rebalanceo mensual, cada mes se vuelve a esos pesos, las cantidades cambian
-    y la cartera se valora como una definida por pesos.
+    Close cada posición vale exactamente sus acciones por su precio; con Adj Close, la columna
+    preferida como en cualquier cartera, los dividendos se reinvierten y holdings() añade el
+    valor de mercado de las acciones (acciones por último cierre). Con rebalanceo mensual, cada
+    mes se vuelve a esos pesos, las cantidades cambian y la cartera se valora como una definida
+    por pesos.
     """
 
     assets: Sequence[Asset]
@@ -179,12 +180,9 @@ class Portfolio:
     def preferred_price_column(self) -> PriceColumn:
         """Adj Close incluye dividendos en las rentabilidades, si lo publican todos los activos.
 
-        Una cartera definida por número de acciones y sin rebalanceo usa Close: así su valor es
-        exactamente el número de acciones por el precio, sin dividendos reinvertidos que no se
-        han comprado. Con rebalanceo las cantidades cambian cada mes, como con pesos.
+        También en una cartera definida por número de acciones: sin dividendos, su rentabilidad
+        quedaría infravalorada. holdings() muestra aparte su valor de mercado.
         """
-        if self.fixed_units:
-            return CLOSE
         available = all(ADJ_CLOSE in asset.history.prices.columns for asset in self.assets)
         return ADJ_CLOSE if available else CLOSE
 
@@ -228,11 +226,14 @@ class Portfolio:
                 "weight": values / total,
             }
         )
-        # Solo sin rebalanceo y con Close el valor es el número de acciones por el precio: con
-        # Adj Close los dividendos se reinvierten y, con rebalanceo, las cantidades cambian.
-        if self.fixed_units and price_column == CLOSE:
+        # Con rebalanceo las cantidades cambian: solo sin él tienen sentido las acciones.
+        if self.fixed_units:
             # Una copia: compartir memoria permitiría modificar units a través de la tabla.
             table.insert(0, "shares", self.units.copy())
+            # Con Adj Close los dividendos se reinvierten y el valor ya no es acciones por
+            # precio; el valor de mercado sí lo es, el que mostraría un bróker.
+            if price_column != CLOSE:
+                table.insert(2, "market_value", self.units * self._prices(CLOSE).iloc[-1])
         return table.rename_axis("asset")
 
     def returns(self, log: bool = False, price_column: PriceColumn = CLOSE) -> pd.DataFrame:
