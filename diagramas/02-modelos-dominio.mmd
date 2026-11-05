@@ -1,6 +1,5 @@
 %% Objetos compartibles: ninguna asociación exige dueño exclusivo.
 %% frozen impide reasignar campos, no garantiza inmutabilidad profunda universal.
-%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#EAF2FF","primaryTextColor":"#14233D","primaryBorderColor":"#356CC9","lineColor":"#64748B"}}}%%
 classDiagram
     direction LR
     accTitle: B1-T1 · Modelo de dominio
@@ -95,12 +94,3 @@ classDiagram
     note for PriceHistory "prices, mean y std devuelven copias.\nSe conserva OHLCV y la procedencia."
     note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración guardada por columna en _cache."
     note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."
-    style Portfolio fill:#14233D,stroke:#14233D,color:#FFFFFF
-    style Asset fill:#EAF2FF,stroke:#356CC9,color:#14233D
-    style PriceHistory fill:#EAF2FF,stroke:#356CC9,color:#14233D
-    style AssetProfile fill:#EAF2FF,stroke:#356CC9,color:#14233D
-    style FxRates fill:#E4F7F3,stroke:#168575,color:#14233D
-    style ExchangeRate fill:#E4F7F3,stroke:#168575,color:#14233D
-    style EconomicIndicator fill:#E4F7F3,stroke:#168575,color:#14233D
-    style MarketReferences fill:#F0EBFF,stroke:#7953BF,color:#14233D
-    style Notice fill:#FFF3D9,stroke:#BF861B,color:#14233D

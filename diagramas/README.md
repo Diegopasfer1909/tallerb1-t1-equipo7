@@ -7,7 +7,7 @@ La [galería principal](../ARQUITECTURA.md) reúne siete vistas de B1–T1: arqu
 | `.svg` | Lectura y ampliación vectorial. |
 | `.png` | Inserción en diapositivas y documentos. |
 | `.excalidraw` | Edición visual de cajas, textos y conexiones en Excalidraw. |
-| `.mmd` | Modelo semántico editable como texto Mermaid; disposición automática independiente. |
+| `.mmd` | Modelo semántico editable como texto Mermaid; disposición automática independiente. Sin colores fijos, para que se lea con el tema claro u oscuro del visor. |
 
 Desde la raíz del repositorio, con el entorno del proyecto activado:
 
