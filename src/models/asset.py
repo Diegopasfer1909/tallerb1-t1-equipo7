@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from ..constants import ASSET_TYPES, CLOSE, PERIODS_PER_YEAR, AssetType, PriceColumn
+from ..constants import ASSET_TYPES, CLOSE, AssetType, PriceColumn
 from ..errors import PortfolioError
 from ..simulation import SimulationInputs, SimulationResult, SimulationSettings, simulate
 from .price_history import PriceHistory
@@ -83,7 +83,7 @@ class Asset:
         self,
         settings: SimulationSettings | None = None,
         *,
-        periods_per_year: int = PERIODS_PER_YEAR,
+        periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
         **options,
     ) -> SimulationResult:

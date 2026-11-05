@@ -1,11 +1,13 @@
 """Simulación de activos correlacionados, con rebalanceo mensual opcional."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
 
 from ..constants import (
+    CALENDAR_DAYS_PER_MONTH,
+    CALENDAR_PERIODS_PER_YEAR,
     CLOSE,
     MONTHLY,
     PERIODS_PER_YEAR,
@@ -13,6 +15,7 @@ from ..constants import (
     SESSIONS_PER_MONTH,
 )
 from ..errors import PortfolioError
+from ..frequency import periods_per_year as dates_periods_per_year
 from ..validation import validate_positive_int, validate_price_table, validate_target_weights
 from .result import SimulationResult
 from .settings import Assumption, SimulationSettings, validate_assumptions
@@ -67,15 +70,20 @@ def estimate_parameters(
 def simulate(
     inputs: SimulationInputs,
     settings: SimulationSettings | None = None,
-    periods_per_year: int = PERIODS_PER_YEAR,
+    periods_per_year: int | None = None,
 ) -> SimulationResult:
     """Estima el modelo con los precios históricos y simula el valor desde la última fecha.
 
-    periods_per_year debe corresponder a la frecuencia de los precios (252 si son diarios).
+    periods_per_year debe corresponder a la frecuencia de los precios. Si no se indica, es 252
+    con datos diarios, o 365 si los precios incluyen los fines de semana, como las criptomonedas.
     """
     settings = settings or SimulationSettings()
-    validate_positive_int("periods_per_year", periods_per_year)
     prices = _prepare_prices(inputs.prices)
+    if periods_per_year is None:
+        periods_per_year = dates_periods_per_year(prices.index)
+    validate_positive_int("periods_per_year", periods_per_year)
+    if settings.steps is None:
+        settings = replace(settings, steps=periods_per_year)
     initial = _prepare_starting_values(inputs.starting_values, prices.columns)
     target = interval = None
     if inputs.rebalance_weights is not None:
@@ -176,14 +184,17 @@ def _return_sensitivity(
 
 
 def rebalance_interval(periods_per_year: int) -> int:
-    """Períodos entre reajustes: 21 sesiones con datos diarios o 1 con datos mensuales."""
-    if periods_per_year == PERIODS_PER_YEAR:
-        return SESSIONS_PER_MONTH
-    if periods_per_year == 12:
-        return 1
-    raise PortfolioError(
-        "El rebalanceo mensual admite 252 sesiones diarias o 12 períodos mensuales por año."
-    )
+    """Períodos entre reajustes: 21 sesiones, 30 días si se cotiza a diario o 1 mes."""
+    intervals = {
+        PERIODS_PER_YEAR: SESSIONS_PER_MONTH,
+        CALENDAR_PERIODS_PER_YEAR: CALENDAR_DAYS_PER_MONTH,
+        12: 1,
+    }
+    if periods_per_year not in intervals:
+        raise PortfolioError(
+            "El rebalanceo mensual admite 252 sesiones, 365 días o 12 períodos mensuales por año."
+        )
+    return intervals[periods_per_year]
 
 
 def _apply_assumptions(parameters, expected_returns, volatilities) -> None:

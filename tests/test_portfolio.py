@@ -21,7 +21,10 @@ asset = partial(fixtures.asset, start="2026-10-01")
 
 class PortfolioTests(unittest.TestCase):
     def test_report_accepts_parameters_and_matches_a_direct_simulation(self):
-        portfolio = Portfolio([asset("A", [100, 101, 100])], {"A": 1}, initial_capital=100)
+        sessions = pd.bdate_range("2026-10-01", periods=3)
+        portfolio = Portfolio(
+            [asset("A", [100, 101, 100], dates=sessions)], {"A": 1}, initial_capital=100
+        )
         options = dict(
             steps=21, simulations=5, expected_returns=0.08, volatilities=0, confidence=0.99, seed=7
         )

@@ -48,7 +48,7 @@ class MainTests(unittest.TestCase):
         rate = patch("src.main.load_risk_free_rate", return_value=None)
         self.risk_free_rate = rate.start()
         self.addCleanup(rate.stop)
-        self.dates = pd.date_range("2026-01-01", periods=4)
+        self.dates = pd.bdate_range("2026-01-01", periods=4)
         self.history = PriceHistory(
             "IBM",
             "yahoo",
@@ -469,7 +469,7 @@ class MainTests(unittest.TestCase):
                             "--start",
                             "2026-01-01",
                             "--end",
-                            "2026-01-05",
+                            "2026-01-07",
                             "--simulate",
                             "--plots-report",
                             "--report",
