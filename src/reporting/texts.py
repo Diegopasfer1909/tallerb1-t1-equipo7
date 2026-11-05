@@ -24,9 +24,16 @@ SHARES_NOTE = (
 )
 SHARES_ADJUSTED_NOTE = (
     "Cartera definida por número de acciones: el importe inicial es el valor de esas acciones en "
-    "la primera fecha y los pesos iniciales resultan de él. Sin rebalanceo, pero valorada con Adj "
-    "Close: los dividendos se reinvierten, así que la columna Acciones indica las cantidades "
-    "iniciales y el valor actual ya no es su número por el precio de cierre."
+    "la primera fecha y los pesos iniciales resultan de él. Las cantidades no cambian (sin "
+    "rebalanceo). Como en cualquier cartera, la rentabilidad incluye los dividendos. Valor de "
+    "mercado de las acciones hoy (acciones × último cierre): {market}. El valor final del "
+    "resumen, {value}, es mayor porque suma los dividendos."
+)
+SHARES_REBALANCED_NOTE = (
+    "Cartera definida por número de acciones con rebalanceo mensual: el importe inicial es el "
+    "valor de esas acciones en la primera fecha y los pesos objetivo resultan de él. Cada mes se "
+    "vuelve a esos pesos, así que las cantidades cambian: la columna Acciones iniciales indica "
+    "las de la primera fecha y el valor actual ya no es su número por el precio de cierre."
 )
 COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
@@ -46,7 +53,7 @@ RETURN_MEASURES_NOTE = (
 # Simulación
 SIMULATION_NOT_CONFIGURED = (
     "> ⚠️ **No se ha configurado la simulación.** Para incluir esta sección, ejecuta el programa "
-    "con `--simulate --report` o pasa el resultado de `portfolio.monte_carlo(...)` al informe."
+    "con `--simulate --report`."
 )
 SIMULATION_DEFAULT_CRITERIA = (
     "**Criterios:** esta simulación se ha ejecutado con los criterios por defecto: {criteria}. "
@@ -101,13 +108,14 @@ SIMULATED_BUY_AND_HOLD = "Sin rebalanceo"
 # Explicación de la base de precios según la columna utilizada en el análisis.
 PRICE_BASIS_NOTES = {
     "Close": (
-        "La valoración usa Close. Adj Close incorpora además dividendos y otras distribuciones. "
-        "Tener Adj Close disponible no significa que se haya usado en este análisis."
+        "La valoración usa el precio de cierre sin ajustar: la rentabilidad no incluye los "
+        "dividendos ni otras distribuciones, porque no todos los activos publican precios "
+        "ajustados."
     ),
     "Adj Close": (
-        "El análisis usa Adj Close, que incorpora dividendos y otras distribuciones: los valores "
-        "de la cartera estiman su crecimiento con reinversión y pueden diferir del valor de "
-        "mercado de las posiciones."
+        "El análisis usa precios ajustados por dividendos y otras distribuciones: los valores de "
+        "la cartera estiman su crecimiento con reinversión y pueden diferir del valor de mercado "
+        "de las posiciones."
     ),
 }
 NO_DATA_ISSUES = "**Incidencias de los datos:** ninguna."

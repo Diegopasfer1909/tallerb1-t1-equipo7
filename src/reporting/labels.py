@@ -96,13 +96,21 @@ HOLDINGS_COLUMNS = {
     "weight": "Peso actual",
 }
 # Con una cartera definida por número de acciones, los pesos de partida no son un objetivo
-# y el valor no es hipotético: es el de esas acciones.
+# y el valor no es hipotético: es el de esas acciones. Con Adj Close, el valor incluye los
+# dividendos reinvertidos y el valor de mercado, acciones por precio, se muestra aparte.
 SHARES_HOLDINGS_COLUMNS = {
     "shares": "Acciones",
     "target_weight": "Peso inicial",
     "price": "Precio de cierre",
+    "market_value": "Valor de mercado",
     "value": "Valor",
     "weight": "Peso actual",
+}
+DIVIDEND_VALUE_LABEL = "Valor con dividendos"
+# Precios con los que se valora la cartera, como los entiende quien lee el informe.
+PRICE_COLUMN_LABELS = {
+    "Close": "cierre sin ajustar por dividendos",
+    "Adj Close": "ajustados por dividendos",
 }
 WEIGHT_COLUMNS = ("target_weight", "weight")
 # Resultados de SimulationResult.summary() que son rentabilidades o probabilidades.

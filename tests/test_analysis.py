@@ -164,10 +164,14 @@ class AnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(analysis.metrics["total_return"], 0.2)
         # El precio mostrado corresponde a la misma columna que el valor de la posición.
         self.assertEqual(analysis.holdings.loc["A", "price"], 60)
-        # 2 acciones × 60 no son 240: la tabla no muestra acciones y el informe lo explica.
-        self.assertNotIn("shares", analysis.holdings)
+        # Con dividendos reinvertidos, el valor de mercado de las 2 acciones va aparte.
+        self.assertEqual(analysis.holdings.loc["A", "shares"], 2)
+        self.assertEqual(analysis.holdings.loc["A", "market_value"], 200)
         self.assertEqual(analysis.units.to_dict(), {"A": 2})
-        self.assertIn("los dividendos se reinvierten", analysis.markdown())
+        report = analysis.markdown()
+        self.assertIn("la rentabilidad incluye los dividendos", report)
+        self.assertIn("(acciones × último cierre): 200,00", report)
+        self.assertIn("resumen, 240,00", report)
 
     def test_unadjusted_prices_are_flagged_whatever_the_provider(self):
         unadjusted = buy_and_hold([Asset(history("A", [100, 120, 96]))], [1]).analyze()
@@ -365,9 +369,13 @@ class AnalysisTests(unittest.TestCase):
         dates = pd.to_datetime(["2025-01-31", "2025-02-28", "2025-03-31"])
         portfolio = buy_and_hold([Asset(history("A", [100, 110, 121], dates=dates))], [1])
         daily = portfolio.analyze()
-        self.assertTrue(any("periods_per_year" in notice.message for notice in daily.notices))
+        self.assertTrue(
+            any("como si los datos fueran diarios" in notice.message for notice in daily.notices)
+        )
         monthly = portfolio.analyze(periods_per_year=12)
-        self.assertFalse(any("periods_per_year" in notice.message for notice in monthly.notices))
+        self.assertFalse(
+            any("como si los datos fueran diarios" in notice.message for notice in monthly.notices)
+        )
         self.assertAlmostEqual(monthly.metrics["annualized_return"], 1.21 ** (365.25 / 59) - 1)
 
     def test_monthly_inflation_allows_normal_publication_lag(self):
@@ -533,6 +541,6 @@ class MarketLoaderTests(unittest.TestCase):
             references = load_market_references(
                 "2026-01-01", "2026-02-01", inflation_series="CPIAUCSL"
             )
-            self.assertIn("FRED_API_KEY", references.notices[0].message)
+            self.assertIn("falta la clave de FRED", references.notices[0].message)
             with self.assertRaises(ConfigurationError):
                 load_fred_fx_rates({("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01")

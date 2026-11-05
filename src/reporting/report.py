@@ -18,7 +18,9 @@ from .formatting import UNAVAILABLE, format_date, format_number, format_points
 from .labels import (
     CHART_TITLES,
     COUNTRIES,
+    DIVIDEND_VALUE_LABEL,
     HOLDINGS_COLUMNS,
+    PRICE_COLUMN_LABELS,
     RISK_FREE_NAMES,
     SECTORS,
     SENSITIVITY_CASES,
@@ -59,14 +61,16 @@ def _bullets(items) -> str:
 def holdings_table(holdings: pd.DataFrame, by_shares: bool = False) -> pd.DataFrame:
     """Posiciones con etiquetas en español y números con coma decimal.
 
-    by_shares indica una cartera definida por número de acciones: sus pesos de partida no son
-    un objetivo y su valor no es hipotético. Portfolio.holdings() solo incluye la columna
-    shares con Close; con Adj Close la tabla no muestra las acciones.
+    by_shares indica una cartera definida por número de acciones sin rebalanceo: sus pesos de
+    partida no son un objetivo y su valor no es hipotético. Con Adj Close, Portfolio.holdings()
+    añade el valor de mercado y el valor incluye los dividendos reinvertidos.
     """
     table = pd.DataFrame(index=holdings.index.rename("Activo"))
-    columns = SHARES_HOLDINGS_COLUMNS if by_shares else HOLDINGS_COLUMNS
+    columns = dict(SHARES_HOLDINGS_COLUMNS if by_shares else HOLDINGS_COLUMNS)
+    if "market_value" in holdings:
+        columns["value"] = DIVIDEND_VALUE_LABEL
     for column, label in columns.items():
-        if column == "shares" and column not in holdings:
+        if column in ("shares", "market_value") and column not in holdings:
             continue
         percentage = column in WEIGHT_COLUMNS
         table[label] = [format_number(value, percentage) for value in holdings[column]]
@@ -122,6 +126,8 @@ def _read_sign(value, positive: str, negative: str):
 
 
 def _strategy(analysis: PortfolioAnalysis) -> str:
+    if analysis.units is not None and analysis.rebalance == MONTHLY:
+        return "rebalanceo mensual a los pesos iniciales de las acciones"
     if analysis.units is not None:
         return "número de acciones fijo, sin rebalanceo"
     if analysis.rebalance == MONTHLY:
@@ -248,6 +254,7 @@ def _composition(report: ReportContext) -> str:
     returns = analysis.asset_returns
     units = analysis.units
     shares = units is not None
+    rebalanced = analysis.rebalance == MONTHLY
     rows = []
     for symbol, asset in analysis.asset_details.iterrows():
         target = analysis.target_weights[symbol]
@@ -271,17 +278,16 @@ def _composition(report: ReportContext) -> str:
     if (analysis.asset_details["quote_currency"] != analysis.currency).any():
         notes += " " + texts.CONVERTED_PRICES_NOTE.format(currency=analysis.currency)
     if shares:
-        adjusted = analysis.price_column == ADJ_CLOSE
-        notes += "\n\n" + (texts.SHARES_ADJUSTED_NOTE if adjusted else texts.SHARES_NOTE)
+        notes += "\n\n" + _shares_note(analysis)
     table = _table(
         [
             "Ticker",
-            *(["Acciones"] if shares else []),
+            *([("Acciones iniciales" if rebalanced else "Acciones")] if shares else []),
             "Nombre",
             "Sector",
             "Divisa",
             "País",
-            "Peso inicial" if shares else "Peso objetivo",
+            "Peso inicial" if shares and not rebalanced else "Peso objetivo",
             "Importe inicial",
             "Peso actual",
             "Media diaria",
@@ -290,6 +296,18 @@ def _composition(report: ReportContext) -> str:
         rows,
     )
     return "\n\n".join([table, notes, texts.COSTS_NOTE])
+
+
+def _shares_note(analysis: PortfolioAnalysis) -> str:
+    if analysis.rebalance == MONTHLY:
+        return texts.SHARES_REBALANCED_NOTE
+    holdings = analysis.holdings
+    if analysis.price_column == ADJ_CLOSE and "market_value" in holdings:
+        return texts.SHARES_ADJUSTED_NOTE.format(
+            market=_money(holdings["market_value"].sum(), analysis.currency),
+            value=_money(holdings["value"].sum(), analysis.currency),
+        )
+    return texts.SHARES_NOTE
 
 
 def _annual_results(analysis: PortfolioAnalysis) -> str:
@@ -613,6 +631,8 @@ def _simulation_criteria(simulation: SimulationResult, analysis: PortfolioAnalys
     if analysis.units is not None:
         option = "--shares"
         assets = " ".join(f"{s}:{n:g}" for s, n in analysis.units.items())
+        if analysis.rebalance == MONTHLY:
+            assets += " --rebalance monthly"
     else:
         option = "--assets"
         assets = " ".join(f"{s}:{w:g}" for s, w in analysis.target_weights.items())
@@ -711,7 +731,7 @@ def _simulation(report: ReportContext) -> str:
         else texts.SIMULATED_BUY_AND_HOLD
     )
     parameters = [
-        ["Método", f"Por activos ({simulation.correlation_method})"],
+        ["Método", "Por activos, con sus correlaciones"],
         ["Rebalanceo", rebalance],
         ["Valor inicial", _money(results["initial_value"], currency)],
         [
@@ -887,7 +907,8 @@ def build_report(
     blocks = [
         "# Informe de cartera",
         f"**Período:** {format_date(dates[0])} — {format_date(dates[-1])} · "
-        f"**Divisa:** {analysis.currency} · **Precios:** {analysis.price_column} · {strategy}  \n"
+        f"**Divisa:** {analysis.currency} · "
+        f"**Precios:** {PRICE_COLUMN_LABELS[analysis.price_column]} · {strategy}  \n"
         f"*Elaborado el {generated_on:%d/%m/%Y a las %H:%M:%S %z}*",
     ]
     # La numeración es la de la estructura completa, también al elegir solo algunas secciones.

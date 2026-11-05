@@ -173,7 +173,7 @@ class MainTests(unittest.TestCase):
             "VaR al horizonte (99 %)",
             "Percentiles 1 y 99",
             "21 sesiones",
-            "Autovalores (matriz singular)",
+            "Por activos, con sus correlaciones",
         ):
             self.assertIn(text, report)
 
@@ -279,9 +279,44 @@ class MainTests(unittest.TestCase):
         self.assertIn("Valor final de 1.400,00 USD", report)
         self.assertIn("número de acciones fijo", report)
         # La cabecera describe la estrategia igual que el resumen.
-        self.assertIn("**Precios:** Close · Número de acciones fijo, sin rebalanceo", report)
+        self.assertIn(
+            "**Precios:** cierre sin ajustar por dividendos · Número de acciones fijo, sin rebalanceo",
+            report,
+        )
         self.assertIn("--shares IBM:10 MSFT:2", report)
         self.assertNotIn("Rebalanceo mensual", report)
+
+    def test_shares_can_be_rebalanced_to_their_initial_weights(self):
+        msft = PriceHistory(
+            "MSFT",
+            "yahoo",
+            pd.DataFrame({"Close": [200, 210, 190, 250]}, index=self.dates),
+            profile=AssetProfile(currency="USD", name="Microsoft"),
+        )
+        histories = {"IBM": self.history, "MSFT": msft}
+        with tempfile.TemporaryDirectory() as folder:
+            reports = Path(folder) / "informes"
+            with (
+                patch("src.main.load_dotenv"),
+                patch("src.main.YahooFinanceAPI") as yahoo,
+                patch("src.main.load_references", return_value=MarketReferences()),
+                redirect_stdout(io.StringIO()) as output,
+                redirect_stderr(io.StringIO()),
+            ):
+                yahoo.return_value.get_prices.side_effect = lambda symbol, *a, **k: histories[
+                    symbol
+                ]
+                arguments = ["--shares", "IBM:10", "MSFT:2", "--rebalance", "monthly", "--report"]
+                self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
+            report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
+        self.assertIn("Valor inicial de las acciones (01/01/2026): 1.400,00 USD", output.getvalue())
+        self.assertIn(
+            "Rebalanceo: mensual, a los pesos iniciales de las acciones", output.getvalue()
+        )
+        self.assertIn("Rebalanceo mensual a los pesos iniciales de las acciones", report)
+        self.assertIn("Acciones iniciales", report)
+        self.assertIn("Peso objetivo", report)
+        self.assertIn("--shares IBM:10 MSFT:2 --rebalance monthly", report)
 
     def test_shares_are_parsed_from_console_and_files(self):
         self.assertEqual(parse_shares(["AAPL:10", "SPY:2.5"]), {"AAPL": 10, "SPY": 2.5})
@@ -295,6 +330,11 @@ class MainTests(unittest.TestCase):
         self.assertEqual(config.shares, {"AAPL": 10, "SPY": 5})
         self.assertIsNone(config.rebalance)
         self.assertEqual(config.simulation.expected_returns, {"SPY": 0.07})
+        # Con acciones solo se rebalancea si se pide.
+        for option, expected in (("monthly", "monthly"), ("none", None)):
+            config = parse_arguments(["--shares", "AAPL:10", "SPY:5", "--rebalance", option])
+            self.assertEqual(config.rebalance, expected)
+        self.assertEqual(parse_arguments(["--assets", "AAPL:1"]).rebalance, "monthly")
 
     def test_invalid_shares_fail_before_downloading(self):
         invalid = [
@@ -305,7 +345,6 @@ class MainTests(unittest.TestCase):
             ["--shares", "AAPL:10", "aapl:5"],
             ["--shares", "AAPL:10", "--assets", "AAPL:1"],
             ["--shares", "AAPL:10", "--capital", "5000"],
-            ["--shares", "AAPL:10", "--rebalance", "monthly"],
             # Alpha Vantage publica cierres sin ajustar por splits.
             ["--shares", "AAPL:10", "--provider", "alpha_vantage"],
         ]
@@ -565,7 +604,7 @@ class MainTests(unittest.TestCase):
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
         fred_requests.assert_not_called()
         self.assertIn("Aviso: FRED_API_KEY no está configurada", errors.getvalue())
-        self.assertIn("porque falta FRED_API_KEY", report)
+        self.assertIn("porque falta la clave de FRED", report)
         self.assertIn("Comparación con el índice", report)
 
     def test_no_key_warnings_when_the_keys_are_configured(self):

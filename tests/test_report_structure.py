@@ -504,7 +504,7 @@ class CommandLineTests(unittest.TestCase):
                 self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
             text = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
         self.assertEqual(references.call_args.kwargs["benchmark_symbol"], "^IBEX")
-        self.assertIn("**Precios:** Adj Close", text)
+        self.assertIn("**Precios:** ajustados por dividendos", text)
         self.assertIn("+22,22 %", text)
 
 
@@ -592,7 +592,9 @@ class MarketLoaderTests(unittest.TestCase):
         self.assertIsNotNone(references.gold)
         self.assertIsNone(references.vix)
         self.assertIsNone(references.inflation)
-        self.assertTrue(any("FRED_API_KEY" in notice.message for notice in references.notices))
+        self.assertTrue(
+            any("falta la clave de FRED" in notice.message for notice in references.notices)
+        )
 
 
 if __name__ == "__main__":

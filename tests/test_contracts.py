@@ -225,9 +225,9 @@ class ReportTextTests(unittest.TestCase):
         data = history("A", [100, 102, 104], extra={ADJ_CLOSE: [99, 101, 104]})
         portfolio = buy_and_hold([Asset(data)], [1])
         adjusted = build_report(portfolio.analyze(price_column=ADJ_CLOSE))
-        self.assertIn("El análisis usa Adj Close", adjusted)
-        self.assertNotIn("La valoración usa Close", adjusted)
-        self.assertIn("La valoración usa Close", build_report(portfolio.analyze()))
+        self.assertIn("El análisis usa precios ajustados", adjusted)
+        self.assertNotIn("La valoración usa el precio de cierre", adjusted)
+        self.assertIn("La valoración usa el precio de cierre", build_report(portfolio.analyze()))
 
     def test_sectors_are_translated_and_charts_have_descriptive_alt_text(self):
         portfolio = buy_and_hold(
