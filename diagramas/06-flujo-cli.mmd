@@ -16,7 +16,7 @@ flowchart TD
         WARN["Aviso: faltan referencias FRED<br/>el informe continúa"]
         FX{"¿--currency?"}
         FXP["Crear YahooFinanceAPI auxiliar<br/>para cambios necesarios"]
-        LOAD["load_portfolio()<br/>precios → activos → FX → cartera"]
+        LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios → activos → FX → cartera"]
         PRINT["print_portfolio()"]
         SIMQ{"¿config.simulation<br/>es distinto de None?"}
         SIM["portfolio.monte_carlo()<br/>print_simulation()"]

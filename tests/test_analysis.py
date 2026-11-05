@@ -164,6 +164,10 @@ class AnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(analysis.metrics["total_return"], 0.2)
         # El precio mostrado corresponde a la misma columna que el valor de la posición.
         self.assertEqual(analysis.holdings.loc["A", "price"], 60)
+        # 2 acciones × 60 no son 240: la tabla no muestra acciones y el informe lo explica.
+        self.assertNotIn("shares", analysis.holdings)
+        self.assertEqual(analysis.units.to_dict(), {"A": 2})
+        self.assertIn("los dividendos se reinvierten", analysis.markdown())
 
     def test_unadjusted_prices_are_flagged_whatever_the_provider(self):
         unadjusted = buy_and_hold([Asset(history("A", [100, 120, 96]))], [1]).analyze()

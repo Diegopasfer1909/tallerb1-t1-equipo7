@@ -7,10 +7,12 @@ classDiagram
     class Portfolio {
         <<frozen dataclass>>
         +target_weights : Series
+        +units : Series | None
         +initial_capital : float
         +rebalance : Rebalance
         +reporting_currency : str
         -_cache : dict
+        +from_units(assets, units)$ Portfolio
         +close_prices() DataFrame
         +position_values() DataFrame
         +holdings() DataFrame

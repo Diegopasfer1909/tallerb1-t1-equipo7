@@ -19,8 +19,8 @@
 <rect x="640" y="500" width="520" height="160" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="641" y="501" width="7" height="158" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <text x="664" y="547.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Cargar y mostrar cartera</text>
-<text x="664" y="586.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Proveedor elegido → activos</text>
-<text x="664" y="614.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">FX si hace falta → Portfolio</text>
+<text x="664" y="586.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Pesos o número de acciones</text>
+<text x="664" y="614.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">proveedor → activos → FX → Portfolio</text>
 <text x="664" y="642.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Imprimir composición</text>
 <polyline points="900,420 900,500" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,486.49329346470984 900,500 906.5244830116685,486.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
