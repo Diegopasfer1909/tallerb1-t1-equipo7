@@ -71,6 +71,11 @@ class PriceHistory:
             raise PortfolioError("Falta la columna de precios Close.")
         if prices.empty:
             raise PortfolioError("La tabla de precios no puede estar vacía.")
+        self._validate_values(prices)
+
+    @staticmethod
+    def _validate_values(prices: pd.DataFrame) -> None:
+        """Comprueba tipos y valores una vez validada la estructura de la tabla."""
         for column in NUMERIC_COLUMNS:
             if column in prices.columns and not is_numeric_data(prices[column]):
                 raise TypeError(f"{column} debe contener números.")

@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff==0.17.2"]
+dev = ["ruff==0.17.2", "coverage==7.17.2"]
 
 [tool.setuptools]
 # Excluye datos descargados y credenciales del paquete instalado.
@@ -39,3 +39,23 @@ line-length = 100
 [tool.ruff.lint]
 # Errores de sintaxis, nombres sin usar y orden de las importaciones.
 select = ["E4", "E7", "E9", "F", "I", "B"]
+
+# CI aplica C901, PLR0912 y PLR0915 a src; el lint general incluye pruebas y diagramas.
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-branches = 12
+max-statements = 50
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+relative_files = true
+
+[tool.coverage.report]
+# La suite sin red parte de un 94,81 % combinado de líneas y ramas (Python 3.14).
+fail_under = 94
+precision = 2
+show_missing = true
+skip_covered = true

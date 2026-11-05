@@ -242,14 +242,7 @@ class ApiClient:
                 "más tarde."
             ) from None
         if http_error:
-            status, reason = "unknown", None
-            if response is not None:
-                status = response.status_code
-                reason = self._rejection(response)
-                if self.on_rejection is not None:
-                    self.on_rejection(status, reason)
-            detail = f" Mensaje original: {reason}" if reason else ""
-            raise ProviderError(f"El proveedor ha devuelto el estado HTTP {status}.{detail}")
+            self._raise_http_error(response)
         try:
             payload = response.json()
         except ValueError:
@@ -265,6 +258,17 @@ class ApiClient:
                 f"El proveedor ha rechazado la consulta. Mensaje original: {reason}"
             )
         return payload
+
+    def _raise_http_error(self, response) -> None:
+        """Notifica el rechazo fuera del except para no encadenar la URL con la clave."""
+        status, reason = "unknown", None
+        if response is not None:
+            status = response.status_code
+            reason = self._rejection(response)
+            if self.on_rejection is not None:
+                self.on_rejection(status, reason)
+        detail = f" Mensaje original: {reason}" if reason else ""
+        raise ProviderError(f"El proveedor ha devuelto el estado HTTP {status}.{detail}")
 
     def _rejection(self, response) -> str | None:
         """Motivo que da el proveedor (clave no válida, cuota…), sin mostrar la clave."""

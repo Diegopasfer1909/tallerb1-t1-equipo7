@@ -40,6 +40,8 @@ jobs:
         run: python -m pip install ".[dev]"
       - name: Comprobar código e importaciones
         run: python -m ruff check --output-format=github .
+      - name: Limitar la complejidad del código de src
+        run: python -m ruff check --extend-select C901,PLR0912,PLR0915 --output-format=github src
       - name: Comprobar formato
         if: ${{ !cancelled() }}
         run: python -m ruff format --check .
@@ -63,9 +65,28 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - name: Instalar dependencias del proyecto
-        run: python -m pip install .
+        run: python -m pip install ".[dev]"
       - name: Ejecutar pruebas sin conexión
-        run: python -m unittest discover -s tests -v
+        run: python -m coverage run -m unittest discover -s tests -v
+      - name: Generar informes de cobertura
+        if: ${{ !cancelled() }}
+        run: |
+          python -m coverage html --fail-under=0
+          python -m coverage xml --fail-under=0
+      - name: Exigir la cobertura mínima y mostrarla en el resumen
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: python -m coverage report --format=markdown | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Guardar informes de cobertura
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cobertura-python-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 7
+          if-no-files-found: error
 
   paquete:
     name: Paquete instalable
