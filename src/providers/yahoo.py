@@ -169,8 +169,10 @@ class YahooFinanceAPI:
 def _quiet_yfinance() -> Iterator[None]:
     """Oculta los avisos de obsolescencia que yfinance provoca en pandas 3 (Pandas4Warning).
 
-    Son internos de yfinance, no afectan a los datos y llenan la consola en cada descarga.
-    Solo se ocultan los avisos originados en el código de yfinance; los demás se muestran.
+    Según la versión de yfinance, son internos, no afectan a los datos y llenan la consola
+    en cada descarga: yfinance activa sus propios DeprecationWarning al importarse. Solo se
+    ocultan los avisos originados en el código de yfinance; los demás se muestran. Los
+    filtros de avisos son globales, así que no conviene usarlo desde varios hilos a la vez.
     """
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"yfinance(\.|$)")

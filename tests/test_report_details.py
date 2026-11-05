@@ -15,6 +15,7 @@ from src.analysis import WarningThresholds
 from src.analysis.metrics import calendar_returns, drawdown_episode
 from src.main import parse_arguments
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences, Portfolio
+from src.reporting.export import PUBLISH_ATTEMPTS
 from src.reporting.plots import plot_analysis, save_charts
 from src.reporting.sections import SECTION_TITLES
 
@@ -326,7 +327,8 @@ class ReportSelectionTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 self.analysis.report(sections=["summary"], directory=folder)
             self.assertEqual(list(Path(folder).iterdir()), [])
-        self.assertEqual(wait.call_count, 5)
+        # Se espera entre intentos, no después del último.
+        self.assertEqual(wait.call_count, PUBLISH_ATTEMPTS - 1)
         self.assertEqual(plt.get_fignums(), [])
 
     def test_reports_default_to_a_folder_in_the_current_directory(self):

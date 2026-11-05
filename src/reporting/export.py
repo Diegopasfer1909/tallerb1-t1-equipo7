@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 
 # Carpeta por defecto, relativa a la carpeta desde la que se ejecuta el programa.
 DEFAULT_DIRECTORY = Path("informes")
+# En Windows, el antivirus o el indexador pueden tener abierto un gráfico recién guardado
+# durante unos instantes; renombrar la carpeta en ese momento da «Acceso denegado».
+PUBLISH_ATTEMPTS = 6
+PUBLISH_WAIT_SECONDS = 0.5
 
 
 def save_report(
@@ -66,12 +70,6 @@ def save_report(
     finally:
         close_figures(figures)
     return target / f"{target.name}.md"
-
-
-# En Windows, el antivirus o el indexador pueden tener abierto un gráfico recién guardado
-# durante unos instantes; renombrar la carpeta en ese momento da «Acceso denegado».
-PUBLISH_ATTEMPTS = 6
-PUBLISH_WAIT_SECONDS = 0.5
 
 
 def _publish(staging: Path, target: Path) -> None:

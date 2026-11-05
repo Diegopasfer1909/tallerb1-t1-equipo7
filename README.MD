@@ -14,17 +14,16 @@ instalar Python, marca «Add Python to PATH».
 ```bash
 git clone https://github.com/Diegopasfer1909/tallerb1-t1-equipo7.git
 cd tallerb1-t1-equipo7
-python -m venv .venv
 ```
 
-Activa el entorno (cada vez que abras una terminal nueva):
+Crea el entorno virtual una vez y actívalo cada vez que abras una terminal nueva:
 
-| Sistema | Comando |
-| --- | --- |
-| Windows (PowerShell) | `.\.venv\Scripts\Activate.ps1` |
-| macOS / Linux | `source .venv/bin/activate` |
+| Sistema | Crear (una vez) | Activar |
+| --- | --- | --- |
+| Windows (PowerShell) | `python -m venv .venv` | `.\.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `python3 -m venv .venv` | `source .venv/bin/activate` |
 
-Instala el proyecto y genera un primer informe con la cartera de ejemplo:
+Con el entorno activado, `python` funciona igual en todos los sistemas. Instala el proyecto y genera un primer informe con la cartera de ejemplo:
 
 ```bash
 python -m pip install -e .
@@ -65,6 +64,7 @@ instala de nuevo.
 | Mensaje | Solución |
 | --- | --- |
 | `python` no se reconoce (macOS / Linux) | Usa `python3` para crear el entorno; una vez activado, `python` ya funciona |
+| `python` no se reconoce o abre la Microsoft Store (Windows) | Crea el entorno con `py -m venv .venv`, o reinstala Python marcando «Add Python to PATH» |
 | «la ejecución de scripts está deshabilitada» al activar el entorno (Windows) | Ejecuta una vez `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` y vuelve a activarlo |
 | `Yahoo no ha podido descargar los precios` | Yahoo limita las consultas seguidas: espera unos minutos y repite; las respuestas ya descargadas se reutilizan desde la caché |
 | Aviso de que falta `FRED_API_KEY` | No es un error: el informe se genera sin las medidas que dependen de FRED (ver [Claves de API](#claves-de-api-opcionales)) |
