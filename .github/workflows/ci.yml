@@ -38,10 +38,8 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Instalar herramientas de calidad
         run: python -m pip install ".[dev]"
-      - name: Comprobar código e importaciones
+      - name: Comprobar código, importaciones y complejidad
         run: python -m ruff check --output-format=github .
-      - name: Limitar la complejidad del código de src
-        run: python -m ruff check --extend-select C901,PLR0912,PLR0915 --output-format=github src
       - name: Comprobar formato
         if: ${{ !cancelled() }}
         run: python -m ruff format --check .

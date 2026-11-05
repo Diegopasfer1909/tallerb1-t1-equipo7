@@ -9,7 +9,7 @@ import re
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol
+from typing import NoReturn, Protocol
 
 import pandas as pd
 import requests
@@ -259,7 +259,7 @@ class ApiClient:
             )
         return payload
 
-    def _raise_http_error(self, response) -> None:
+    def _raise_http_error(self, response) -> NoReturn:
         """Notifica el rechazo fuera del except para no encadenar la URL con la clave."""
         status, reason = "unknown", None
         if response is not None:

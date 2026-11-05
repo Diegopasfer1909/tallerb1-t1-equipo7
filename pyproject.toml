@@ -38,9 +38,14 @@ line-length = 100
 
 [tool.ruff.lint]
 # Errores de sintaxis, nombres sin usar y orden de las importaciones.
-select = ["E4", "E7", "E9", "F", "I", "B"]
+# C901, PLR0912 y PLR0915 limitan la complejidad de cada función.
+select = ["E4", "E7", "E9", "F", "I", "B", "C901", "PLR0912", "PLR0915"]
 
-# CI aplica C901, PLR0912 y PLR0915 a src; el lint general incluye pruebas y diagramas.
+[tool.ruff.lint.per-file-ignores]
+# Los límites de complejidad solo se exigen al código de src.
+"tests/**" = ["C901", "PLR0912", "PLR0915"]
+"diagramas/**" = ["C901", "PLR0912", "PLR0915"]
+
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
@@ -54,7 +59,7 @@ source = ["src"]
 relative_files = true
 
 [tool.coverage.report]
-# La suite sin red parte de un 94,81 % combinado de líneas y ramas (Python 3.14).
+# Mínimo combinado de líneas y ramas con la suite sin red.
 fail_under = 94
 precision = 2
 show_missing = true
