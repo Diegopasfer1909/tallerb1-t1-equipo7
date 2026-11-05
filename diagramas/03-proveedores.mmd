@@ -1,5 +1,4 @@
 %% Realización estructural: Yahoo/Alpha satisfacen Protocol sin herencia explícita.
-%%{init: {"theme":"base","themeVariables":{"fontFamily":"Segoe UI, Arial, sans-serif","primaryColor":"#E4F7F3","primaryTextColor":"#14233D","primaryBorderColor":"#168575","lineColor":"#64748B"}}}%%
 classDiagram
     direction TB
     accTitle: B1-T1 · Contrato y adaptadores de proveedores
@@ -53,13 +52,6 @@ classDiagram
     note for YahooFinanceAPI "yfinance.Ticker y funciones de caché.\nNo utiliza ApiClient."
     note for AlphaVantageQuota "SQLite independiente de la caché.\n25 reservas / ventana móvil de 24 h.\nHash de clave y marcas temporales."
     note for ApiClient "Caché → ritmo → callback → HTTP.\nFRED no instala callbacks de cuota."
-    style PriceProvider fill:#14233D,stroke:#14233D,color:#FFFFFF
-    style YahooFinanceAPI fill:#E4F7F3,stroke:#168575,color:#14233D
-    style AlphaVantageAPI fill:#E4F7F3,stroke:#168575,color:#14233D
-    style FredAPI fill:#E4F7F3,stroke:#168575,color:#14233D
-    style ApiClient fill:#EAF2FF,stroke:#356CC9,color:#14233D
-    style AlphaVantageQuota fill:#FFF3D9,stroke:#BF861B,color:#14233D
-    style Session fill:#F8FAFC,stroke:#64748B,color:#14233D
 %% Excepciones reales (no confundidas con el contrato):
 %% ValueError <|-- PortfolioError <|-- ConfigurationError
 %% RuntimeError <|-- ProviderError <|-- DataCoverageError
