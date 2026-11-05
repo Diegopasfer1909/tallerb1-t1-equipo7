@@ -51,11 +51,13 @@ class Portfolio:
     que la valoración se calcula una sola vez por columna de precios. Para otra composición,
     crea otra cartera, por ejemplo con dataclasses.replace().
 
-    units guarda el número de acciones de una cartera creada con from_units(). En ese caso no
-    hay rebalanceo, target_weights contiene los pesos iniciales que resultan de las cantidades
-    (no un objetivo) e initial_capital, su valor en la primera fecha común. Con Close, la
-    columna preferida, cada posición vale exactamente sus acciones por su precio. Con Adj Close
-    los dividendos se reinvierten, así que holdings() no muestra el número de acciones.
+    units guarda el número de acciones de una cartera creada con from_units(). target_weights
+    contiene los pesos que resultan de las cantidades en la primera fecha común e
+    initial_capital, su valor en esa fecha. Sin rebalanceo, las cantidades no cambian: con
+    Close, la columna preferida, cada posición vale exactamente sus acciones por su precio; con
+    Adj Close los dividendos se reinvierten, así que holdings() no muestra el número de
+    acciones. Con rebalanceo mensual, cada mes se vuelve a esos pesos, las cantidades cambian
+    y la cartera se valora como una definida por pesos.
     """
 
     assets: Sequence[Asset]
@@ -101,12 +103,15 @@ class Portfolio:
         units: Mapping[str, float],
         reporting_currency: str = "",
         fx_rates: FxRates | None = None,
+        rebalance: Rebalance = None,
     ) -> Portfolio:
-        """Cartera sin rebalanceo que empieza con las cantidades indicadas de cada activo.
+        """Cartera que empieza con las cantidades indicadas de cada activo.
 
-        El capital inicial es el valor de esas cantidades en la primera fecha común. Los cierres
-        deben estar ajustados por splits: con cierres sin ajustar, un split dentro del período
-        multiplicaría el valor de las fechas anteriores.
+        El capital inicial es el valor de esas cantidades en la primera fecha común y los pesos
+        objetivo, los que resultan de él. Sin rebalanceo las cantidades se mantienen; con
+        rebalance="monthly", cada mes se vuelve a esos pesos. Los cierres deben estar ajustados
+        por splits: con cierres sin ajustar, un split dentro del período multiplicaría el valor
+        de las fechas anteriores.
         """
         assets = tuple(assets)
         if not assets:
@@ -128,7 +133,7 @@ class Portfolio:
             reporting_currency,
             fx_rates,
             initial_capital=capital,
-            rebalance=None,
+            rebalance=rebalance,
             units=units,
         )
 
@@ -146,7 +151,7 @@ class Portfolio:
         return read_only(ordered / ordered.sum())
 
     def _ordered_units(self) -> pd.Series:
-        """Una cantidad por activo, en su orden; solo tiene sentido sin rebalanceo."""
+        """Una cantidad por activo, en su orden: las acciones de la primera fecha común."""
         if not isinstance(self.units, Mapping | pd.Series):
             raise TypeError("Indica las cantidades como un diccionario {símbolo: acciones}.")
         units = dict(self.units)
@@ -155,11 +160,6 @@ class Portfolio:
             raise PortfolioError("Indica una cantidad por cada activo.")
         values = [units[symbol] for symbol in symbols]
         validate_units(values)
-        if self.rebalance is not None:
-            raise PortfolioError(
-                "Una cartera definida por número de acciones no se rebalancea: las cantidades "
-                "no cambian."
-            )
         return read_only(pd.Series(values, index=symbols, dtype=float, name="shares"))
 
     def _check_units_match_weights(self) -> None:
@@ -179,13 +179,19 @@ class Portfolio:
     def preferred_price_column(self) -> PriceColumn:
         """Adj Close incluye dividendos en las rentabilidades, si lo publican todos los activos.
 
-        Una cartera definida por número de acciones usa Close: así su valor es exactamente el
-        número de acciones por el precio, sin dividendos reinvertidos que no se han comprado.
+        Una cartera definida por número de acciones y sin rebalanceo usa Close: así su valor es
+        exactamente el número de acciones por el precio, sin dividendos reinvertidos que no se
+        han comprado. Con rebalanceo las cantidades cambian cada mes, como con pesos.
         """
-        if self.units is not None:
+        if self.fixed_units:
             return CLOSE
         available = all(ADJ_CLOSE in asset.history.prices.columns for asset in self.assets)
         return ADJ_CLOSE if available else CLOSE
+
+    @property
+    def fixed_units(self) -> bool:
+        """Cartera por número de acciones que mantiene sus cantidades, sin rebalanceo."""
+        return self.units is not None and self.rebalance is None
 
     @property
     def valuation_date(self) -> pd.Timestamp:
@@ -222,9 +228,9 @@ class Portfolio:
                 "weight": values / total,
             }
         )
-        # Solo con Close el valor es el número de acciones por el precio: con Adj Close los
-        # dividendos se reinvierten y las acciones iniciales ya no explican el valor.
-        if self.units is not None and price_column == CLOSE:
+        # Solo sin rebalanceo y con Close el valor es el número de acciones por el precio: con
+        # Adj Close los dividendos se reinvierten y, con rebalanceo, las cantidades cambian.
+        if self.fixed_units and price_column == CLOSE:
             # Una copia: compartir memoria permitiría modificar units a través de la tabla.
             table.insert(0, "shares", self.units.copy())
         return table.rename_axis("asset")

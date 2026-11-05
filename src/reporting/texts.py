@@ -28,6 +28,12 @@ SHARES_ADJUSTED_NOTE = (
     "Close: los dividendos se reinvierten, así que la columna Acciones indica las cantidades "
     "iniciales y el valor actual ya no es su número por el precio de cierre."
 )
+SHARES_REBALANCED_NOTE = (
+    "Cartera definida por número de acciones con rebalanceo mensual: el importe inicial es el "
+    "valor de esas acciones en la primera fecha y los pesos objetivo resultan de él. Cada mes se "
+    "vuelve a esos pesos, así que las cantidades cambian: la columna Acciones iniciales indica "
+    "las de la primera fecha y el valor actual ya no es su número por el precio de cierre."
+)
 COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
     "se permite invertir en fracciones de cada activo: operar esta cartera rendiría menos."

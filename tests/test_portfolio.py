@@ -199,10 +199,31 @@ class PortfolioTests(unittest.TestCase):
             with self.subTest(units=units), self.assertRaises(ValueError):
                 Portfolio.from_units([a, b], units)
         portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 20})
-        with self.assertRaisesRegex(ValueError, "no se rebalancea"):
-            replace(portfolio, rebalance="monthly")
         with self.assertRaisesRegex(ValueError, "no corresponden a las cantidades"):
             replace(portfolio, target_weights={"A": 0.9, "B": 0.1})
+
+    def test_units_with_rebalancing_return_to_the_initial_weights(self):
+        dates = pd.to_datetime(["2026-01-29", "2026-01-30", "2026-02-02", "2026-02-27"])
+        a = asset("A", [80, 100, 100, 120], dates=dates, extra={"Adj Close": [80, 100, 101, 121]})
+        b = asset("B", [40, 40, 40, 40], dates=dates, extra={"Adj Close": [40, 40, 40, 40]})
+        portfolio = Portfolio.from_units([a, b], {"A": 10, "B": 20}, rebalance="monthly")
+        self.assertEqual(portfolio.rebalance, "monthly")
+        self.assertFalse(portfolio.fixed_units)
+        np.testing.assert_allclose(portfolio.target_weights, [0.5, 0.5])
+        # Equivale a la cartera por pesos con el mismo capital inicial.
+        weights = Portfolio([a, b], {"A": 0.5, "B": 0.5}, initial_capital=1600)
+        for column in ("Close", "Adj Close"):
+            pd.testing.assert_frame_equal(
+                portfolio.position_values(column), weights.position_values(column)
+            )
+        # El 30/01 cierra el mes: se vuelve al 50 % y las 10 acciones de A dejan de serlo.
+        self.assertNotAlmostEqual(portfolio.holdings().loc["A", "value"], 10 * 120)
+        self.assertNotIn("shares", portfolio.holdings())
+        self.assertEqual(portfolio.preferred_price_column, "Adj Close")
+        np.testing.assert_allclose(portfolio.simulation_inputs().rebalance_weights, [0.5, 0.5])
+        fixed = replace(portfolio, rebalance=None)
+        self.assertTrue(fixed.fixed_units)
+        self.assertEqual(fixed.preferred_price_column, "Close")
 
     def test_load_portfolio_from_shares_downloads_each_symbol_once(self):
         provider = Mock(spec=YahooFinanceAPI)
@@ -219,9 +240,15 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(portfolio.initial_capital, 1600)
         self.assertEqual(portfolio.total_value, 2000)
         self.assertIsNone(portfolio.rebalance)
+        rebalanced = load_portfolio_from_shares(
+            {"A": 10, "B": 20}, provider, "2026-01-01", "2026-01-04", rebalance="monthly"
+        )
+        self.assertEqual(rebalanced.rebalance, "monthly")
+        self.assertEqual(rebalanced.initial_capital, 1600)
+        self.assertEqual(provider.get_prices.call_count, 4)
         with self.assertRaises(ValueError):
             load_portfolio_from_shares({"A": -1}, provider, "2026-01-01", "2026-01-04")
-        self.assertEqual(provider.get_prices.call_count, 2)
+        self.assertEqual(provider.get_prices.call_count, 4)
         # Con cierres sin ajustar, un split en el período falsearía el valor de las acciones.
         with self.assertRaisesRegex(ValueError, "sin ajustar por splits \\(C\\)"):
             load_portfolio_from_shares({"A": 1, "C": 1}, provider, "2026-01-01", "2026-01-04")

@@ -122,6 +122,8 @@ def _read_sign(value, positive: str, negative: str):
 
 
 def _strategy(analysis: PortfolioAnalysis) -> str:
+    if analysis.units is not None and analysis.rebalance == MONTHLY:
+        return "rebalanceo mensual a los pesos iniciales de las acciones"
     if analysis.units is not None:
         return "número de acciones fijo, sin rebalanceo"
     if analysis.rebalance == MONTHLY:
@@ -248,6 +250,7 @@ def _composition(report: ReportContext) -> str:
     returns = analysis.asset_returns
     units = analysis.units
     shares = units is not None
+    rebalanced = analysis.rebalance == MONTHLY
     rows = []
     for symbol, asset in analysis.asset_details.iterrows():
         target = analysis.target_weights[symbol]
@@ -271,17 +274,16 @@ def _composition(report: ReportContext) -> str:
     if (analysis.asset_details["quote_currency"] != analysis.currency).any():
         notes += " " + texts.CONVERTED_PRICES_NOTE.format(currency=analysis.currency)
     if shares:
-        adjusted = analysis.price_column == ADJ_CLOSE
-        notes += "\n\n" + (texts.SHARES_ADJUSTED_NOTE if adjusted else texts.SHARES_NOTE)
+        notes += "\n\n" + _shares_note(analysis)
     table = _table(
         [
             "Ticker",
-            *(["Acciones"] if shares else []),
+            *([("Acciones iniciales" if rebalanced else "Acciones")] if shares else []),
             "Nombre",
             "Sector",
             "Divisa",
             "País",
-            "Peso inicial" if shares else "Peso objetivo",
+            "Peso inicial" if shares and not rebalanced else "Peso objetivo",
             "Importe inicial",
             "Peso actual",
             "Media diaria",
@@ -290,6 +292,14 @@ def _composition(report: ReportContext) -> str:
         rows,
     )
     return "\n\n".join([table, notes, texts.COSTS_NOTE])
+
+
+def _shares_note(analysis: PortfolioAnalysis) -> str:
+    if analysis.rebalance == MONTHLY:
+        return texts.SHARES_REBALANCED_NOTE
+    if analysis.price_column == ADJ_CLOSE:
+        return texts.SHARES_ADJUSTED_NOTE
+    return texts.SHARES_NOTE
 
 
 def _annual_results(analysis: PortfolioAnalysis) -> str:
@@ -613,6 +623,8 @@ def _simulation_criteria(simulation: SimulationResult, analysis: PortfolioAnalys
     if analysis.units is not None:
         option = "--shares"
         assets = " ".join(f"{s}:{n:g}" for s, n in analysis.units.items())
+        if analysis.rebalance == MONTHLY:
+            assets += " --rebalance monthly"
     else:
         option = "--assets"
         assets = " ".join(f"{s}:{w:g}" for s, w in analysis.target_weights.items())
