@@ -66,6 +66,9 @@ BENCHMARK_COMPARISON = (
     "columna de precios. Ambas rentabilidades se anualizan por los días naturales entre las "
     "mismas fechas extremas. Revisa si el índice incorpora dividendos."
 )
+NO_ALPHA_NOTE = (
+    "El alfa de Jensen necesita el índice de referencia y el tipo de interés de referencia."
+)
 BETA_UNDEFINED = (
     "La rentabilidad del índice de referencia no varía durante el período. No se puede "
     "calcular la beta porque la varianza del índice es cero."

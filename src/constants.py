@@ -10,14 +10,21 @@ DAYS_PER_YEAR = 365.25
 ONE_YEAR_MIN_DAYS = 350
 DEFAULT_CAPITAL = 10_000
 DEFAULT_SEED = 42
+# Rentabilidad anual que se espera de la renta variable por encima del tipo libre de riesgo.
+DEFAULT_EQUITY_PREMIUM = 0.045
+# Retornos con los que se contrasta una simulación sin tipo libre de riesgo disponible.
+SENSITIVITY_RETURNS = (0.08, 0.0)
 
 CLOSE = "Close"
 ADJ_CLOSE = "Adj Close"
 PRICE_COLUMNS = (CLOSE, ADJ_CLOSE)
 
 MONTHLY = "monthly"
+EUR = "EUR"
 # Sesiones bursátiles con las que la simulación aproxima un mes.
 SESSIONS_PER_MONTH = 21
+# Días que puede faltar el último cierre de un mes o año por festivos o puentes de una bolsa.
+PERIOD_CLOSE_TOLERANCE_DAYS = 5
 
 # Sector o país que el proveedor no publica.
 UNKNOWN = "Unknown"

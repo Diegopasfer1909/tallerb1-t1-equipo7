@@ -31,6 +31,8 @@ FIELDS = {
     "pe_ratio": ("trailingPE",),
 }
 ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": "fund"}
+# Solo estos publican su composición por tipo de activo.
+FUND_TYPES = ("ETF", "MUTUALFUND")
 PROFILE_ISSUE = (
     "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya "
     "alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los "
@@ -62,18 +64,21 @@ class YahooFinanceAPI:
 
     def get_info(self, symbol: str) -> dict:
         """Consulta la ficha del activo; yfinance la obtiene con una petición adicional."""
-        cache = cache_path(self.cache_dir, ["yahoo", "info", symbol])
+        cache = cache_path(self.cache_dir, ["yahoo", "profile", symbol])
         cached = read_cache(cache, self.cache_ttl)
         if cached is not None:
             return cached
         try:
-            info = dict(yf.Ticker(symbol).get_info())
+            ticker = yf.Ticker(symbol)
+            info = dict(ticker.get_info())
         except Exception:
             # yfinance no documenta sus excepciones; se traducen al error común.
             raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.") from None
         # Para símbolos sin ficha, yfinance puede devolver un diccionario casi vacío.
         if not info.get("quoteType"):
             raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.")
+        if info["quoteType"] in FUND_TYPES:
+            info["assetClasses"] = _asset_classes(ticker)
         write_cache(cache, info)
         return info
 
@@ -151,6 +156,15 @@ class YahooFinanceAPI:
             }
             write_cache(cache, payload)
         return history
+
+
+def _asset_classes(ticker) -> dict | None:
+    """La composición es complementaria: sin ella, el activo queda sin clasificar."""
+    try:
+        return {name: float(value) for name, value in ticker.funds_data.asset_classes.items()}
+    except Exception:
+        # yfinance no documenta sus excepciones.
+        return None
 
 
 def _frame(data: dict) -> pd.DataFrame:

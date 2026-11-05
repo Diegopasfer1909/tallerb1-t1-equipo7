@@ -5,13 +5,21 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from ..constants import CLOSE, MONTHLY, PERIODS_PER_YEAR, SESSIONS_PER_MONTH
+from ..constants import (
+    CLOSE,
+    MONTHLY,
+    PERIODS_PER_YEAR,
+    SENSITIVITY_RETURNS,
+    SESSIONS_PER_MONTH,
+)
 from ..errors import PortfolioError
 from ..validation import validate_positive_int, validate_price_table, validate_target_weights
 from .result import SimulationResult
 from .settings import Assumption, SimulationSettings, validate_assumptions
 
 MAX_SIMULATION_VALUES = 20_000_000
+# Origen del retorno cuando no es el histórico ni lo indica el usuario.
+MODEL_RETURN = "tipo libre de riesgo + prima"
 
 
 @dataclass(frozen=True)
@@ -23,6 +31,7 @@ class SimulationInputs:
     currency: str
     price_column: str = CLOSE
     rebalance_weights: pd.Series | None = None
+    equity_shares: pd.Series | None = None
 
 
 def estimate_parameters(
@@ -30,14 +39,21 @@ def estimate_parameters(
     periods_per_year: int,
     expected_returns: Assumption = None,
     volatilities: Assumption = None,
+    model_returns: pd.Series | None = None,
 ) -> pd.DataFrame:
-    """Estima μ y σ con rentabilidades simples y aplica los supuestos indicados."""
+    """Estima μ y σ con rentabilidades simples y aplica los supuestos indicados.
+
+    model_returns sustituye a la media histórica como retorno de partida de cada activo.
+    """
     validate_assumptions(expected_returns, volatilities)
     parameters = pd.DataFrame(index=returns.columns)
     parameters["annual_return"] = returns.mean() * periods_per_year
     parameters["annual_volatility"] = returns.std(ddof=1) * np.sqrt(periods_per_year)
     parameters["return_source"] = "histórico"
     parameters["volatility_source"] = "histórica"
+    if model_returns is not None:
+        parameters["annual_return"] = model_returns
+        parameters["return_source"] = MODEL_RETURN
     _apply_assumptions(parameters, expected_returns, volatilities)
     parameters["period_volatility"] = parameters["annual_volatility"] / np.sqrt(periods_per_year)
     parameters["mean_log_return"] = (
@@ -71,8 +87,13 @@ def simulate(
         )
 
     returns = prices.pct_change(fill_method=None).iloc[1:]
+    shares = _equity_shares(inputs, prices.columns)
     parameters = estimate_parameters(
-        returns, periods_per_year, settings.expected_returns, settings.volatilities
+        returns,
+        periods_per_year,
+        settings.expected_returns,
+        settings.volatilities,
+        _model_returns(shares, settings),
     )
     correlation, covariance = _calculate_covariance(returns, parameters)
     factor, method = _covariance_factor(covariance)
@@ -88,7 +109,7 @@ def simulate(
         valuation_date=prices.index[-1],
         assumptions=parameters[
             ["annual_return", "annual_volatility", "return_source", "volatility_source"]
-        ].copy(),
+        ].assign(equity_share=shares),
         correlation=correlation,
         periods_per_year=periods_per_year,
         price_column=inputs.price_column,
@@ -99,7 +120,59 @@ def simulate(
         rebalance_interval=interval,
         confidence=float(settings.confidence),
         correlation_method=method,
+        return_sensitivity=_return_sensitivity(
+            initial, returns, parameters, factor, settings, target, interval, periods_per_year
+        ),
+        risk_free_rate=settings.risk_free_rate,
+        equity_premium=settings.equity_premium,
     )
+
+
+def _equity_shares(inputs: SimulationInputs, symbols: pd.Index) -> pd.Series:
+    if inputs.equity_shares is None:
+        return pd.Series(np.nan, index=symbols, dtype=float)
+    return inputs.equity_shares.reindex(symbols).astype(float)
+
+
+def _model_returns(shares: pd.Series, settings: SimulationSettings) -> pd.Series | None:
+    """La prima solo remunera la renta variable: la renta fija y lo que no se puede clasificar
+    reciben el tipo libre de riesgo. Sin ese tipo no hay modelo y se usa el histórico."""
+    if settings.risk_free_rate is None:
+        return None
+    return settings.risk_free_rate + settings.equity_premium * shares.fillna(0)
+
+
+def _return_sensitivity(
+    initial: np.ndarray,
+    returns: pd.DataFrame,
+    parameters: pd.DataFrame,
+    factor: np.ndarray,
+    settings: SimulationSettings,
+    target: np.ndarray | None,
+    interval: int | None,
+    periods_per_year: int,
+) -> dict[str, np.ndarray]:
+    """Valores finales con otros retornos anuales, por caso.
+
+    La semilla y la volatilidad no cambian, de modo que las diferencias se deben solo al retorno.
+    """
+    if settings.risk_free_rate is None:
+        cases = dict(zip(("prudent", "zero"), SENSITIVITY_RETURNS, strict=True))
+    else:
+        historical = (returns.mean() * periods_per_year).to_numpy(dtype=float)
+        cases = {"historical": historical, "risk_free": settings.risk_free_rate}
+    variance = parameters["annual_volatility"].to_numpy(dtype=float) ** 2
+    return {
+        name: _generate_paths(
+            initial,
+            (annual_return - variance / 2) / periods_per_year,
+            factor,
+            settings,
+            target,
+            interval,
+        )[-1]
+        for name, annual_return in cases.items()
+    }
 
 
 def rebalance_interval(periods_per_year: int) -> int:

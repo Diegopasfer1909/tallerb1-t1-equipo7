@@ -183,7 +183,7 @@ class AnalysisTests(unittest.TestCase):
         with patch("pathlib.Path.write_text") as write:
             report = analysis.markdown()
         write.assert_not_called()
-        self.assertIn("Caída máxima", report)
+        self.assertIn("Drawdown máximo", report)
         self.assertIn("-20,00 %", report)
         self.assertIn("No disponible", report)
         self.assertNotIn("Maximum drawdown", report)
@@ -203,20 +203,28 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(text_path.parent.name, text_path.stem)
             self.assertEqual(text_path.parent.parent, reports)
             self.assertIn("28/10/2026", report)
-            self.assertIn("Información de los activos seleccionados", report)
+            self.assertIn("3. Composición", report)
             images = re.findall(r"!\[[^\]]*\]\(([^)]+)\)", report)
-            self.assertEqual(len(images), 4)
+            self.assertEqual(len(images), 9)
             for relative_path in images:
                 self.assertEqual(Path(relative_path).parent, Path("."))
                 self.assertGreater((text_path.parent / relative_path).stat().st_size, 0)
             figures = analysis.plots_report(Path(folder) / "graficos")
-            self.assertEqual(set(figures), {"portfolio", "assets", "distribution", "risk_return"})
-            for name in (
-                "analisis_cartera",
-                "evolucion_activos",
-                "distribucion_rentabilidades",
-                "riesgo_rentabilidad",
-            ):
+            self.assertEqual(
+                set(figures),
+                {
+                    "exposure",
+                    "evolution",
+                    "assets",
+                    "annual_returns",
+                    "drawdown",
+                    "distribution",
+                    "risk_return",
+                    "correlations",
+                    "risk_shares",
+                },
+            )
+            for name in ("evolucion", "distribucion", "riesgo_rentabilidad", "exposicion"):
                 self.assertGreater((Path(folder) / "graficos" / f"{name}.png").stat().st_size, 0)
             for figure in figures.values():
                 plt.close(figure)
@@ -235,11 +243,9 @@ class AnalysisTests(unittest.TestCase):
         report = analysis.markdown()
         for text in [
             "Empresa A",
-            "Acción",
             "Tecnología",
             "Estados Unidos",
             "USD",
-            "Análisis de cada activo",
             "960,00",
         ]:
             self.assertIn(text, report)
@@ -252,10 +258,10 @@ class AnalysisTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = portfolio.report(simulation=result, directory=folder)
             report = path.read_text(encoding="utf-8")
-            self.assertIn("Simulación de Monte Carlo", report)
-            self.assertIn("Retorno anual μ", report)
-            self.assertIn("Probabilidad estimada de pérdida", report)
-            self.assertTrue((path.parent / "simulacion_monte_carlo.png").is_file())
+            self.assertIn("9. Monte Carlo", report)
+            self.assertIn("Retorno anual (histórico)", report)
+            self.assertIn("Probabilidad de pérdida", report)
+            self.assertTrue((path.parent / "montecarlo.png").is_file())
 
     def test_reports_generated_in_the_same_second_do_not_overwrite(self):
         analysis = buy_and_hold([Asset(history("A", [100, 120, 96]))], [1]).analyze()
@@ -274,10 +280,8 @@ class AnalysisTests(unittest.TestCase):
         portfolio = buy_and_hold([Asset(data)], [1])
         close_report = portfolio.analyze().markdown()
         adjusted_report = portfolio.analyze(price_column="Adj Close").markdown()
-        self.assertIn("Ajustado por desdoblamientos; sin ajuste por dividendos", close_report)
-        self.assertIn(
-            "Crecimiento con cierre ajustado por desdoblamientos y distribuciones", adjusted_report
-        )
+        self.assertIn("Precios sin ajustar por dividendos: A", close_report)
+        self.assertNotIn("Precios sin ajustar por dividendos", adjusted_report)
         self.assertTrue(portfolio.analyze().data_quality.loc["A", "adjusted_close_available"])
 
     def test_report_rejects_mismatched_simulation(self):
@@ -331,9 +335,7 @@ class AnalysisTests(unittest.TestCase):
         self.assertAlmostEqual(analysis.asset_details.loc["A", "calculated_beta"], 2)
         self.assertEqual(analysis.asset_details.loc["A", "reported_beta"], 7)
         text = analysis.markdown()
-        self.assertIn("Beta publicada", text)
-        self.assertIn("Beta calculada de la cartera", text)
-        self.assertIn("1.000.000,00", text)
+        self.assertIn("| Beta | 2,00 |", text)
         self.assertNotIn("beta", analysis.metric_notes)
 
     def test_benchmark_uses_common_observations_without_filling_other_market_holidays(self):
@@ -391,9 +393,9 @@ class AnalysisTests(unittest.TestCase):
 
     def test_unavailable_metrics_explain_which_data_is_missing(self):
         text = buy_and_hold([Asset(history("A", [100, 120, 96]))], [1]).analyze().markdown()
-        self.assertIn("Motivo: No se ha cargado un índice de referencia", text)
-        self.assertIn("Motivo: No se ha cargado un tipo de interés de referencia", text)
-        self.assertIn("Motivo: No se ha cargado un índice de precios de consumo", text)
+        self.assertIn("No se ha cargado un índice de referencia", text)
+        self.assertIn("No se ha cargado un tipo de interés de referencia", text)
+        self.assertIn("No se ha cargado un índice de precios de consumo", text)
 
 
 class BacktestTests(unittest.TestCase):
@@ -492,11 +494,14 @@ class MarketLoaderTests(unittest.TestCase):
     def test_report_defaults_follow_reporting_currency_and_can_be_overridden(self):
         for currency, benchmark, rate in [
             ("USD", "^GSPC", "DGS3MO"),
-            ("EUR", "^STOXX50E", "ECBESTRVOLWGTTRMDMNRT"),
+            ("EUR", "^STOXX50E", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M"),
         ]:
-            with patch(
-                "src.market_loader.load_market_references", return_value=MarketReferences()
-            ) as load:
+            with (
+                patch(
+                    "src.market_loader.load_market_references", return_value=MarketReferences()
+                ) as load,
+                patch("src.market_loader.load_market_context", return_value=({}, [])),
+            ):
                 load_references(currency, "2026-01-01", "2026-02-01")
                 self.assertEqual(load.call_args.kwargs["benchmark_symbol"], benchmark)
                 self.assertEqual(load.call_args.kwargs["risk_free_series"], rate)
@@ -504,9 +509,12 @@ class MarketLoaderTests(unittest.TestCase):
                 self.assertEqual(load.call_args.kwargs["benchmark_symbol"], "CUSTOM")
 
     def test_unknown_currency_does_not_get_a_us_reference_by_accident(self):
-        with patch(
-            "src.market_loader.load_market_references", return_value=MarketReferences()
-        ) as load:
+        with (
+            patch(
+                "src.market_loader.load_market_references", return_value=MarketReferences()
+            ) as load,
+            patch("src.market_loader.load_market_context", return_value=({}, [])),
+        ):
             references = load_references("CAD", "2026-01-01", "2026-02-01")
         self.assertIsNone(load.call_args.kwargs["risk_free_series"])
         self.assertTrue(

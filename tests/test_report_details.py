@@ -16,6 +16,7 @@ from src.analysis.metrics import calendar_returns, drawdown_episode
 from src.main import parse_arguments
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences, Portfolio
 from src.reporting.plots import plot_analysis, save_charts
+from src.reporting.sections import SECTION_TITLES
 
 
 class DrawdownTests(unittest.TestCase):
@@ -80,12 +81,46 @@ class CalendarTests(unittest.TestCase):
         self.assertAlmostEqual(annual.loc[pd.Period("2025", freq="Y"), "return"], 0.21)
         self.assertEqual(annual["partial"].tolist(), [False, True])
 
+    def test_holidays_at_the_close_of_a_period_do_not_make_it_partial(self):
+        # 31/12/2021 sin cotización en Madrid: 2021 y 2022 siguen teniendo sus cierres.
+        values = pd.Series(
+            [100, 110, 121, 130],
+            index=pd.to_datetime(["2020-12-31", "2021-12-30", "2022-12-30", "2023-03-31"]),
+        )
+        annual = calendar_returns(values, "Y")
+        self.assertEqual(annual["partial"].tolist(), [False, False, True])
+        # Viernes Santo a fin de marzo: el 28 cierra marzo y abre abril.
+        monthly = calendar_returns(
+            pd.Series(
+                [100, 110, 121, 130],
+                index=pd.to_datetime(["2024-02-29", "2024-03-28", "2024-04-30", "2024-05-31"]),
+            ),
+            "M",
+        )
+        self.assertEqual(monthly["partial"].tolist(), [False, False, False])
+
+    def test_a_close_too_far_from_the_end_of_the_period_stays_partial(self):
+        values = pd.Series(
+            [100, 110, 121, 130],
+            index=pd.to_datetime(["2025-01-31", "2025-02-20", "2025-03-31", "2025-04-30"]),
+        )
+        monthly = calendar_returns(values, "M")
+        self.assertEqual(monthly["partial"].tolist(), [True, True, False])
+
+    def test_the_last_period_is_partial_until_its_exact_close(self):
+        # Sin datos posteriores, faltar unos días puede significar que no ha terminado.
+        values = pd.Series(
+            [100, 110, 121], index=pd.to_datetime(["2025-01-31", "2025-02-28", "2025-03-27"])
+        )
+        monthly = calendar_returns(values, "M")
+        self.assertEqual(monthly["partial"].tolist(), [False, True])
+
     def test_only_complete_months_participate_in_best_and_worst(self):
         dates = pd.to_datetime(["2025-01-15", "2025-01-31", "2025-02-28", "2025-03-10"])
         analysis = buy_and_hold([Asset(history("A", [100, 200, 210, 400], dates=dates))], [1])
-        text = analysis.analyze().markdown(sections=["performance"])
-        self.assertIn("| Mejor | 2025-02 | 5,00 % |", text)
-        self.assertIn("| Peor | 2025-02 | 5,00 % |", text)
+        text = analysis.analyze().markdown(sections=["returns"])
+        self.assertIn("| Mejor mes | +5,00 % | 02/2025 |", text)
+        self.assertIn("| Peor mes | +5,00 % | 02/2025 |", text)
 
 
 class DiagnosticsTests(unittest.TestCase):
@@ -100,7 +135,9 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertIn("A:", warnings["asset_concentration"].message)
         self.assertAlmostEqual(warnings["asset_concentration"].observed, 4 / 7)
         self.assertNotIn("sector_concentration", warnings)
-        relaxed = portfolio.analyze(warning_thresholds=WarningThresholds(asset_weight=0.8))
+        relaxed = portfolio.analyze(
+            warning_thresholds=WarningThresholds(asset_weight=0.8, asset_weight_medium=0.8)
+        )
         self.assertNotIn("asset_concentration", {w.code for w in relaxed.risk_warnings})
 
     def test_thresholds_are_validated_and_configurable(self):
@@ -135,7 +172,7 @@ class DiagnosticsTests(unittest.TestCase):
             text = analysis.markdown()
             self.assertNotRegex(text, r"\| -?inf(?: %)? \|")
             if not expected_pairs:
-                self.assertIn("No hay pares", text)
+                self.assertIn("| Par más correlacionado | No disponible |", text)
             plt.close(plot_analysis(analysis))
 
     def test_each_warning_is_formatted_with_its_unit(self):
@@ -143,21 +180,23 @@ class DiagnosticsTests(unittest.TestCase):
         correlated = Portfolio(
             [Asset(history("A", values)), Asset(history("B", values))], {"A": 0.5, "B": 0.5}
         )
-        self.assertIn("| 1,00 | 0,80 |", correlated.analyze().markdown(sections=["warnings"]))
+        self.assertIn(
+            "Valor: 1,00; umbral: 0,80.", correlated.analyze().markdown(sections=["warnings"])
+        )
         underwater = Portfolio([Asset(history("A", [100, 80, 85]))], {"A": 1})
         thresholds = WarningThresholds(drawdown=0.1)
         text = underwater.analyze(warning_thresholds=thresholds).markdown(sections=["warnings"])
-        self.assertIn("| 20,00 % | 10,00 % |", text)
-        self.assertIn("| 2 días naturales | — |", text)
+        self.assertIn("Valor: 20,00 %; umbral: 10,00 %.", text)
+        self.assertIn("Valor: 2 días naturales.", text)
 
-    def test_missing_reference_stays_unavailable_and_is_visible_in_warning_only_report(self):
+    def test_missing_reference_stays_unavailable_and_is_visible_in_the_data_section(self):
         analysis = Portfolio([Asset(history("A", [100, 101, 99]))], {"A": 1}).analyze()
         self.assertTrue(np.isnan(analysis.metrics["sharpe"]))
-        text = analysis.markdown(sections=["warnings"])
+        text = analysis.markdown(sections=["data"])
         self.assertIn("tipo de interés", text)
         self.assertIn("índice de referencia", text)
 
-    def test_warnings_separate_data_problems_from_methodology_notes(self):
+    def test_data_section_separates_data_problems_from_methodology_notes(self):
         dates = pd.bdate_range("2025-01-01", periods=5)
         portfolio = Portfolio(
             [Asset(history("A", [100, 101, 99, 102, 103], dates=dates))], {"A": 1}
@@ -165,9 +204,9 @@ class DiagnosticsTests(unittest.TestCase):
         references = MarketReferences(
             benchmark=history("INDEX", [100, 100, 101, 102, 101], dates=dates)
         )
-        text = portfolio.analyze(references).markdown(sections=["warnings"])
-        data, method = text.split("### Notas de metodología")
-        self.assertIn("### Datos que revisar", data)
+        text = portfolio.analyze(references).markdown(sections=["data"])
+        data, method = text.split("**Notas de metodología:**")
+        self.assertIn("**Incidencias de los datos:**", data)
         self.assertIn("No se ha cargado un tipo de interés de referencia", data)
         self.assertIn("Comparación con el índice INDEX basada en 5 fechas comunes", method)
 
@@ -186,8 +225,9 @@ class DiagnosticsTests(unittest.TestCase):
         )
         self.assertEqual(len(comparison), 3)
         figure = plot_analysis(analysis)
+        # Cartera, índice y la línea de referencia en 100.
         lines = figure.axes[0].lines
-        self.assertEqual(len(lines), 2)
+        self.assertEqual(len(lines), 3)
         np.testing.assert_allclose(lines[0].get_ydata(), lines[1].get_ydata())
         self.assertAlmostEqual(lines[0].get_ydata()[0], 100)
         plt.close(figure)
@@ -198,11 +238,13 @@ class ReportSelectionTests(unittest.TestCase):
         self.portfolio = Portfolio([Asset(history("A", [100, 95, 102]))], {"A": 1})
         self.analysis = self.portfolio.analyze()
 
-    def test_default_shows_summary_and_warnings_and_full_has_no_details(self):
+    def test_every_section_is_collapsible_by_default_and_full_has_no_details(self):
         text = self.analysis.markdown()
-        self.assertLess(text.index("## 1. Resumen"), text.index("## 2. Advertencias"))
-        self.assertLess(text.index("## 2. Advertencias"), text.index("<details>"))
-        self.assertNotIn("<details>", self.analysis.markdown(detail="full"))
+        self.assertEqual(text.count("<details>"), len(SECTION_TITLES))
+        self.assertLess(text.index("<b>1. Resumen</b>"), text.index("<b>2. Advertencias</b>"))
+        full = self.analysis.markdown(detail="full")
+        self.assertNotIn("<details>", full)
+        self.assertIn("## 10. Calidad de los datos", full)
 
     def test_selective_export_generates_only_referenced_figures(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -210,10 +252,12 @@ class ReportSelectionTests(unittest.TestCase):
                 sections=["diversification"], detail="full", directory=folder
             )
             self.assertEqual(
-                {p.name for p in path.parent.glob("*.png")}, {"distribucion_rentabilidades.png"}
+                {p.name for p in path.parent.glob("*.png")},
+                {"correlaciones.png", "pesos_contribucion.png"},
             )
-            self.assertIn("distribucion_rentabilidades.png", path.read_text())
-            self.assertNotIn("Resultados históricos", path.read_text())
+            text = path.read_text(encoding="utf-8")
+            self.assertIn("correlaciones.png", text)
+            self.assertNotIn("Rentabilidad", text)
         self.assertEqual(plt.get_fignums(), [])
 
     def test_summary_only_skips_simulation_and_charts(self):
@@ -282,8 +326,8 @@ class ReportSelectionTests(unittest.TestCase):
         self.assertIsNotNone(config.simulation)
 
     def test_all_figures_close_when_saving_fails(self):
-        figures = {"portfolio": plt.figure(), "assets": plt.figure()}
-        with patch.object(figures["portfolio"], "savefig", side_effect=OSError("disk full")):
+        figures = {"evolution": plt.figure(), "exposure": plt.figure()}
+        with patch.object(figures["evolution"], "savefig", side_effect=OSError("disk full")):
             with self.assertRaises(OSError):
                 save_charts(figures, Path("unused"), close=True)
         self.assertEqual(plt.get_fignums(), [])
