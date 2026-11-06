@@ -35,6 +35,8 @@ UNKNOWN = "Unknown"
 
 # Antigüedad máxima de un dato para utilizarlo en una fecha posterior.
 FX_MAX_AGE_DAYS = 7
+# Cierres de oro o del ETF de Bunds: cubre los festivos de otra bolsa, no meses sin cotizar.
+MARKET_PRICE_MAX_AGE_DAYS = 7
 DAILY_REFERENCE_MAX_AGE_DAYS = 45
 MONTHLY_REFERENCE_MAX_AGE_DAYS = 75
 

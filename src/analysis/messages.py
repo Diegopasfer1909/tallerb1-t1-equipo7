@@ -64,6 +64,12 @@ BENCHMARK_COMPARISON = (
     "el mismo tipo de precio. Ambas rentabilidades se anualizan por los días naturales entre las "
     "mismas fechas extremas. Revisa si el índice incorpora dividendos."
 )
+MARKET_PRICES_STALE = (
+    "{reference} ({symbol}): faltan cierres de menos de {days} días para algunas fechas de la "
+    "cartera, o hay menos de tres. No se usa, porque rellenar los huecos inventaría "
+    "rentabilidades nulas."
+)
+BUND_ETF_STALE_NOTE = "Faltan cierres recientes del ETF de Bunds para algunas fechas."
 NO_ALPHA_NOTE = (
     "El alfa de Jensen necesita el índice de referencia y el tipo de interés de referencia."
 )
