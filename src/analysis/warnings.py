@@ -1,7 +1,7 @@
 """Reglas orientativas sobre resultados, independientes de la presentación."""
 
 from dataclasses import dataclass, fields
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 
@@ -9,6 +9,9 @@ from ..constants import ONE_YEAR_MIN_DAYS, UNKNOWN
 from ..errors import PortfolioError
 from ..validation import is_finite_number
 from .metrics import DrawdownEpisode
+
+if TYPE_CHECKING:
+    from .result import RebalanceCosts
 
 Severity = Literal["high", "medium"]
 # Cómo leer observed y threshold: fracción de la cartera, ratio sin unidades o días.
@@ -35,6 +38,8 @@ class WarningThresholds:
     excluded_dates: float = 0.05
     # A un año, una cartera de bolsa pierde en cerca del 40 % de los escenarios: es lo normal.
     simulation_loss: float = 0.45
+    # Parte de la ganancia antes de comisiones que se ha ido en comisiones de rebalanceo.
+    commission_share: float = 0.1
 
     def __post_init__(self):
         for field in fields(self):
@@ -69,6 +74,7 @@ def evaluate_risk(
     currencies: pd.Series | None = None,
     excluded_dates: pd.Series | None = None,
     vix: float = float("nan"),
+    rebalance_costs: "RebalanceCosts | None" = None,
 ) -> list[RiskWarning]:
     """Evalúa pesos actuales; no interpreta datos ausentes como riesgo cero.
 
@@ -77,6 +83,7 @@ def evaluate_risk(
     warnings = _diversification_warnings(metrics, weights, sectors, pairs, thresholds)
     warnings.extend(_performance_warnings(metrics, episode, thresholds))
     warnings.extend(_context_warnings(metrics, thresholds, currencies, excluded_dates, vix))
+    warnings.extend(_cost_warnings(rebalance_costs, thresholds))
     return sorted(warnings, key=lambda warning: warning.severity != "high")
 
 
@@ -151,6 +158,43 @@ def _diversification_warnings(
                 thresholds.mean_correlation,
                 unit="ratio",
                 title="Poca diversificación",
+            )
+        )
+    return warnings
+
+
+def _cost_warnings(
+    costs: "RebalanceCosts | None", thresholds: WarningThresholds
+) -> list[RiskWarning]:
+    """Comisiones que eliminan la ventaja del rebalanceo o se llevan parte de la ganancia.
+
+    Que rebalancear rinda menos que comprar y mantener antes de comisiones no es un aviso: es
+    el precio de mantener el riesgo previsto, y el informe lo explica en su tabla.
+    """
+    if costs is None:
+        return []
+    warnings = []
+    if costs.advantage < 0 <= costs.gross_advantage and costs.commissions > 0:
+        warnings.append(
+            RiskWarning(
+                "costly_rebalancing",
+                "medium",
+                "Sin comisiones rebalancear habría compensado, pero con ellas rinde menos que "
+                "comprar y mantener. Valora una banda de rebalanceo más amplia o un bróker más "
+                "barato.",
+                costs.advantage / costs.initial_capital,
+                title="Las comisiones anulan el rebalanceo",
+            )
+        )
+    if costs.gain > 0 and costs.commissions / costs.gain > thresholds.commission_share:
+        warnings.append(
+            RiskWarning(
+                "high_commissions",
+                "medium",
+                "Las comisiones de rebalanceo se han llevado una parte relevante de la ganancia.",
+                costs.commissions / costs.gain,
+                thresholds.commission_share,
+                title="Comisiones elevadas",
             )
         )
     return warnings

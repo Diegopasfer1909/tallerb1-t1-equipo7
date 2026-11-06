@@ -39,6 +39,19 @@ COSTS_NOTE = (
     "Los resultados no incluyen comisiones, impuestos ni aportaciones o retiradas de dinero, y "
     "se permite invertir en fracciones de cada activo: operar esta cartera rendiría menos."
 )
+COMMISSIONS_NOTE = (
+    "Los resultados descuentan las comisiones de cada rebalanceo con la tarifa de {broker} "
+    "({tariff}), pero no las de la compra inicial, los impuestos, el cambio de divisa ni "
+    "aportaciones o retiradas de dinero, y se permite invertir en fracciones de cada activo. Los "
+    "importes fijos de la tarifa se aplican en {currency}, la divisa de la cartera."
+)
+REBALANCE_COSTS_NOTE = (
+    "Sin rebalanceo se mantienen las posiciones de la primera fecha y no se paga ninguna comisión "
+    "después de la compra inicial, común a las dos estrategias. Rebalancear controla el riesgo: "
+    "aunque rinda algo menos, puede compensar si mantiene la cartera cerca de sus pesos. Las "
+    "tarifas son orientativas; comprueba la vigente en tu bróker y ajústala con "
+    "`--broker` y `--commission-*`."
+)
 
 # Rentabilidad ajustada al riesgo
 RETURN_MEASURES_NOTE = (
@@ -74,7 +87,8 @@ SIMULATION_START_NOTE = (
 SIMULATION_LIMITATIONS = (
     "**Limitaciones:** los incrementos logarítmicos se suponen normales y μ y σ se mantienen "
     "constantes, por lo que el modelo puede subestimar las caídas extremas. No incluye "
-    "aportaciones, retiradas, comisiones ni impuestos. Los escenarios no son una predicción."
+    "aportaciones, retiradas ni impuestos, y solo descuenta las comisiones de los reajustes. "
+    "Los escenarios no son una predicción."
 )
 SENSITIVITY_NOTE = (
     "Todas las filas usan los mismos escenarios aleatorios, la misma volatilidad y las mismas "

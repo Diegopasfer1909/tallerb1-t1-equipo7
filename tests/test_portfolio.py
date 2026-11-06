@@ -140,8 +140,8 @@ class PortfolioTests(unittest.TestCase):
 
     def test_valuation_is_calculated_once_and_reused(self):
         portfolio = Portfolio([asset("A", [90, 100]), asset("B", [40, 50])], {"A": 0.5, "B": 0.5})
-        backtest = portfolio_module.backtest_allocation
-        with patch.object(portfolio_module, "backtest_allocation", wraps=backtest) as calls:
+        backtest = portfolio_module.backtest_with_costs
+        with patch.object(portfolio_module, "backtest_with_costs", wraps=backtest) as calls:
             portfolio.holdings()
             _ = portfolio.current_weights, portfolio.total_value
             positions = portfolio.position_values()

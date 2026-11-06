@@ -132,6 +132,10 @@ python src/main.py --shares AAPL:10 SPY:5 --simulate --report
 | `--seed 42` | Semilla para reproducir la simulación |
 | `--capital 10000` | Capital hipotético al inicio del histórico; no se usa con `--shares` |
 | `--rebalance monthly` o `--rebalance none` | Rebalancear o mantener las posiciones; por defecto, `monthly` con `--assets` y `none` con `--shares` |
+| `--broker ibkr` | Tarifa de comisiones del rebalanceo: `ibkr` (por defecto), `degiro`, `trade_republic`, `xtb` o `none` (ver [Comisiones del rebalanceo](#comisiones-del-rebalanceo)) |
+| `--commission-rate 0.0005` `--commission-fixed 2` `--commission-min 3` `--commission-max 30` | Cambian un campo de la tarifa elegida: porcentaje del importe, fijo, mínimo y máximo por orden |
+| `--rebalance-band 0.05` | Solo se reajusta si algún peso se desvía más de 5 puntos de su objetivo; `0` reajusta cada mes |
+| `--max-order-cost 0.01` | Descarta las órdenes cuya comisión supere el 1 % de su importe |
 | `--report-detail compact` o `--report-detail full` | Informe con secciones plegadas (por defecto) o todo desplegado |
 | `--report-sections summary warnings ...` | Secciones del informe que se incluyen; por defecto, todas (ver [Lectura y selección del informe](#lectura-y-selección-del-informe)) |
 
@@ -217,8 +221,9 @@ interpreta como el saldo real del usuario.
 
 Al cierre de cada mes se vuelve a los pesos objetivo utilizando las fechas comunes
 disponibles. Durante el mes, los pesos actuales pueden alejarse de los objetivos.
-Se permiten fracciones de los activos y se supone que el rebalanceo no tiene
-comisiones, impuestos ni aportaciones o retiradas de capital.
+Se permiten fracciones de los activos y no se consideran impuestos ni aportaciones o
+retiradas de capital. Las comisiones de cada reajuste sí se descuentan: consulta
+[Comisiones del rebalanceo](#comisiones-del-rebalanceo).
 
 Monte Carlo parte del valor de las posiciones al final del análisis histórico y
 aproxima el rebalanceo mensual con un reajuste cada 21 sesiones simuladas. No se
@@ -234,6 +239,52 @@ la cartera, y se puede analizar una estrategia sin reajustes con `rebalance=None
 `Portfolio.from_units(assets, {"IBM": 10, "MSFT": 5})` crea una cartera sin
 rebalanceo a partir de las cantidades de cada activo; con `rebalance="monthly"`, vuelve
 cada mes a los pesos que resultan de esas cantidades en la primera fecha común.
+
+### Comisiones del rebalanceo
+
+Cada orden de un reajuste paga `fijo + porcentaje × importe`, acotado entre un mínimo y
+un máximo, y la comisión se descuenta del valor de la cartera. La compra inicial no se
+cobra: es la misma con y sin rebalanceo y no cambia la decisión de rebalancear. Las
+tarifas incluidas (noviembre de 2026, orientativas) son:
+
+| `--broker` | Tarifa por orden |
+| --- | --- |
+| `ibkr` (por defecto) | Interactive Brokers, plan fijo: 0,05 %, mínimo 3 |
+| `degiro` | 2 fijos (1 de comisión + 1 de tramitación) |
+| `trade_republic` | 1 fijo |
+| `xtb` | 0 (hasta 100.000 € de volumen mensual) |
+| `none` | Sin comisiones |
+
+Los importes fijos se aplican en la divisa de la cartera. Cualquier campo se puede
+cambiar, por ejemplo `--broker degiro --commission-min 5`, o construir una tarifa propia
+con `--broker none --commission-rate 0.002 --commission-min 8`. No se incluyen el cambio
+de divisa, los impuestos sobre plusvalías ni el ITF español (0,2 % en compras de grandes
+cotizadas españolas, que se puede aproximar con `--commission-rate`).
+
+Con comisiones, reajustar cada mes rara vez compensa. Por eso, desde la consola, a fin
+de mes solo se rebalancea si algún peso se desvía más de 5 puntos (`--rebalance-band`) y
+se descartan las órdenes cuya comisión supere el 1 % de su importe (`--max-order-cost`):
+esos activos conservan su valor y el resto se reparte entre los demás según sus pesos
+objetivo. Monte Carlo aplica la misma regla y la misma tarifa en cada reajuste.
+
+El informe añade en «Rentabilidad» la tabla **Coste del rebalanceo**, con los reajustes,
+las órdenes ejecutadas y descartadas, las comisiones pagadas y el valor final frente al de
+la misma cartera sin rebalanceo. Aparece una advertencia si sin comisiones rebalancear
+habría compensado pero con ellas no, o si las comisiones se llevaron más del 10 % de la
+ganancia. Que rebalancear rinda menos incluso sin comisiones no se avisa: suele pasar
+cuando un activo sube mucho más que el resto, y es el precio de mantener el riesgo previsto.
+
+Desde Python, la cartera no paga comisiones por defecto; se indican con
+`rebalance_rule`:
+
+```python
+from src.commissions import BROKER_PRESETS, RebalanceRule
+
+rule = RebalanceRule(BROKER_PRESETS["degiro"], band=0.05, max_order_cost=0.01)
+portfolio = Portfolio(assets, {"IBM": 0.6, "MSFT": 0.4}, rebalance_rule=rule)
+portfolio.rebalance_trades()  # fecha, activo, importe y comisión de cada orden
+portfolio.analyze().rebalance_costs.advantage  # < 0: rebalancear no compensó
+```
 
 La cartera no cambia después de crearse, por lo que su valoración se calcula una sola
 vez y se reutiliza en cada consulta. No basta con declararla `frozen`: consulta

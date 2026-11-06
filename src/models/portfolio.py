@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
+from ..commissions import RebalanceRule
 from ..constants import (
     ADJ_CLOSE,
     CLOSE,
@@ -30,7 +31,7 @@ from ..validation import (
     validate_weights,
 )
 from .asset import Asset
-from .backtest import backtest_allocation
+from .backtest import BacktestResult, backtest_with_costs
 from .currency import FxRates
 from .price_history import period_returns
 from .snapshot import read_only
@@ -59,6 +60,10 @@ class Portfolio:
     valor de mercado de las acciones (acciones por último cierre). Con rebalanceo mensual, cada
     mes se vuelve a esos pesos, las cantidades cambian y la cartera se valora como una definida
     por pesos.
+
+    rebalance_rule fija las comisiones del bróker y cuándo compensa reajustar (banda de
+    desviación y coste máximo por orden). Por defecto no hay comisiones y cada mes se vuelve
+    exactamente a los pesos objetivo; solo se aplica con rebalanceo mensual.
     """
 
     assets: Sequence[Asset]
@@ -68,6 +73,7 @@ class Portfolio:
     initial_capital: float = DEFAULT_CAPITAL
     rebalance: Rebalance = MONTHLY
     units: Mapping[str, float] | pd.Series | None = None
+    rebalance_rule: RebalanceRule = field(default_factory=RebalanceRule)
     _cache: dict = field(default_factory=dict, init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -81,6 +87,8 @@ class Portfolio:
         object.__setattr__(self, "target_weights", self._ordered_weights())
         validate_capital(self.initial_capital)
         validate_rebalance(self.rebalance)
+        if not isinstance(self.rebalance_rule, RebalanceRule):
+            raise TypeError("rebalance_rule debe ser RebalanceRule.")
         if not isinstance(self.fx_rates, FxRates):
             raise TypeError("fx_rates debe ser FxRates.")
         if self.reporting_currency:
@@ -105,6 +113,7 @@ class Portfolio:
         reporting_currency: str = "",
         fx_rates: FxRates | None = None,
         rebalance: Rebalance = None,
+        rebalance_rule: RebalanceRule | None = None,
     ) -> Portfolio:
         """Cartera que empieza con las cantidades indicadas de cada activo.
 
@@ -136,6 +145,7 @@ class Portfolio:
             initial_capital=capital,
             rebalance=rebalance,
             units=units,
+            rebalance_rule=rebalance_rule or RebalanceRule(),
         )
 
     def _ordered_weights(self) -> pd.Series:
@@ -212,6 +222,14 @@ class Portfolio:
         """Invierte el capital inicial según los pesos y aplica el rebalanceo mensual."""
         return self._positions(price_column).copy()
 
+    def rebalance_trades(self, price_column: PriceColumn = CLOSE) -> pd.DataFrame:
+        """Órdenes de cada reajuste: fecha, activo, importe (+ compra, − venta) y comisión."""
+        return self._backtest(price_column).trades.copy()
+
+    def backtest(self, price_column: PriceColumn = CLOSE) -> BacktestResult:
+        """Valoración histórica con el registro de reajustes y comisiones."""
+        return self._backtest(price_column)
+
     def holdings(self, price_column: PriceColumn = CLOSE) -> pd.DataFrame:
         """Muestra los pesos objetivo y la composición al final del período histórico."""
         values = self._positions(price_column).iloc[-1]
@@ -247,6 +265,7 @@ class Portfolio:
             currency=self.currency,
             price_column=price_column,
             rebalance_weights=self.target_weights if self.rebalance == MONTHLY else None,
+            rebalance_rule=self.rebalance_rule,
             equity_shares=pd.Series(
                 {asset.symbol: asset.equity_share for asset in self.assets}, dtype=float
             ),
@@ -357,13 +376,17 @@ class Portfolio:
         return self._cached(("prices", column), lambda: self._aligned_prices(column))
 
     def _positions(self, column: PriceColumn) -> pd.DataFrame:
+        return self._backtest(column).positions
+
+    def _backtest(self, column: PriceColumn) -> BacktestResult:
         return self._cached(
-            ("positions", column),
-            lambda: backtest_allocation(
+            ("backtest", column),
+            lambda: backtest_with_costs(
                 self._prices(column),
                 self.target_weights,
                 initial_capital=self.initial_capital,
                 rebalance=self.rebalance,
+                rule=self.rebalance_rule,
             ),
         )
 

@@ -1,10 +1,11 @@
 """Simulación de activos correlacionados, con rebalanceo mensual opcional."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 import pandas as pd
 
+from ..commissions import RebalanceRule, rebalance_step
 from ..constants import (
     CALENDAR_DAYS_PER_MONTH,
     CALENDAR_PERIODS_PER_YEAR,
@@ -35,6 +36,7 @@ class SimulationInputs:
     price_column: str = CLOSE
     rebalance_weights: pd.Series | None = None
     equity_shares: pd.Series | None = None
+    rebalance_rule: RebalanceRule = field(default_factory=RebalanceRule)
 
 
 def estimate_parameters(
@@ -106,7 +108,8 @@ def simulate(
     correlation, covariance = _calculate_covariance(returns, parameters)
     factor, method = _covariance_factor(covariance)
     mean = parameters["mean_log_return"].to_numpy(dtype=float)
-    paths = _generate_paths(initial, mean, factor, settings, target, interval)
+    rule = inputs.rebalance_rule
+    paths, commissions = _generate_paths(initial, mean, factor, settings, target, interval, rule)
     return SimulationResult(
         paths=pd.DataFrame(
             paths,
@@ -126,10 +129,20 @@ def simulate(
         rebalance=MONTHLY if target is not None else None,
         target_weights=pd.Series(target, index=prices.columns) if target is not None else None,
         rebalance_interval=interval,
+        rebalance_rule=rule if target is not None else None,
+        commissions=pd.Series(commissions, name="commissions"),
         confidence=float(settings.confidence),
         correlation_method=method,
         return_sensitivity=_return_sensitivity(
-            initial, returns, parameters, factor, settings, target, interval, periods_per_year
+            initial,
+            returns,
+            parameters,
+            factor,
+            settings,
+            target,
+            interval,
+            periods_per_year,
+            rule,
         ),
         risk_free_rate=settings.risk_free_rate,
         equity_premium=settings.equity_premium,
@@ -159,6 +172,7 @@ def _return_sensitivity(
     target: np.ndarray | None,
     interval: int | None,
     periods_per_year: int,
+    rule: RebalanceRule | None = None,
 ) -> dict[str, np.ndarray]:
     """Valores finales con otros retornos anuales, por caso.
 
@@ -178,7 +192,8 @@ def _return_sensitivity(
             settings,
             target,
             interval,
-        )[-1]
+            rule,
+        )[0][-1]
         for name, annual_return in cases.items()
     }
 
@@ -282,13 +297,19 @@ def _generate_paths(
     settings: SimulationSettings,
     target: np.ndarray | None = None,
     interval: int | None = None,
-) -> np.ndarray:
-    """Actualiza las posiciones en cada escenario y suma el valor de la cartera."""
+    rule: RebalanceRule | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Actualiza las posiciones en cada escenario y suma el valor de la cartera.
+
+    Devuelve el valor por paso y escenario, y lo pagado en comisiones en cada escenario.
+    """
+    rule = rule or RebalanceRule()
     random_generator = np.random.default_rng(settings.seed)
     # Cada escenario empieza con las mismas posiciones.
     asset_values = np.tile(initial, (settings.simulations, 1))
     portfolio_values = np.zeros((settings.steps + 1, settings.simulations))
     portfolio_values[0] = initial.sum()
+    commissions = np.zeros(settings.simulations)
     try:
         with np.errstate(over="raise", invalid="raise", under="ignore"):
             for step in range(1, settings.steps + 1):
@@ -297,7 +318,12 @@ def _generate_paths(
                 # Suma los activos de cada escenario, sin mezclar escenarios entre sí.
                 portfolio_values[step] = asset_values.sum(axis=1)
                 if interval and step % interval == 0:
-                    asset_values = portfolio_values[step].reshape(-1, 1) * target
+                    # La comisión se descuenta al reajustar; el valor de este paso ya la refleja.
+                    result = rebalance_step(asset_values, target, rule)
+                    asset_values = result.values
+                    paid = result.commissions.sum(axis=1)
+                    commissions += paid
+                    portfolio_values[step] -= paid
     except FloatingPointError:
         raise PortfolioError(
             "Los valores de la simulación han superado el límite numérico del programa. Reduce "
@@ -308,4 +334,4 @@ def _generate_paths(
             "La simulación ha producido valores no válidos. Reduce el número de períodos o "
             "revisa las estimaciones de rentabilidad y volatilidad."
         )
-    return portfolio_values
+    return portfolio_values, commissions

@@ -10,6 +10,13 @@ from pathlib import Path
 from dotenv import find_dotenv, load_dotenv
 
 from src.analysis import PortfolioAnalysis
+from src.commissions import (
+    BROKER_PRESETS,
+    DEFAULT_BROKER,
+    DEFAULT_MAX_ORDER_COST,
+    DEFAULT_REBALANCE_BAND,
+    RebalanceRule,
+)
 from src.constants import CLOSE, DEFAULT_CAPITAL, MONTHLY, PriceColumn, Rebalance
 from src.errors import ConfigurationError, PortfolioError
 from src.market_loader import (
@@ -31,7 +38,7 @@ from src.providers import (
 )
 from src.reporting.formatting import format_date, format_number
 from src.reporting.labels import PERCENT_RESULTS, SOURCES, simulation_labels
-from src.reporting.report import holdings_table
+from src.reporting.report import commission_description, holdings_table
 from src.reporting.sections import DETAILS, SECTION_TITLES, select_sections
 from src.simulation import SimulationResult, SimulationSettings
 from src.validation import (
@@ -101,6 +108,8 @@ class RunConfig:
     output_dir: Path | None
     benchmark: str | None = None
     shares: dict[str, float] | None = None
+    # Comisiones y criterio de reajuste; sin rebalanceo mensual no se usa.
+    rebalance_rule: RebalanceRule = RebalanceRule()
 
     def __post_init__(self) -> None:
         if (self.weights is None) == (self.shares is None):
@@ -301,6 +310,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rebalanceo mensual o sin reajustes. Por defecto, mensual con --assets y sin "
         "reajustes con --shares; con --shares, monthly vuelve cada mes a los pesos iniciales",
     )
+    costs = parser.add_argument_group("Comisiones del rebalanceo")
+    costs.add_argument(
+        "--broker",
+        choices=list(BROKER_PRESETS),
+        help="Tarifa de partida: "
+        + "; ".join(
+            f"{key} ({commission_description(schedule, 'EUR').replace('%', '%%')})"
+            for key, schedule in BROKER_PRESETS.items()
+        )
+        + f". Por defecto: {DEFAULT_BROKER}",
+    )
+    costs.add_argument(
+        "--commission-rate",
+        type=float,
+        metavar="FRACCIÓN",
+        help="Comisión proporcional por orden, por ejemplo 0.0005 (0,05 %%)",
+    )
+    costs.add_argument(
+        "--commission-fixed", type=float, metavar="IMPORTE", help="Comisión fija por orden"
+    )
+    costs.add_argument(
+        "--commission-min", type=float, metavar="IMPORTE", help="Comisión mínima por orden"
+    )
+    costs.add_argument(
+        "--commission-max", type=float, metavar="IMPORTE", help="Comisión máxima por orden"
+    )
+    costs.add_argument(
+        "--rebalance-band",
+        type=float,
+        metavar="FRACCIÓN",
+        help="Solo se reajusta si algún peso se desvía más que esto de su objetivo "
+        f"({DEFAULT_REBALANCE_BAND}, 5 puntos); 0 reajusta todos los meses",
+    )
+    costs.add_argument(
+        "--max-order-cost",
+        type=float,
+        metavar="FRACCIÓN",
+        help="Descarta las órdenes cuya comisión supere esta fracción de su importe "
+        f"({DEFAULT_MAX_ORDER_COST}, 1 %%)",
+    )
     options.add_argument(
         "--return",
         dest="expected_returns",
@@ -368,6 +417,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     currency = args.currency.strip().upper()
     if currency:
         validate_currency_code(currency, "La divisa de destino")
+    rebalance = _rebalance(args.rebalance, by_shares=shares is not None)
     return RunConfig(
         provider=args.provider,
         weights=weights,
@@ -375,7 +425,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         end=args.end,
         currency=currency,
         capital=capital,
-        rebalance=_rebalance(args.rebalance, by_shares=shares is not None),
+        rebalance=rebalance,
         simulation=SimulationSettings(**options) if run_simulation else None,
         report=args.report,
         plots_report=args.plots_report,
@@ -384,7 +434,38 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         output_dir=args.output_dir,
         benchmark=benchmark,
         shares=shares,
+        rebalance_rule=_rebalance_rule(args, rebalance),
     )
+
+
+COMMISSION_OPTIONS = {
+    "commission_rate": "rate",
+    "commission_fixed": "fixed",
+    "commission_min": "minimum",
+    "commission_max": "maximum",
+}
+COST_OPTIONS = ("broker", *COMMISSION_OPTIONS, "rebalance_band", "max_order_cost")
+
+
+def _rebalance_rule(args: argparse.Namespace, rebalance: Rebalance) -> RebalanceRule:
+    """Tarifa del bróker elegido, con los cambios indicados, y criterio de reajuste."""
+    if rebalance != MONTHLY:
+        if any(getattr(args, name) is not None for name in COST_OPTIONS):
+            raise PortfolioError(
+                "Las comisiones solo se aplican al rebalanceo: usa --rebalance monthly."
+            )
+        return RebalanceRule()
+    schedule = BROKER_PRESETS[args.broker or DEFAULT_BROKER]
+    changes = {
+        field: getattr(args, option)
+        for option, field in COMMISSION_OPTIONS.items()
+        if getattr(args, option) is not None
+    }
+    if changes:
+        schedule = replace(schedule, name=f"{schedule.name} (personalizada)", **changes)
+    band = DEFAULT_REBALANCE_BAND if args.rebalance_band is None else args.rebalance_band
+    max_cost = DEFAULT_MAX_ORDER_COST if args.max_order_cost is None else args.max_order_cost
+    return RebalanceRule(schedule, band, max_cost)
 
 
 def _rebalance(option: str | None, by_shares: bool) -> Rebalance:
@@ -453,6 +534,7 @@ def run(config: RunConfig) -> None:
             reporting_currency=config.currency,
             fx_provider=fx_provider,
             rebalance=config.rebalance,
+            rebalance_rule=config.rebalance_rule,
         )
     else:
         portfolio = load_portfolio(
@@ -464,6 +546,7 @@ def run(config: RunConfig) -> None:
             initial_capital=config.capital,
             rebalance=config.rebalance,
             fx_provider=fx_provider,
+            rebalance_rule=config.rebalance_rule,
         )
     # Con Adj Close las rentabilidades, la simulación y el informe incluyen los dividendos.
     price_column = portfolio.preferred_price_column
@@ -563,7 +646,24 @@ def print_portfolio(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> 
         print(f"Valor total con dividendos: {format_number(holdings['value'].sum())} {currency}")
     else:
         print(f"Valor total: {format_number(holdings['value'].sum())} {currency}")
+    if portfolio.rebalance == MONTHLY:
+        print_rebalance_costs(portfolio, price_column)
     print(f"Fechas con precios para todos los activos: {len(portfolio.close_prices())}")
+
+
+def print_rebalance_costs(portfolio: Portfolio, price_column: PriceColumn = CLOSE) -> None:
+    """Tarifa aplicada, reajustes realizados y comisiones pagadas en el historial."""
+    rule = portfolio.rebalance_rule
+    if rule.is_free:
+        return
+    result = portfolio.backtest(price_column)
+    tariff = commission_description(rule.commissions, portfolio.currency)
+    print(f"Comisiones: {rule.commissions.name}, {tariff}")
+    print(
+        f"Reajustes: {len(result.rebalance_dates)}, con {len(result.trades)} órdenes "
+        f"({result.skipped_orders} descartadas por caras); comisiones pagadas: "
+        f"{format_number(result.total_commissions)} {portfolio.currency}"
+    )
 
 
 def print_simulation(result: SimulationResult) -> None:

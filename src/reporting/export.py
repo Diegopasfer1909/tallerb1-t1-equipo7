@@ -114,9 +114,11 @@ def _check_simulation_matches(analysis: PortfolioAnalysis, simulation: Simulatio
             analysis.target_weights,
         )
     )
+    analysis_rule = analysis.rebalance_costs.rule if analysis.rebalance_costs else None
     same_criteria = same_weights and (
         (simulation.price_column, simulation.periods_per_year, simulation.rebalance)
         == (analysis.price_column, analysis.periods_per_year, analysis.rebalance)
+        and (simulation.rebalance is None or simulation.rebalance_rule == analysis_rule)
     )
     for matches, problem in (
         (same_start, "la misma divisa y fecha de valoración"),

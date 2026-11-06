@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from ..commissions import RebalanceRule
 from ..constants import Rebalance
 from ..models.notice import Notice
 from ..simulation.result import SimulationResult
@@ -22,6 +23,44 @@ from .metrics import (
     price_jumps,
 )
 from .warnings import RiskWarning, WarningThresholds
+
+
+@dataclass(frozen=True)
+class RebalanceCosts:
+    """Lo que ha costado rebalancear y si ha compensado frente a comprar y mantener.
+
+    final_value es el valor final con rebalanceo, ya descontadas las comisiones;
+    buy_and_hold_value, el de la misma cartera sin reajustes (sin comisiones tras la compra
+    inicial, que comparten ambas estrategias). trades es el registro de órdenes.
+    """
+
+    rule: RebalanceRule
+    rebalances: int
+    skipped_orders: int
+    commissions: float
+    final_value: float
+    buy_and_hold_value: float
+    initial_capital: float
+    trades: pd.DataFrame
+
+    @property
+    def orders(self) -> int:
+        return len(self.trades)
+
+    @property
+    def advantage(self) -> float:
+        """Valor final con rebalanceo menos el de comprar y mantener; negativo si no compensó."""
+        return self.final_value - self.buy_and_hold_value
+
+    @property
+    def gross_advantage(self) -> float:
+        """Ventaja aproximada antes de comisiones: indica si son ellas las que la eliminan."""
+        return self.advantage + self.commissions
+
+    @property
+    def gain(self) -> float:
+        """Ganancia de la estrategia con rebalanceo antes de comisiones."""
+        return self.final_value + self.commissions - self.initial_capital
 
 
 @dataclass
@@ -59,6 +98,8 @@ class PortfolioAnalysis:
     risk_free_series: str
     warning_thresholds: WarningThresholds
     units: pd.Series | None = None
+    # Solo con rebalanceo mensual: comisiones y comparación con comprar y mantener.
+    rebalance_costs: RebalanceCosts | None = None
 
     @property
     def drawdown(self) -> pd.Series:
