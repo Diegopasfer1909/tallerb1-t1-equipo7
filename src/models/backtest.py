@@ -72,15 +72,19 @@ def backtest_with_costs(
     validate_rebalance(rebalance)
     rule = rule or RebalanceRule()
     growth = (prices.pct_change(fill_method=None).fillna(0) + 1).to_numpy()
-    month_ends = _month_ends(pd.DatetimeIndex(prices.index))
-    positions = np.empty(prices.shape)
     trades = []
     dates = []
     skipped = 0
     current = initial_capital * target
+    if rebalance != MONTHLY:
+        # Sin reajustes cada posición crece solo con su precio: basta el producto acumulado.
+        positions = current * np.cumprod(growth, axis=0)
+        return _result(prices, positions, trades, dates, skipped)
+    month_ends = _month_ends(pd.DatetimeIndex(prices.index))
+    positions = np.empty(prices.shape)
     for row, factors in enumerate(growth):
         current = current * factors
-        if rebalance == MONTHLY and month_ends[row]:
+        if month_ends[row]:
             step = rebalance_step(current, target, rule)
             current = step.values[0]
             skipped += int(step.skipped[0])
@@ -95,6 +99,11 @@ def backtest_with_costs(
                     if amount != 0
                 )
         positions[row] = current
+    return _result(prices, positions, trades, dates, skipped)
+
+
+def _result(prices, positions, trades, dates, skipped) -> BacktestResult:
+    """Empaqueta posiciones y órdenes con las fechas y activos de la tabla de precios."""
     return BacktestResult(
         pd.DataFrame(positions, index=prices.index, columns=prices.columns),
         pd.DataFrame(trades, columns=TRADE_COLUMNS).astype({"amount": float, "commission": float}),
