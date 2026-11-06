@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from ..analysis.warnings import evaluate_simulation
+from ..commissions import CommissionSchedule, RebalanceRule
 from ..constants import ADJ_CLOSE, EUR, MONTHLY
 from ..simulation.monte_carlo import MODEL_RETURN
 from ..simulation.settings import SimulationSettings
@@ -295,7 +296,111 @@ def _composition(report: ReportContext) -> str:
         ],
         rows,
     )
-    return "\n\n".join([table, notes, texts.COSTS_NOTE])
+    return "\n\n".join([table, notes, _costs_note(analysis)])
+
+
+def commission_description(schedule: CommissionSchedule, currency: str) -> str:
+    """Tarifa por orden en palabras, como «0,05 % por orden, mínimo 3,00 EUR»."""
+    if schedule.is_free:
+        return "sin comisiones"
+    return _tariff_terms(schedule, currency)
+
+
+def tariff_label(schedule: CommissionSchedule, currency: str) -> str:
+    """Nombre y tarifa, como «DEGIRO: 2,00 EUR por orden»; solo el nombre si es gratis."""
+    if schedule.is_free:
+        return schedule.name
+    return f"{schedule.name}: {commission_description(schedule, currency)}"
+
+
+def _tariff_terms(schedule: CommissionSchedule, currency: str) -> str:
+    parts = []
+    if schedule.rate:
+        parts.append(format_number(schedule.rate, True))
+    if schedule.fixed:
+        parts.append(_money(schedule.fixed, currency))
+    text = (" + ".join(parts) or "0") + " por orden"
+    if schedule.minimum:
+        text += f", mínimo {_money(schedule.minimum, currency)}"
+    if schedule.maximum is not None:
+        text += f", máximo {_money(schedule.maximum, currency)}"
+    return text
+
+
+def rule_description(rule: RebalanceRule) -> str:
+    """Cuándo se reajusta: banda de desviación y órdenes descartadas por caras."""
+    when = (
+        f"si algún peso se desvía más de {format_points(rule.band)} de su objetivo"
+        if rule.band
+        else "siempre que los pesos se hayan desviado"
+    )
+    if rule.max_order_cost is not None:
+        when += (
+            "; se descartan las órdenes cuya comisión supere el "
+            f"{format_number(rule.max_order_cost, True)} de su importe"
+        )
+    return when
+
+
+def _costs_note(analysis: PortfolioAnalysis) -> str:
+    costs = analysis.rebalance_costs
+    if costs is None or costs.rule.commissions.is_free:
+        return texts.COSTS_NOTE
+    return texts.COMMISSIONS_NOTE.format(
+        broker=costs.rule.commissions.name,
+        tariff=commission_description(costs.rule.commissions, analysis.currency),
+        currency=analysis.currency,
+    )
+
+
+def _rebalance_costs(analysis: PortfolioAnalysis) -> str:
+    """Comisiones pagadas y valor final frente a comprar y mantener."""
+    costs = analysis.rebalance_costs
+    currency = analysis.currency
+    rule = costs.rule
+    advantage = costs.advantage
+    share = costs.commissions / costs.gain if costs.gain > 0 else float("nan")
+    rows = [
+        ["Tarifa", tariff_label(rule.commissions, currency), ""],
+        ["Cuándo se reajusta", f"A fin de mes, {rule_description(rule)}", ""],
+        ["Reajustes realizados", str(costs.rebalances), ""],
+        [
+            "Órdenes ejecutadas / descartadas",
+            f"{costs.orders} / {costs.skipped_orders}",
+            "descartadas por comisión demasiado alta" if costs.skipped_orders else "",
+        ],
+        [
+            "Comisiones pagadas",
+            _money(costs.commissions, currency),
+            f"{format_number(share, True)} de la ganancia antes de comisiones"
+            if pd.notna(share)
+            else "",
+        ],
+        ["Valor final con rebalanceo", _money(costs.final_value, currency), "neto de comisiones"],
+        ["Valor final sin rebalanceo", _money(costs.buy_and_hold_value, currency), ""],
+        [
+            "Diferencia",
+            f"{format_number(advantage, signed=True)} {currency}",
+            _read_advantage(costs),
+        ],
+    ]
+    return "\n\n".join(
+        [
+            "**Coste del rebalanceo**",
+            _table(["Concepto", "Valor", "Lectura"], rows),
+            texts.REBALANCE_COSTS_NOTE,
+        ]
+    )
+
+
+def _read_advantage(costs) -> str:
+    if costs.advantage > 0:
+        return "rebalancear ha compensado, ya pagadas las comisiones"
+    if costs.advantage == 0:
+        return ""
+    if costs.gross_advantage >= 0 and costs.commissions > 0:
+        return "las comisiones anulan lo que aportaba rebalancear"
+    return "rendiría menos incluso sin comisiones: vender lo que más sube frena la rentabilidad"
 
 
 def _shares_note(analysis: PortfolioAnalysis) -> str:
@@ -387,16 +492,17 @@ def _returns(report: ReportContext) -> str:
                 month.strftime("%m/%Y") if month is not None else "",
             ]
         )
-    return "\n\n".join(
-        [
-            _table(["Métrica", "Valor", "Lectura"], rows),
-            texts.NOMINAL_RETURNS_NOTE.format(currency=analysis.currency),
-            "**Por año**",
-            _annual_results(analysis),
-            "**Por activo**",
-            _asset_results(analysis),
-        ]
-    )
+    blocks = [
+        _table(["Métrica", "Valor", "Lectura"], rows),
+        texts.NOMINAL_RETURNS_NOTE.format(currency=analysis.currency),
+        "**Por año**",
+        _annual_results(analysis),
+        "**Por activo**",
+        _asset_results(analysis),
+    ]
+    if analysis.rebalance_costs is not None:
+        blocks.append(_rebalance_costs(analysis))
+    return "\n\n".join(blocks)
 
 
 def _risk(report: ReportContext) -> str:
@@ -758,6 +864,18 @@ def _simulation(report: ReportContext) -> str:
             ["Prima de riesgo", format_number(simulation.equity_premium, True)],
             ["Parte en renta variable", shares],
         ]
+    rule = simulation.rebalance_rule
+    if rule is not None and not rule.is_free:
+        position = next(i for i, row in enumerate(parameters) if row[0] == "Rebalanceo") + 1
+        parameters.insert(
+            position,
+            [
+                "Comisiones de rebalanceo",
+                f"{tariff_label(rule.commissions, currency)}, "
+                f"{rule_description(rule)}; media pagada por escenario "
+                f"{_money(simulation.mean_commissions, currency)}",
+            ],
+        )
     var = results["value_at_risk"]
     probability = results["probability_of_loss"]
     outcome = _table(

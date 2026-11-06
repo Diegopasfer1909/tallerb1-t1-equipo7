@@ -73,11 +73,13 @@ Alpha y FRED crean su propio `ApiClient`; Yahoo utiliza `yfinance` y comparte ut
 
 [PNG](diagramas/04-simulacion.png) · [Editar en Excalidraw](diagramas/04-simulacion.excalidraw) · [Fuente Mermaid](diagramas/04-simulacion.mmd)
 
-`Asset` y `Portfolio` construyen `SimulationInputs` y delegan en la misma función `simulate()`. No existe una superclase común de simulación ni un `MonteCarloMixin`. La reutilización se obtiene mediante **composición y un contrato de datos**: precios históricos, valor inicial de posiciones y pesos opcionales de rebalanceo.
+`Asset` y `Portfolio` construyen `SimulationInputs` y delegan en la misma función `simulate()`. No existe una superclase común de simulación ni un `MonteCarloMixin`. La reutilización se obtiene mediante **composición y un contrato de datos**: precios históricos, valor inicial de posiciones y pesos opcionales de rebalanceo, junto con la `RebalanceRule` que fija comisiones, banda de desviación y coste máximo por orden.
+
+El módulo transversal `commissions` contiene `CommissionSchedule`, las tarifas de `BROKER_PRESETS`, `RebalanceRule` y la función vectorizada `rebalance_step()`. La usan igual el backtest histórico (`backtest_with_costs()`, una fila) y Monte Carlo (una fila por escenario), de modo que ambos recorridos aplican la misma regla y descuentan las mismas comisiones.
 
 `SimulationSettings` separa configuración y supuestos del estado del dominio. El motor valida las entradas, estima parámetros y genera trayectorias correlacionadas; `SimulationResult` conserva resultados y metadatos, ofrece un resumen y delega la presentación. No debe representarse como una dataclass congelada. El módulo `monte_carlo` contiene funciones, no una clase ficticia de motor.
 
-**Fuentes:** [asset.py](src/models/asset.py), [portfolio.py](src/models/portfolio.py), [simulation/monte_carlo.py](src/simulation/monte_carlo.py), [settings.py](src/simulation/settings.py), [result.py](src/simulation/result.py).
+**Fuentes:** [asset.py](src/models/asset.py), [portfolio.py](src/models/portfolio.py), [commissions.py](src/commissions.py), [backtest.py](src/models/backtest.py), [simulation/monte_carlo.py](src/simulation/monte_carlo.py), [settings.py](src/simulation/settings.py), [result.py](src/simulation/result.py).
 
 ## 05 · Dependencias entre paquetes
 
@@ -100,7 +102,8 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | --- | --- |
 | `constants` | `main`, `portfolio_loader`, `market_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `validation`. |
 | `errors` | `main`, `market_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `validation`. |
-| `validation` | `main`, `portfolio_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`. |
+| `validation` | `main`, `portfolio_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `commissions`. |
+| `commissions` | `main`, `portfolio_loader`, `models`, `simulation`, `analysis`, `reporting`. |
 
 | Importaciones bajo `TYPE_CHECKING` entre paquetes | Tipos utilizados |
 | --- | --- |

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
+from ..commissions import RebalanceRule
 from ..constants import Rebalance
 
 
@@ -30,6 +31,15 @@ class SimulationResult:
     return_sensitivity: dict[str, np.ndarray] = field(default_factory=dict)
     risk_free_rate: float | None = None
     equity_premium: float | None = None
+    # Regla de reajuste (comisiones, banda y coste máximo por orden), si se rebalancea, y
+    # comisiones pagadas en cada escenario; ya están descontadas de paths.
+    rebalance_rule: RebalanceRule | None = None
+    commissions: pd.Series | None = None
+
+    @property
+    def mean_commissions(self) -> float:
+        """Comisión media pagada por escenario; 0 si no se rebalancea."""
+        return 0.0 if self.commissions is None else float(self.commissions.mean())
 
     def summary(self) -> pd.Series:
         initial = float(self.paths.iloc[0, 0])

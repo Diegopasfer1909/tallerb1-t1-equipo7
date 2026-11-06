@@ -12,6 +12,7 @@ from ..constants import (
     DAILY_REFERENCE_MAX_AGE_DAYS,
     DAYS_PER_YEAR,
     EUR,
+    MONTHLY,
     MONTHLY_REFERENCE_MAX_AGE_DAYS,
     ONE_YEAR_MIN_DAYS,
     PERIODS_PER_YEAR,
@@ -21,6 +22,7 @@ from ..constants import (
 from ..errors import PortfolioError
 from ..frequency import periods_per_year as dates_periods_per_year
 from ..models import EconomicIndicator, FxRates, MarketReferences, Notice, PriceHistory
+from ..models.backtest import backtest_allocation
 from ..models.price_history import period_returns
 from ..simulation import estimate_parameters
 from ..validation import validate_positive_int
@@ -39,7 +41,7 @@ from .metrics import (
     risk_adjusted,
     risk_contributions,
 )
-from .result import PortfolioAnalysis
+from .result import PortfolioAnalysis, RebalanceCosts
 from .warnings import WarningThresholds, evaluate_risk
 
 if TYPE_CHECKING:
@@ -472,6 +474,7 @@ def analyze_portfolio(
     metrics["effective_asset_count"] = 1 / metrics["concentration_hhi"]
     metrics["history_days"] = (values.index[-1] - values.index[0]).days
     pairs = correlation_pairs(asset_returns.corr())
+    rebalance_costs = _rebalance_costs(portfolio, prices, values, price_column)
     metrics["correlation_mean"] = pairs.mean() if not pairs.empty else np.nan
 
     details = _asset_details(portfolio, prices, periods_per_year, benchmark_prices)
@@ -525,6 +528,7 @@ def analyze_portfolio(
             currencies=currency_weights,
             excluded_dates=excluded,
             vix=market.vix_current,
+            rebalance_costs=rebalance_costs,
         ),
         market=market,
         currency_weights=currency_weights,
@@ -532,6 +536,29 @@ def analyze_portfolio(
         risk_free_series=references.risk_free_rate.series_id if references.risk_free_rate else "",
         warning_thresholds=thresholds,
         units=None if portfolio.units is None else portfolio.units.copy(),
+        rebalance_costs=rebalance_costs,
+    )
+
+
+def _rebalance_costs(
+    portfolio: "Portfolio", prices: pd.DataFrame, values: pd.Series, price_column: PriceColumn
+) -> RebalanceCosts | None:
+    """Comisiones del rebalanceo y valor final de la misma cartera sin reajustes."""
+    if portfolio.rebalance != MONTHLY:
+        return None
+    result = portfolio.backtest(price_column)
+    buy_and_hold = backtest_allocation(
+        prices, portfolio.target_weights, initial_capital=portfolio.initial_capital
+    )
+    return RebalanceCosts(
+        rule=portfolio.rebalance_rule,
+        rebalances=len(result.rebalance_dates),
+        skipped_orders=result.skipped_orders,
+        commissions=result.total_commissions,
+        final_value=float(values.iloc[-1]),
+        buy_and_hold_value=float(buy_and_hold.iloc[-1].sum()),
+        initial_capital=portfolio.initial_capital,
+        trades=result.trades.copy(),
     )
 
 

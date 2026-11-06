@@ -1,5 +1,6 @@
 """Descarga los precios antes de crear los activos y la cartera."""
 
+from .commissions import RebalanceRule
 from .constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
 from .errors import PortfolioError
 from .market_loader import load_fx_rates
@@ -19,12 +20,14 @@ def load_portfolio(
     initial_capital: float = DEFAULT_CAPITAL,
     rebalance: Rebalance = MONTHLY,
     fx_provider: PriceProvider | None = None,
+    rebalance_rule: RebalanceRule | None = None,
 ) -> Portfolio:
     """Descarga los activos de una asignación como {"IBM": 0.6, "MSFT": 0.4}.
 
     Valida los pesos antes de consultar el proveedor para no gastar peticiones. currency
     indica la divisa de los activos si el proveedor no la publica; con reporting_currency y
     sin fx_rates, los cambios necesarios se descargan con fx_provider (Yahoo por defecto).
+    rebalance_rule fija las comisiones y cuándo compensa reajustar; por defecto, sin costes.
     """
     validate_symbols(target_weights)
     validate_weights(list(target_weights.values()))
@@ -41,6 +44,7 @@ def load_portfolio(
         fx_rates,
         initial_capital=initial_capital,
         rebalance=rebalance,
+        rebalance_rule=rebalance_rule or RebalanceRule(),
     )
 
 
@@ -54,6 +58,7 @@ def load_portfolio_from_shares(
     fx_rates: FxRates | None = None,
     fx_provider: PriceProvider | None = None,
     rebalance: Rebalance = None,
+    rebalance_rule: RebalanceRule | None = None,
 ) -> Portfolio:
     """Descarga los activos de una cartera como {"AAPL": 10, "SPY": 5} (número de acciones).
 
@@ -75,7 +80,9 @@ def load_portfolio_from_shares(
             "fijo, un split dentro del período falsearía el valor. Usa Yahoo Finance."
         )
     units = {asset.symbol: amount for asset, amount in zip(assets, shares.values(), strict=True)}
-    return Portfolio.from_units(assets, units, reporting_currency, fx_rates, rebalance)
+    return Portfolio.from_units(
+        assets, units, reporting_currency, fx_rates, rebalance, rebalance_rule
+    )
 
 
 def _load_assets(
