@@ -12,6 +12,7 @@ from ..constants import (
     DAILY_REFERENCE_MAX_AGE_DAYS,
     DAYS_PER_YEAR,
     EUR,
+    MARKET_PRICE_MAX_AGE_DAYS,
     MONTHLY_REFERENCE_MAX_AGE_DAYS,
     ONE_YEAR_MIN_DAYS,
     PERIODS_PER_YEAR,
@@ -148,45 +149,85 @@ def _latest_inflation(indicator: EconomicIndicator) -> float:
 
 def _bund_etf(
     history: PriceHistory | None,
+    prices: pd.Series | None,
     values: pd.Series,
     currency: str,
-    price_column: PriceColumn,
-) -> dict[str, float]:
+) -> _Measures:
     """Lo que rindió invertir en deuda alemana, con cupones y variación de precio.
 
     Se compara en las fechas comunes y solo con carteras en euros: en otra divisa las mezclaría.
+    prices son los cierres del ETF ya comprobados por _market_prices().
     """
     if history is None or currency != EUR:
-        return {}
-    prices = _on_dates(history, values.index, price_column).dropna()
-    if len(prices) < 3:
-        return {}
+        return _Measures()
+    if prices is None:
+        return _Measures(notes=dict.fromkeys(BUND_ETF_METRICS, messages.BUND_ETF_STALE_NOTE))
     bund_etf = annualized_growth(prices)
     portfolio = annualized_growth(values.reindex(prices.index))
-    return {
-        "bund_etf_annualized_return": bund_etf,
-        "difference_from_bund_etf": portfolio - bund_etf,
-    }
+    return _Measures(
+        {
+            "bund_etf_annualized_return": bund_etf,
+            "difference_from_bund_etf": portfolio - bund_etf,
+        }
+    )
 
 
 def _alpha(
-    returns: pd.Series,
+    values: pd.Series,
     benchmark_prices: pd.Series | None,
     reference: pd.Series | None,
     periods_per_year: int,
 ) -> float:
+    """Alfa de Jensen sobre los mismos intervalos que la beta: las fechas en que cotiza el índice.
+
+    Si al índice le faltan fechas de la cartera, un intervalo abarca varios períodos: el tipo de
+    referencia se compone dentro de él y se anualiza con los intervalos observados por año.
+    """
     if benchmark_prices is None or reference is None:
         return np.nan
-    market = benchmark_prices.pct_change(fill_method=None).dropna()
-    return jensen_alpha(returns, market, reference, periods_per_year)
+    dates = benchmark_prices.index
+    growth = pd.concat([pd.Series(1.0, index=values.index[:1]), (1 + reference).cumprod()])
+    spanned = values.index.get_loc(dates[-1]) - values.index.get_loc(dates[0])
+    return jensen_alpha(
+        period_returns(values.reindex(dates)),
+        period_returns(benchmark_prices),
+        period_returns(growth.reindex(dates)),
+        periods_per_year * (len(dates) - 1) / spanned,
+    )
 
 
-def _on_dates(history: PriceHistory | None, dates: pd.DatetimeIndex, column: PriceColumn):
-    """Precios externos en las fechas de la cartera, con el último cierre conocido."""
-    if history is None:
-        return None
+def _on_dates(history: PriceHistory, dates: pd.DatetimeIndex, column: PriceColumn) -> pd.Series:
+    """Precios de un activo de la cartera en sus fechas comunes, con el último cierre conocido."""
     selected = column if column in history.prices.columns else CLOSE
     return history.closing_prices(selected).reindex(dates, method="ffill")
+
+
+def _market_prices(
+    label: str, history: PriceHistory | None, dates: pd.DatetimeIndex, column: PriceColumn
+) -> tuple[pd.Series | None, list[Notice]]:
+    """Precios de una referencia de mercado en las fechas de la cartera, o None si no sirven.
+
+    Cada fecha toma el último cierre con una antigüedad de hasta MARKET_PRICE_MAX_AGE_DAYS, lo
+    que cubre los festivos de otra bolsa. Se descartan las fechas anteriores al primer cierre;
+    un hueco posterior o menos de tres cierres reales dejan la referencia sin usar, porque
+    rellenarla inventaría rentabilidades nulas.
+    """
+    if history is None:
+        return None, []
+    selected = column if column in history.prices.columns else CLOSE
+    observed = history.closing_prices(selected)
+    tolerance = pd.Timedelta(days=MARKET_PRICE_MAX_AGE_DAYS)
+    prices = observed.reindex(dates, method="ffill", tolerance=tolerance)
+    start = prices.first_valid_index()
+    if start is not None:
+        prices = prices.loc[start:]
+        real = observed.loc[start - tolerance : prices.index[-1]]
+        if prices.notna().all() and len(real) >= 3:
+            return prices, []
+    notice = messages.MARKET_PRICES_STALE.format(
+        reference=label, symbol=history.symbol, days=MARKET_PRICE_MAX_AGE_DAYS
+    )
+    return None, [Notice(notice)]
 
 
 def _market(
@@ -194,9 +235,11 @@ def _market(
     portfolio: "Portfolio",
     prices: pd.DataFrame,
     returns: pd.Series,
-    periods_per_year: int,
     price_column: PriceColumn,
+    gold: pd.Series | None,
+    bund_etf: pd.Series | None,
 ) -> MarketContext:
+    """gold y bund_etf son los cierres ya comprobados por _market_prices()."""
     dates = prices.index
     effects = {}
     for asset in portfolio.assets:
@@ -209,8 +252,8 @@ def _market(
         returns,
         vix.as_of(dates, DAILY_REFERENCE_MAX_AGE_DAYS) if vix is not None else None,
         brent.as_of(dates, DAILY_REFERENCE_MAX_AGE_DAYS) if brent is not None else None,
-        _on_dates(references.gold, dates, price_column),
-        _on_dates(references.bund_etf, dates, price_column),
+        gold,
+        bund_etf,
         pd.Series(effects, dtype=float),
     )
 
@@ -456,18 +499,22 @@ def analyze_portfolio(
         references.benchmark, values, portfolio.currency, fx_rates, price_column
     )
     rate = _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized)
+    gold, gold_notices = _market_prices("Oro", references.gold, prices.index, price_column)
+    bund_etf, bund_etf_notices = _market_prices(
+        "ETF de Bunds", references.bund_etf, prices.index, price_column
+    )
     measures = [
         rate,
         _inflation(references.inflation, prices.index, annualized),
         benchmark,
+        _bund_etf(references.bund_etf, bund_etf, values, portfolio.currency),
     ]
     for name in (*RATE_METRICS, *BENCHMARK_METRICS, *INFLATION_METRICS, *BUND_ETF_METRICS):
         metrics[name] = np.nan
     for measure in measures:
         for name, value in measure.values.items():
             metrics[name] = value
-    metrics.update(_bund_etf(references.bund_etf, values, portfolio.currency, price_column))
-    metrics["alpha"] = _alpha(returns, benchmark_prices, rate.series, periods_per_year)
+    metrics["alpha"] = _alpha(values, benchmark_prices, rate.series, periods_per_year)
     metrics["concentration_hhi"] = (weights**2).sum()
     metrics["effective_asset_count"] = 1 / metrics["concentration_hhi"]
     metrics["history_days"] = (values.index[-1] - values.index[0]).days
@@ -478,7 +525,7 @@ def analyze_portfolio(
     sector_weights = weights.groupby(details["sector"]).sum().sort_values(ascending=False)
     quality = _quality(portfolio, prices.index, price_column)
     correlations = asset_returns.corr()
-    market = _market(references, portfolio, prices, returns, periods_per_year, price_column)
+    market = _market(references, portfolio, prices, returns, price_column, gold, bund_etf)
     excluded = quality["excluded_observations"] / quality["observations"]
     currency_weights = weights.groupby(details["quote_currency"]).sum().sort_values(ascending=False)
     metric_notes = {name: note for measure in measures for name, note in measure.notes.items()}
@@ -493,6 +540,8 @@ def analyze_portfolio(
         *references.notices,
         *(notice for measure in measures for notice in measure.notices),
         *profile_notices,
+        *gold_notices,
+        *bund_etf_notices,
         *_quality_notices(quality, references, prices.index, periods_per_year),
     ]
     return PortfolioAnalysis(
