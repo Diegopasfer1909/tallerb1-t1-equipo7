@@ -1,6 +1,6 @@
 # Registro de decisiones
 
-Este documento recoge las decisiones técnicas del proyecto en tres partes:
+Este documento recoge las decisiones técnicas del proyecto en cuatro partes:
 
 - **Parte I (decisiones 1 a 32):** las tomadas en las sesiones de revisión y desarrollo entre
   el 30 de octubre y el 6 de noviembre de 2026.
@@ -10,6 +10,10 @@ Este documento recoge las decisiones técnicas del proyecto en tres partes:
 - **Parte III (decisiones 57 a 63):** detalles recuperados de las conversaciones disponibles
   y contrastados con el código el 6 de noviembre de 2026. Las decisiones ya recogidas se
   amplían en su entrada original, como la 25, para evitar duplicarlas.
+- **Parte IV (decisiones 64 a 72):** las razonadas en las sesiones de trabajo del 29 de
+  octubre al 6 de noviembre de 2026 y contrastadas con el código el 7 de noviembre. Lo que
+  ya estaba registrado se amplía en su entrada original (1, 10, 18, 36, 40, 42, 45, 46, 50,
+  51, 54 y 55).
 
 Cada entrada explica qué se decidió, por qué y qué alternativas se descartaron, con un
 ejemplo sencillo para entenderla.
@@ -27,17 +31,20 @@ simplificarlo el 6 de noviembre de 2026. Se amplían las entradas existentes sin
 
 | Tema | Decisiones |
 | --- | --- |
+| Historial y ramas | 1 |
 | Cuota, persistencia y bloqueos de Alpha Vantage | [25](#cuota-alpha-vantage) |
 | Comisiones y simplificaciones de costes | 26–30 |
-| Validación, fechas comunes y datos sin rellenar | 12–14, 36–38 |
+| Proveedores y datos macroeconómicos | 18, 39, 65, 70 |
+| Validación, fechas comunes y datos sin rellenar | 12–14, 36–38, 66–67 |
 | Calendarios, anualización y datos inmutables | [40](#contrato-temporal), 41–42 |
 | Precios ajustados y referencias por divisa | 43–46 |
-| Modelo y supuestos de Monte Carlo | [47](#modelo-monte-carlo), 59, 62 |
-| Caché, informe y controles de calidad | 15, 19–24, 51–56 |
+| Modelo y supuestos de Monte Carlo | [47](#modelo-monte-carlo), 59, 62, 64 |
+| Caché, informe y controles de calidad | 15, 19–24, 51–55, 68, 71–72 |
+| Diagramas y documentación de arquitectura | 56, 69 |
 
 ## Fuentes y alcance de la revisión
 
-Se han podido leer completas estas dos conversaciones de Codex relacionadas con el proyecto:
+Se han podido leer completas estas dos sesiones de revisión relacionadas con el proyecto:
 
 | Referencia | Conversación | Fecha | Qué permite comprobar |
 | --- | --- | --- | --- |
@@ -48,11 +55,31 @@ Los commits `e6b3373` y `d150397` permiten contrastar los cambios de C1 y C2,
 respectivamente. Las referencias a archivos de las entradas describen el código revisado,
 no una consulta a las condiciones actuales de los proveedores.
 
-El historial accesible no muestra otras conversaciones de ChatGPT de este proyecto.
+El historial accesible no muestra otras sesiones de revisión de este proyecto.
 Se conservan las 56 entradas previas y sus atribuciones; esto no implica haber recuperado
 las conversaciones originales de todas ellas. Cuando solo hay evidencia en el repositorio,
-se identifica como tal. Tampoco se presenta una sugerencia del asistente como una decisión
+se identifica como tal. Tampoco se presenta una propuesta de la revisión como una decisión
 expresa del equipo si la conversación no lo demuestra.
+
+Además, se han leído completas las diez sesiones de trabajo que se conservan del proyecto:
+
+| Referencia | Conversación | Fecha | Qué permite comprobar |
+| --- | --- | --- | --- |
+| S1 | `20182515` | 29 de octubre de 2026 | Revisión de simplicidad, errores corregidos, Monte Carlo común, ficha de Yahoo, Python 3.11 y paso a la rama `main` |
+| S2 | `a4e22cdc` | 31 de octubre de 2026 | Reutilizar descargas entre ejecuciones: caché de Yahoo por símbolo |
+| S3 | `e8a4605b` | 31 de octubre de 2026 | ALFRED contrastado con la API real, vuelta a FRED y conflictos de la PR #8 |
+| S4 | `1d3e6591` | 31 de octubre y 1 de noviembre de 2026 | Análisis completo, contraste con otro análisis, mejoras integradas, `--benchmark` y simplificación |
+| S5 | `210c136e` | 31 de octubre de 2026 | Diagramas Mermaid en `ARQUITECTURA.md` |
+| S6 | `a9b36f56` | 31 de octubre a 5 de noviembre de 2026 | Diagramas versionados, colores de los `.mmd`, FRED sin clave y correcciones de la PR #18 |
+| S7 | `4da29415` | 5 de noviembre de 2026 | Revisión y corrección de la PR #13 (`--shares`) |
+| S8 | `9c461486` | 5 de noviembre de 2026 | Revisión y mejora de la PR #14 (instrucciones de instalación) |
+| S9 | `16e8c5b9` | 5 de noviembre de 2026 | Láminas de arquitectura con el proveedor del BCE |
+| S10 | `f71501aa` | 5 y 6 de noviembre de 2026 | Revisión de la PR #16 (Ruff, cobertura y CodeQL) y PR #21 |
+
+Las sesiones en las que se decidieron las comisiones y la vectorización (26 a 32) no están
+entre estas sesiones, así que esas entradas no se han vuelto a contrastar. Se aplica
+el mismo criterio que en la parte III: una propuesta solo figura como decisión si se aplicó
+o el usuario la eligió, y las propuestas descartadas se indican como tales.
 
 ## Índice
 
@@ -134,6 +161,20 @@ expresa del equipo si la conversación no lo demuestra.
 | 62 | Simulación | Proyectar las posiciones finales, conservando la estrategia | Vigente |
 | 63 | Pruebas | Cubrir precios planos, referencias ausentes y cambios de divisa | Vigente |
 
+**Parte IV · Decisiones de las sesiones de trabajo**
+
+| # | Tema | Decisión | Estado |
+| --- | --- | --- | --- |
+| 64 | Simulación | Un único Monte Carlo para activo y cartera | Vigente; su forma la sustituyó la 4 |
+| 65 | Proveedores | Contrato común con las opciones en el constructor | Vigente |
+| 66 | Datos | Solo fechas ISO `AAAA-MM-DD` | Vigente |
+| 67 | Consola | Un año de historial en Yahoo y 120 días en Alpha Vantage | Vigente |
+| 68 | Informe | `.plots_report()` reúne todas las figuras | Vigente |
+| 69 | Documentación | Diagramas versionados y legibles con cualquier tema | Parcial: falta el BCE |
+| 70 | Datos macro | API oficial de FRED con clave, no la descarga CSV | Vigente |
+| 71 | Instalación | Inicio rápido por sistema y publicación del informe con reintentos | Vigente |
+| 72 | Código limpio | Simplificar sin cambiar el comportamiento | Modificada en parte (ver 54) |
+
 ---
 
 ## Forma de trabajo
@@ -152,6 +193,14 @@ reescribiría una rama que ya está subida y que otros pueden tener descargada.
 integrado antes. El único conflicto estaba en los imports de `portfolio_analysis.py`: una
 rama añadía `MONTHLY` y la otra `MARKET_PRICE_MAX_AGE_DAYS`. Se fusionó `main` en la rama
 conservando los dos imports, sin reescribir su historial.
+
+**Ampliación (S3, S7 y S8).** El *rebase* solo se usó en ramas que aún no se habían
+subido. En la pull request de un compañero, las correcciones se añaden como commits nuevos en su
+rama y la descripción se deja a su autor.
+
+**Ejemplo.** La revisión de `--shares` se subió como dos commits nuevos en la rama de la
+PR #13, sin rehacer los del autor. En la PR #14 no se cambió la descripción, aunque citaba
+un commit antiguo de las láminas: se avisó para que la actualizara quien la había escrito.
 
 ---
 
@@ -298,6 +347,18 @@ adaptadores entregan el mismo `PriceHistory`. El análisis no sabe de dónde vie
 Ese patrón sí aporta. Una clase abstracta para un único tipo de informe solo añadiría
 código.
 
+**Ampliación (S4).** Al preparar la presentación se acordó nombrar solo los patrones que el
+código aplica de verdad:
+- `PROVIDERS` es un registro de constructores, no una *Abstract Factory*.
+- `build_report()` no aplica el patrón *Builder* por llamarse así.
+- Los proveedores no son un *Repository* de entidades.
+- La arquitectura no es hexagonal estricta: `Portfolio` conoce la simulación y sus fachadas
+  llegan al informe.
+
+**Ejemplo.** Si en la presentación se pregunta dónde está la *Abstract Factory*, el código no
+tiene respuesta. Decir «un diccionario que asocia cada nombre de proveedor con su
+constructor» describe exactamente lo que hay y se puede enseñar en una línea.
+
 ### 11. Aplazar el cambio de nombre del paquete `src`
 
 **Decisión.** El paquete se sigue llamando `src`, aunque al instalarlo aparece con ese
@@ -421,6 +482,19 @@ solo es un problema si la información influye en la apuesta. Aquí la cartera n
 con la inflación; solo la usa al final, para contar cuánto se ganó en términos reales.
 Para eso conviene el dato más preciso, que es el revisado. ALFRED solo aportaría algo si una
 regla de inversión usara el dato macro disponible en cada fecha.
+
+**Comprobación previa (S3).** Antes de revertir se consultaron las API reales con el código
+que usaba ALFRED:
+
+| Serie | FRED | ALFRED |
+| --- | --- | --- |
+| €STR, de 2020 a 2024 | Datos desde el 2 de enero de 2020 | Datos solo desde el 5 de enero de 2022 |
+| Letra a 3 meses (`DGS3MO`), de 2015 a 2025 | Funciona | Error HTTP 400: más de 2000 versiones |
+| IPC (`CPIAUCSL`), diciembre de 2023 | 308,741: dato de diciembre, revisado | 307,917: publicado el 12 de diciembre, corresponde a noviembre |
+
+Con ALFRED, una cartera en euros que empezara antes de 2022 se quedaba sin Sharpe ni Sortino,
+y una en dólares con unos ocho años de historia, también. La vuelta a FRED eliminó 155 líneas
+de código. Más tarde, el €STR se sustituyó por la deuda AAA del BCE (ver 44).
 
 ---
 
@@ -801,6 +875,13 @@ disponible», con su causa.
 - Con Alpha Vantage, un peso mal escrito se rechaza antes de gastar ninguna consulta de la
   cuota.
 
+**Origen del criterio (S1 y S4).** La revisión del 29 de octubre encontró las comprobaciones
+de pesos repetidas en cinco sitios (`parse_values`, `load_portfolio`, `Portfolio`, el
+backtest y la simulación) y la misma guarda de tipos escrita once veces. Se reunieron en
+`src/validation.py` con una regla: validar en las fronteras y confiar en las llamadas
+internas. El 31 de octubre se añadió la justificación por escrito al README, porque el
+apartado 4.5 del enunciado pide analizar y justificar la validación, no solo aplicarla.
+
 ### 37. Marcar los saltos de más del 50 % sin corregirlos
 
 **Origen.** README («Validación de entradas») y `price_jumps()` en `src/analysis/metrics.py`.
@@ -879,6 +960,14 @@ de la frecuencia de las observaciones y deben leerse con esa limitación.
 - Un año bursátil puede tener 249 sesiones comunes entre dos bolsas. Contar días naturales
   evita llamar «corto» a un historial de un año completo.
 
+**Origen (S1 y S4).** Se llegó a este contrato por dos fallos reproducidos:
+- **29 de octubre.** Tres precios mensuales (100, 110 y 121) se anualizaban como si fueran
+  sesiones diarias, y la cifra salía del orden de 2,7 × 10¹⁰. Se añadió el aviso de
+  separación típica superior a cinco días.
+- **31 de octubre.** Con el mismo crecimiento del 20 % en el mismo período, 252 observaciones
+  daban un 20,00 % anual y, quitando diez fechas intermedias, un 20,91 %. Por eso el
+  crecimiento anualizado pasó a contar días naturales y no filas (commit `c10fe69`).
+
 ### 41. 365 períodos al año en carteras solo cripto
 
 **Origen.** Commit `c04ac05` (5 de noviembre) y `src/frequency.py`.
@@ -914,6 +1003,16 @@ estadísticos y la valoración memorizada siguen correspondiendo a los datos ori
 **Ejemplo.** Sin esta protección, `portfolio.target_weights["IBM"] = 0.9` cambiaría los pesos
 sin pasar por la validación y la valoración ya calculada (decisión 5) quedaría desfasada.
 Ahora esa línea da un `ValueError`.
+
+**Origen (S4 y S6).**
+- **31 de octubre.** Se reprodujo que, tras `portfolio.target_weights["A"] = 0.9`, los pesos
+  sumaban 1,4 y `total_value` seguía devolviendo el valor memorizado. También se aceptaba un
+  precio de −5 en `history.prices`. Para el apartado 4.3 se decidió calcular la media y la
+  desviación al crear el historial, en lugar de limitarse a explicar la diferencia con el
+  enunciado: costaba pocas líneas.
+- **5 de noviembre.** Todavía se podían añadir etiquetas nuevas o usar
+  `drop(..., inplace=True)`. La PR #18 cerró esas vías. Solo queda sin bloquear el nombre del
+  índice, que no cambia datos ni etiquetas.
 
 ### 43. `Adj Close` cuando todos los activos lo publican
 
@@ -963,6 +1062,12 @@ libre de riesgo.
 `--benchmark ^IBEX` se compara con su mercado. Una cartera tecnológica en dólares se puede
 comparar con el Nasdaq (`--benchmark ^IXIC`).
 
+**Ampliación (S4).** El símbolo se valida antes de descargar nada, y la opción exige
+`--report` o `--plots-report`: sin ellos no tendría efecto, así que se rechaza. La necesidad
+apareció en la revisión del 31 de octubre: una cartera de acciones de EE. UU. convertida a
+euros se comparaba con el EURO STOXX 50 y daba una beta de 0,16, que reflejaba la elección del
+índice más que el riesgo de la cartera.
+
 ### 46. Alfa en los mismos intervalos que la beta y precios de mercado recientes
 
 **Origen.** Commit `f5327ca` (5 de noviembre, PR #18).
@@ -981,6 +1086,16 @@ comparar con el Nasdaq (`--benchmark ^IXIC`).
   ambas medidas no serían comparables.
 - Si el ETF de Bunds deja de cotizar un mes, usar su último precio durante 30 días lo haría
   parecer «sin riesgo». Con el límite de 7 días solo se cubren festivos.
+
+**Origen (S6).** Los dos fallos se reprodujeron con datos sintéticos, sin red, antes de
+corregirlos:
+- Con beta 1 y ninguna diferencia frente al índice, el alfa salía −79,19 % anual porque
+  comparaba intervalos distintos. Tras la corrección sale 0, con un tipo libre de riesgo del
+  0 % y del 2 %.
+- Con un solo cierre del ETF de Bunds en todo un trimestre, el informe daba un 0 % de
+  rentabilidad y 47 puntos de diferencia, sin ningún aviso.
+
+Cada caso tiene una prueba que fallaba con el código anterior.
 
 <a id="modelo-monte-carlo"></a>
 
@@ -1085,6 +1200,20 @@ dividendos cobrados y reinvertidos durante el período. Si hubiera un *split* 4 
 Alpha Vantage, las 10 acciones valdrían 4 veces más en las fechas anteriores y la
 rentabilidad saldría mal; por eso se rechaza antes de descargar.
 
+**Revisión de la PR #13 (S7).** La idea se aprobó y antes de integrarla se corrigieron siete
+puntos. Los principales:
+- **Acciones y valor coherentes.** Desde Python, pedir `Adj Close` en una cartera por
+  acciones daba posiciones que no cuadraban: 10 acciones a 100 valían 1.111,11. No se
+  prohibió `Adj Close`, porque cuatro pruebas de `from_units` lo usaban a propósito. La
+  columna de acciones solo se muestra con `Close`, y con `Adj Close` el informe explica que los
+  dividendos se reinvierten.
+- **Modo explícito.** El informe ya no deduce si la cartera es por acciones porque exista una
+  columna `shares`: lo indica `PortfolioAnalysis.units`.
+- **Rechazos antes de descargar.** No se admiten cantidades de cero, y `--shares` con Alpha
+  Vantage se detiene gracias a `ProviderOption.split_adjusted`.
+- **Diagramas.** Las láminas 02 y 06 se actualizaron en un commit aparte, para que el
+  manifiesto registre el commit exacto del código.
+
 ### 51. Caché de Yahoo por símbolo
 
 **Origen.** Commit `95eb80e` (31 de octubre) y README («Comprobaciones»).
@@ -1098,6 +1227,27 @@ en texto.
 - Añadir MSFT a una cartera de IBM solo descarga MSFT.
 - Pedir de junio a diciembre después de haber pedido el año completo reutiliza lo
   descargado.
+
+**Origen y medida (S2).** La petición fue reutilizar los datos cuando solo cambian los
+parámetros de la simulación o algunos activos. Yahoo, el proveedor por defecto, no guardaba
+nada en disco: cada ejecución volvía a pedir precios y ficha de cada activo, del índice y de
+cada tipo de cambio. Se contaron las peticiones con IBM y MSFT y el informe en euros:
+
+| Ejecución | Antes | Después |
+| --- | --- | --- |
+| Primera | 8 | 7 |
+| Mismos activos; cambian `--simulations` y `--steps` | 8 | 0 |
+| MSFT se cambia por AAPL y se acorta `--start` | 6 | 2, solo de AAPL |
+
+Dos reglas completan el diseño:
+- **La sesión de hoy nunca se da por cerrada:** una petición que llega hasta hoy vuelve a
+  descargar, porque el mercado puede seguir abierto.
+- **Los tipos de cambio no piden la ficha** (`include_info=False`), que costaba una petición
+  y no se usaba.
+
+En FRED, la caché depende de las fechas pedidas, porque su límite de peticiones es amplio. Se
+propuso una opción `--refresh` para forzar una descarga nueva y no se aplicó: hay que borrar
+`.cache/market-data` o esperar un día.
 
 ### 52. Diez secciones que responden a una pregunta
 
@@ -1149,6 +1299,21 @@ dice en otra sección.
 dividió, por ejemplo, `analyze_portfolio` (commit `b59f127`). Si alguien añade código sin
 pruebas y la cobertura baja al 93 %, la PR no se puede integrar.
 
+**Revisión de la PR #16 (S10).** Se comprobó que las cuatro funciones divididas se
+comportaban igual, que la cobertura local (94,84 %) coincidía con CI y que las dos alertas
+descartadas de CodeQL eran falsos positivos: una imprime el nombre de la variable, no la
+clave, y la otra usa el SHA-256 de la clave como identificador, no para guardar contraseñas.
+De la revisión salió la PR #21:
+- Los límites de complejidad pasaron de una opción en la línea de órdenes de CI a la lista
+  `select` de `pyproject.toml`. Así `ruff check .` y el editor avisan igual que CI.
+- `_raise_http_error` se anota como `NoReturn`, porque siempre lanza un error.
+- Se quitó el porcentaje fijo de cobertura del README y de `pyproject.toml`, que ya no
+  coincidía con CI.
+
+**Ejemplo.** Con `-> None`, quien lee `_download` puede pensar que, tras el error, el código
+sigue hasta `response.json()` con una respuesta vacía. `NoReturn` deja claro que esa línea no
+se alcanza.
+
 ### 55. Python 3.11 como versión mínima
 
 **Origen.** Commit `95eb80e` (31 de octubre).
@@ -1160,6 +1325,12 @@ con la del equipo (3.14, la de `.python-version`). Ruff toma la versión objetiv
 **Ejemplo.** Si el proyecto declara 3.10 pero nadie lo prueba con esa versión, un alumno con
 3.10 podría instalarlo y encontrarse un error. Declarar solo lo que CI comprueba evita esa
 sorpresa.
+
+**Origen (S1).** El 29 de octubre convivían tres versiones: CI probaba 3.10 y 3.14, y el
+lint usaba 3.12 sin ningún motivo registrado. Se eligió 3.11 como mínima porque 3.10 llegaba
+al final de su soporte ese mes y pandas 3 exige 3.11: el trabajo de 3.10 era el único que
+probaba pandas 2, que nadie del equipo usaba. El lint lee `.python-version`, de modo que cada
+versión sale de un único sitio.
 
 ### 56. Diagramas generados por script en cuatro formatos
 
@@ -1384,3 +1555,252 @@ correlación sea cero. Las ratios sin denominador válido tampoco se presentan c
 [`tests/test_report_details.py`](tests/test_report_details.py) y
 [`tests/test_analysis.py`](tests/test_analysis.py). Los números de pruebas que constan en
 C1 y C2 corresponden a aquellas sesiones, no certifican la suite actual.
+
+---
+
+# Parte IV · Decisiones de las sesiones de trabajo
+
+Estas entradas recogen lo que se razonó y aplicó en las sesiones S1 a S10 y que no
+tenía entrada propia. Cada una se ha contrastado con el código el 7 de noviembre de 2026.
+
+## Simulación y proveedores
+
+### 64. Un único Monte Carlo para activo y cartera
+
+**Origen.** S1 (29 de octubre), commit `9bd3560`. Su forma cambió en `1c880e3` (ver 4).
+
+**Contexto.** `Asset` y `Portfolio` tenían cada uno su propia simulación. La petición fue
+reutilizar el código sin perder la posibilidad de simular un activo suelto o la cartera
+entera.
+
+**Decisión.** Un solo motor. Cada clase aporta únicamente lo que hay que simular:
+- **el activo:** su historial, partiendo de su último precio;
+- **la cartera:** los precios alineados, el valor actual de cada posición y, si rebalancea,
+  los pesos objetivo.
+
+Los nombres de los parámetros se igualaron: en `Asset`, `expected_return` y `volatility`
+pasaron a ser `expected_returns` y `volatilities`, como en `Portfolio`.
+
+**Por qué.** Dos copias del mismo modelo pueden separarse sin que nadie lo note. Ya había
+una prueba que exigía que un activo y una cartera formada solo por ese activo dieran el mismo
+resultado.
+
+**Ejemplo.** Con la misma semilla, `ibm.monte_carlo(...)` y
+`Portfolio([ibm], {"IBM": 1.0}).monte_carlo(...)` deben coincidir. Si alguien corrigiera la
+fórmula de la deriva en uno solo de los dos sitios, la prueba lo detectaría.
+
+**Estado.** El objetivo sigue vigente; la forma cambió al día siguiente. El primer diseño
+usaba un *mixin* (`MonteCarloMixin`), que se sustituyó por `simulation_inputs()` y una
+función `simulate()` (decisión 4).
+
+### 65. Contrato común para los proveedores, con las opciones en el constructor
+
+**Origen.** S1 (29 de octubre); `PriceProvider` en
+[`src/providers/base.py`](src/providers/base.py).
+
+**Contexto.** `portfolio_loader.py` comprobaba si el proveedor era `AlphaVantageAPI` para
+llamarlo con otros argumentos. Además, el análisis leía
+`info.get("currency") or info.get("Currency")`, porque cada API usaba sus propios nombres.
+
+**Decisión.**
+- Todos los proveedores se llaman igual: `get_prices(symbol, start, end)`. Lo documenta un
+  `Protocol` de pocas líneas, `PriceProvider`.
+- Las opciones propias de cada fuente (`outputsize`, `allow_partial`, `include_info`) se
+  fijan al crear el adaptador.
+- Cada adaptador traduce su ficha a unos campos comunes y conserva la respuesta original
+  aparte. Esa ficha se convirtió después en `AssetProfile` (decisión 6).
+
+**Por qué.** El enunciado valora poder añadir fuentes sin alterar el núcleo. Un `Protocol`
+cuesta unas líneas y no obliga a heredar de ninguna clase.
+
+**Ejemplo.** Antes, el cargador necesitaba una rama `if isinstance(...)` para pasar a Alpha
+Vantage sus opciones. Ahora se crea `AlphaVantageAPI(outputsize="full")` una vez y el
+cargador siempre hace `provider.get_prices(símbolo, inicio, fin)`. Un tercer proveedor no
+añade ninguna rama al cargador.
+
+**Estado.** Vigente. Se descartó una jerarquía de clases abstractas (ver 10).
+
+## Datos y consola
+
+### 66. Solo fechas ISO `AAAA-MM-DD`
+
+**Origen.** S1 (29 de octubre); [`src/validation.py`](src/validation.py).
+
+**Decisión.** Las fechas de entrada se validan una sola vez con el formato `AAAA-MM-DD`
+(`datetime.strptime(..., "%Y-%m-%d")`). A partir de ahí se trabaja con fechas normalizadas.
+
+**Por qué.** `date_range()` anunciaba ese formato, pero aceptaba otros, mientras que otras
+funciones usaban `date.fromisoformat()`. La misma cadena podía valer en un sitio y fallar en
+otro.
+
+**Ejemplo.** `01/02/2025` puede ser el 1 de febrero o el 2 de enero según el país. Antes se
+aceptaba sin avisar; ahora se rechaza y hay que escribir `2025-02-01`.
+
+**Estado.** Vigente.
+
+### 67. Un año de historial en Yahoo y 120 días en Alpha Vantage
+
+**Origen.** S1 (29 de octubre); `ProviderOption.default_history_days` en
+[`src/main.py`](src/main.py).
+
+**Contexto.** Por defecto se pedían 30 días: unas 20 rentabilidades diarias, anualizadas
+con 252 sesiones, alimentaban una simulación a un año.
+
+**Decisión.** Si no se indica `--start`, se pide un año con Yahoo y 120 días naturales con
+Alpha Vantage.
+
+**Por qué 120 días.** El modo gratuito de Alpha Vantage (`compact`) devuelve unas 100
+sesiones. 120 días naturales son unas 83 sesiones, así que caben sin pedir un período que el
+proveedor no puede dar.
+
+**Ejemplo.** Estimar la volatilidad anual con 20 días es como calcular la temperatura media
+del año con tres semanas de enero. Con un año de datos entran períodos tranquilos y
+agitados del mercado.
+
+**Estado.** Vigente. El aviso de historial corto se mide en días naturales (ver 40), para que
+un año con 249 sesiones comunes no cuente como «menos de un año».
+
+## Informe y documentación
+
+### 68. `.plots_report()` reúne todas las figuras
+
+**Origen.** S1 (29 de octubre); `PortfolioAnalysis.plots_report()` en
+[`src/analysis/result.py`](src/analysis/result.py) y `plot_report()` en
+[`src/reporting/plots.py`](src/reporting/plots.py).
+
+**Contexto.** El método que pide el enunciado solo devolvía la figura de análisis general.
+La consola, en cambio, montaba por su cuenta otras figuras, como la comparación de activos.
+
+**Decisión.** Una única función construye el conjunto de gráficos históricos.
+`.plots_report()` lo devuelve como diccionario y puede guardarlo en una carpeta. La consola y
+la exportación del informe usan esa misma función.
+
+**Ejemplo.** Antes, `--plots-report` mostraba la comparación normalizada de activos y
+`portfolio.plots_report()` no. Ahora las tres salidas comparten el código y no pueden
+mostrar conjuntos distintos.
+
+**Estado.** Vigente. El registro `CHARTS` (decisión 9) amplió después el conjunto de
+gráficos.
+
+### 69. Diagramas versionados y legibles con cualquier tema
+
+**Origen.** S4, S5 y S6 (31 de octubre a 2 de noviembre); S8 y S9 (5 de noviembre).
+
+**Contexto.** Los diagramas estaban en `docs/`, que `.gitignore` excluía, y citaban clases
+ya eliminadas (`MarketContext`, `MonteCarloMixin`, `simulate_paths`). En GitHub no se veía
+ninguno, y el apartado 4.6 del enunciado se evalúa.
+
+**Decisión.**
+- `ARQUITECTURA.md`, en la raíz, reúne las láminas con su explicación, y `diagramas/` deja de
+  estar ignorada. Más tarde también se quitó `docs` del `.gitignore` (PR #14).
+- Se corrigió el generador. Al comprobar si un texto cabía, contaba el espacio vacío bajo la
+  última línea y fallaba por menos de un píxel, así que nunca había llegado a producir las
+  imágenes.
+- Los `.mmd` no fijan colores: usan el tema de quien los abre.
+- Hay dos documentos con funciones distintas: `ARQUITECTURA.md`, con las siete láminas
+  formales, y `docs/arquitectura.md`, un resumen en Mermaid para orientarse.
+
+**Por qué no fijar colores.** Los `.mmd` imponían texto azul marino pensado para fondo claro.
+Con el tema oscuro, las etiquetas de las flechas y los títulos de los grupos quedaban oscuros
+sobre fondo oscuro.
+
+**Ejemplo.** Una etiqueta azul marino se lee bien en el modo claro de GitHub, pero desaparece
+en el oscuro. Sin colores fijos, el visor elige un contraste adecuado en ambos casos.
+`diagramas/README.md` lo explica para que nadie vuelva a añadirlos.
+
+**Estado.** Parcial. Las láminas reflejan `--shares`, pero ninguna muestra todavía el
+proveedor del BCE (`EcbAPI`). La actualización de las láminas 01 a 06 está hecha en el commit
+`b60421d`, en una rama local que no se ha subido ni integrado.
+
+## Datos macroeconómicos
+
+### 70. API oficial de FRED con clave, no la descarga CSV
+
+**Origen.** S6 (2 de noviembre).
+
+**Contexto.** Un compañero había obtenido datos de FRED sin clave, y surgió la duda de si
+`FRED_API_KEY` era necesaria.
+
+**Decisión.** Se mantiene la API oficial (`api.stlouisfed.org`), que exige una clave
+gratuita. Si falta, el programa avisa y genera el informe sin las medidas que dependen de
+FRED (decisión 16).
+
+**Por qué.** Se probaron las dos vías. La API sin clave responde con un error HTTP 400 que
+indica que falta `api_key`. La descarga CSV de la web (`fredgraph.csv`, el botón «Download»
+de cada gráfica) no pide clave, pero:
+- no está documentada como API y puede cambiar de formato sin aviso;
+- no incluye metadatos de la serie ni errores estructurados;
+- obligaría a escribir y probar otro lector para algo que ya funciona con una clave
+  gratuita.
+
+**Ejemplo.** `fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCSL` devuelve el IPC sin
+clave, y probablemente es lo que usaba el compañero, directamente o a través de
+`pandas_datareader`. Sirve para una consulta puntual. Pero si FRED cambiara una columna de
+ese CSV, el programa fallaría sin un mensaje claro; la API devuelve un error con su causa.
+
+**Estado.** Vigente.
+
+## Instalación y código limpio
+
+### 71. Inicio rápido por sistema y publicación del informe con reintentos
+
+**Origen.** S8: revisión y mejora de la PR #14 (commits `51e18ee` y `9809e03`).
+
+**Contexto.** Para instalar había que leer más de 650 líneas de README, y el único comando
+para crear el entorno (`python -m venv .venv`) suele fallar en macOS y Linux. En Windows,
+publicar el informe fallaba a veces con «Acceso denegado».
+
+**Decisión.**
+- El inicio rápido da el comando de cada sistema: `py -m venv .venv` en Windows y
+  `python3 -m venv .venv` en macOS y Linux. Se siguió al pie de la letra desde un entorno
+  limpio para comprobarlo.
+- Al renombrar la carpeta temporal del informe, solo se reintenta ante un `PermissionError`:
+  hasta 6 intentos, separados 0,5 segundos. Cualquier otro error falla en el acto, y se
+  mantiene la limpieza de la carpeta a medias (decisión 15).
+- Los avisos de obsolescencia de yfinance se silencian solo durante sus llamadas y solo los
+  que proceden de sus módulos.
+
+**Por qué.** El apartado 4.1 pide clonar y ejecutar sin fricciones. Además, el antivirus o el
+indexador de Windows pueden tener abierto durante un instante un gráfico recién guardado, y
+eso no es un error del programa.
+
+**Ejemplo.** Si el antivirus bloquea la carpeta medio segundo, el segundo intento la publica
+y el usuario no nota nada. Si el disco está lleno, el error aparece enseguida, porque no es un
+`PermissionError` y no tiene sentido esperar.
+
+**Límites.** `warnings.catch_warnings()` modifica un estado global y no es seguro entre
+hilos. Hoy no importa, porque la descarga es secuencial (decisión 38). Con yfinance 1.8.0 y
+pandas 3.1.1 no se reprodujeron esos avisos, así que el filtro es preventivo.
+
+**Estado.** Vigente.
+
+### 72. Simplificar sin cambiar el comportamiento
+
+**Origen.** S4 (1 de noviembre), commit `2e9553c`.
+
+**Contexto.** Tras integrar las mejoras de la revisión y `--benchmark`, algunas funciones
+habían crecido y costaba recorrerlas en una presentación de cinco minutos.
+
+**Decisión.** Recortar solo lo que no cambia el resultado, pasando las pruebas tras cada
+bloque:
+- `load_references` pasa las tres referencias de forma explícita y comparte la descarga de
+  la inflación y el tipo de interés.
+- `period_returns()` sustituye seis repeticiones de `pct_change(fill_method=None).dropna()`.
+- `run()` solo coordina los pasos; qué referencias se descargan lo decide
+  `load_run_references()`.
+- La comprobación de que una simulación corresponde al informe se expresa con tres
+  condiciones con nombre: `same_start`, `same_positions` y `same_criteria`.
+
+Se dejaron largas a propósito `evaluate_risk`, porque cada regla de riesgo era un bloque
+visible, y `build_parser`, que solo declara opciones de la consola.
+
+**Por qué.** El objetivo era que cada función se leyera de arriba abajo, no reducir líneas:
+en total salieron 21.
+
+**Ejemplo.** Tras la simplificación, el flujo cabe en una frase que se puede seguir en el
+código: la consola valida, los adaptadores descargan, los modelos validan y se congelan, el
+análisis calcula y el informe presenta.
+
+**Estado.** Modificada en parte. Los límites de complejidad de Ruff (decisión 54) obligaron
+después a dividir `evaluate_risk` en funciones auxiliares, conservando el orden de sus
+avisos.
