@@ -18,7 +18,9 @@ from src.simulation.monte_carlo import _covariance_factor, estimate_parameters
 
 
 def make_asset(symbol="A", values=(100, 102, 101, 104, 103, 107), **options):
-    return fixtures.asset(symbol, list(values), start="2026-10-01", **options)
+    """Sesiones bursátiles: sin periods_per_year, se anualiza con 252."""
+    dates = pd.bdate_range("2026-10-01", periods=len(values))
+    return fixtures.asset(symbol, list(values), dates=dates, **options)
 
 
 class SimulationTests(unittest.TestCase):

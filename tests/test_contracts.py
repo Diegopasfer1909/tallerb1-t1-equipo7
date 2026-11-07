@@ -15,6 +15,7 @@ from fixtures import asset, buy_and_hold, history, indicator
 
 from src.analysis.metrics import annualized_growth
 from src.constants import ADJ_CLOSE
+from src.frequency import periods_per_year
 from src.main import main, parse_arguments
 from src.market_loader import load_market_references, load_references
 from src.models import Asset, ExchangeRate, MarketReferences, Portfolio, PriceHistory
@@ -92,6 +93,30 @@ class TemporalContractTests(unittest.TestCase):
         short = buy_and_hold([asset("A", [100, 101, 102, 103])], [1])
         messages = [notice.message for notice in short.analyze().notices]
         self.assertTrue(any("3 días naturales, menos de un año" in message for message in messages))
+
+    def test_only_crypto_portfolios_annualize_and_simulate_with_365_days(self):
+        days = pd.date_range("2025-01-01", periods=60)
+        sessions = pd.bdate_range("2025-01-01", periods=60)
+        self.assertEqual(periods_per_year(days), 365)
+        self.assertEqual(periods_per_year(sessions), 252)
+        self.assertEqual(periods_per_year(pd.date_range("2021-01-01", periods=60, freq="MS")), 252)
+        rng = np.random.default_rng(1)
+        crypto = asset("BTC", 100 * np.exp(np.cumsum(rng.normal(0, 0.02, len(days)))), dates=days)
+        only = Portfolio([crypto], {"BTC": 1})
+        analysis = only.analyze()
+        returns = only.position_values().sum(axis=1).pct_change().dropna()
+        self.assertEqual(analysis.periods_per_year, 365)
+        self.assertAlmostEqual(analysis.metrics["annualized_volatility"], returns.std() * 365**0.5)
+        simulation = only.monte_carlo(simulations=2)
+        self.assertEqual(len(simulation.paths) - 1, 365)
+        self.assertEqual(simulation.rebalance_interval, 30)
+        # Con acciones, las fechas comunes son sesiones bursátiles.
+        stock = asset("SPY", np.linspace(100, 110, len(sessions)), dates=sessions)
+        mixed = Portfolio([crypto, stock], {"BTC": 0.5, "SPY": 0.5})
+        self.assertEqual(mixed.analyze().periods_per_year, 252)
+        mixed_simulation = mixed.monte_carlo(simulations=2)
+        self.assertEqual(len(mixed_simulation.paths) - 1, 252)
+        self.assertEqual(mixed_simulation.rebalance_interval, 21)
 
 
 class BenchmarkChoiceTests(unittest.TestCase):
@@ -200,9 +225,9 @@ class ReportTextTests(unittest.TestCase):
         data = history("A", [100, 102, 104], extra={ADJ_CLOSE: [99, 101, 104]})
         portfolio = buy_and_hold([Asset(data)], [1])
         adjusted = build_report(portfolio.analyze(price_column=ADJ_CLOSE))
-        self.assertIn("El análisis usa Adj Close", adjusted)
-        self.assertNotIn("La valoración usa Close", adjusted)
-        self.assertIn("La valoración usa Close", build_report(portfolio.analyze()))
+        self.assertIn("El análisis usa precios ajustados", adjusted)
+        self.assertNotIn("La valoración usa el precio de cierre", adjusted)
+        self.assertIn("La valoración usa el precio de cierre", build_report(portfolio.analyze()))
 
     def test_sectors_are_translated_and_charts_have_descriptive_alt_text(self):
         portfolio = buy_and_hold(
