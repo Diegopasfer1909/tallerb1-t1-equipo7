@@ -9,17 +9,17 @@ flowchart TD
     PARSE["parse_arguments()<br/>validar opciones → RunConfig"]
     EXIT2((("2")))
     START --> ENV --> PARSE
-    PARSE -->|"opciones inválidas: argparse"| EXIT2
+    PARSE -->|"opciones inválidas o incompatibles: argparse<br/>p. ej. comisiones sin --rebalance monthly"| EXIT2
     subgraph RUN["run(config) · coordinación"]
         KEYS{"¿Clave del proveedor<br/>elegido disponible?"}
         FRED{"¿--report y falta<br/>FRED_API_KEY?"}
         WARN["Aviso: faltan referencias FRED<br/>el informe continúa"]
         FX{"¿--currency?"}
         FXP["Crear YahooFinanceAPI auxiliar<br/>para cambios necesarios"]
-        LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios → activos → FX → cartera"]
-        PRINT["print_portfolio()"]
+        LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios → activos → FX → cartera<br/>RebalanceRule: tarifa, banda y coste máximo"]
+        PRINT["print_portfolio()<br/>con rebalanceo y tarifa: print_rebalance_costs()"]
         SIMQ{"¿config.simulation<br/>es distinto de None?"}
-        SIM["portfolio.monte_carlo()<br/>print_simulation()"]
+        SIM["load_risk_free_rate(): FRED / BCE<br/>portfolio.monte_carlo()<br/>print_simulation()"]
         OUT{"¿--report o<br/>--plots-report?"}
         REFQ{"¿--report?"}
         REFS["load_references()<br/>benchmark · inflación · tipo<br/>fallos opcionales → Notice"]
@@ -61,6 +61,7 @@ flowchart TD
     PLOTS --> OK
     NOTE["Simulación activada por --simulate<br/>o por --report con sección simulation.<br/>El informe por defecto incluye esa sección."]
     NOTE -.- SIMQ
-%% Las descargas de referencias ocurren después de la simulación en la CLI.
+%% Las descargas de referencias ocurren después de la simulación en la CLI;
+%% el tipo libre de riesgo se consulta antes de simular.
 %% Un fallo del proveedor elegido no activa otro proveedor automáticamente.
 %% --help termina mediante argparse con código 0; no entra en run.

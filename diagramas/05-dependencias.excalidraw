@@ -2656,11 +2656,95 @@
     },
     {
       "id": "05-dependencias-75",
+      "type": "arrow",
+      "x": 130,
+      "y": 1110,
+      "width": 0,
+      "height": 240,
+      "angle": 0,
+      "strokeColor": "#A66810",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 72825,
+      "version": 1,
+      "versionNonce": 7725,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1793443200000,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          -240
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": null,
+      "endBinding": null,
+      "startArrowhead": null,
+      "endArrowhead": "arrow"
+    },
+    {
+      "id": "05-dependencias-76",
+      "type": "arrow",
+      "x": 540,
+      "y": 1265,
+      "width": 250,
+      "height": 0,
+      "angle": 0,
+      "strokeColor": "#A66810",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": null,
+      "roundness": null,
+      "seed": 73796,
+      "version": 1,
+      "versionNonce": 7828,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1793443200000,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          250,
+          0
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": null,
+      "endBinding": null,
+      "startArrowhead": null,
+      "endArrowhead": "arrow"
+    },
+    {
+      "id": "05-dependencias-77",
       "type": "rectangle",
       "x": 1500,
-      "y": 980,
+      "y": 960,
       "width": 460,
-      "height": 320,
+      "height": 340,
       "angle": 0,
       "strokeColor": "#D5DFE7",
       "backgroundColor": "#FFFFFF",
@@ -2670,15 +2754,15 @@
       "roughness": 0,
       "opacity": 100,
       "groupIds": [
-        "05-dependencias-75-group"
+        "05-dependencias-77-group"
       ],
       "frameId": null,
       "roundness": {
         "type": 3
       },
-      "seed": 72825,
+      "seed": 74767,
       "version": 1,
-      "versionNonce": 7725,
+      "versionNonce": 7931,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2686,12 +2770,12 @@
       "locked": false
     },
     {
-      "id": "05-dependencias-76",
+      "id": "05-dependencias-78",
       "type": "rectangle",
       "x": 1501,
-      "y": 981,
+      "y": 961,
       "width": 7,
-      "height": 318,
+      "height": 338,
       "angle": 0,
       "strokeColor": "#526779",
       "backgroundColor": "#526779",
@@ -2701,15 +2785,15 @@
       "roughness": 0,
       "opacity": 100,
       "groupIds": [
-        "05-dependencias-75-group"
+        "05-dependencias-77-group"
       ],
       "frameId": null,
       "roundness": {
         "type": 3
       },
-      "seed": 73796,
+      "seed": 75738,
       "version": 1,
-      "versionNonce": 7828,
+      "versionNonce": 8034,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2717,10 +2801,10 @@
       "locked": false
     },
     {
-      "id": "05-dependencias-77",
+      "id": "05-dependencias-79",
       "type": "text",
       "x": 1524,
-      "y": 1002,
+      "y": 982,
       "width": 235.984375,
       "height": 21.76,
       "angle": 0,
@@ -2732,13 +2816,13 @@
       "roughness": 0,
       "opacity": 100,
       "groupIds": [
-        "05-dependencias-75-group"
+        "05-dependencias-77-group"
       ],
       "frameId": null,
       "roundness": null,
-      "seed": 74767,
+      "seed": 76709,
       "version": 1,
-      "versionNonce": 7931,
+      "versionNonce": 8137,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2755,10 +2839,10 @@
       "lineHeight": 1.28
     },
     {
-      "id": "05-dependencias-78",
+      "id": "05-dependencias-80",
       "type": "text",
       "x": 1524,
-      "y": 1032,
+      "y": 1012,
       "width": 292.0,
       "height": 35.84,
       "angle": 0,
@@ -2770,13 +2854,13 @@
       "roughness": 0,
       "opacity": 100,
       "groupIds": [
-        "05-dependencias-75-group"
+        "05-dependencias-77-group"
       ],
       "frameId": null,
       "roundness": null,
-      "seed": 75738,
+      "seed": 77680,
       "version": 1,
-      "versionNonce": 8034,
+      "versionNonce": 8240,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2793,12 +2877,12 @@
       "lineHeight": 1.28
     },
     {
-      "id": "05-dependencias-79",
+      "id": "05-dependencias-81",
       "type": "text",
       "x": 1524,
-      "y": 1076,
-      "width": 317.0,
-      "height": 168.96,
+      "y": 1056,
+      "width": 359.0,
+      "height": 225.28,
       "angle": 0,
       "strokeColor": "#526779",
       "backgroundColor": "transparent",
@@ -2808,20 +2892,20 @@
       "roughness": 0,
       "opacity": 100,
       "groupIds": [
-        "05-dependencias-75-group"
+        "05-dependencias-77-group"
       ],
       "frameId": null,
       "roundness": null,
-      "seed": 76709,
+      "seed": 78651,
       "version": 1,
-      "versionNonce": 8137,
+      "versionNonce": 8343,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
       "link": null,
       "locked": false,
-      "text": "constants · errors · validation\nImports omitidos en este recorte.\n\nTYPE_CHECKING:\nmodels ↔ analysis\nreporting → analysis, simulation",
-      "originalText": "constants · errors · validation\nImports omitidos en este recorte.\n\nTYPE_CHECKING:\nmodels ↔ analysis\nreporting → analysis, simulation",
+      "text": "constants · errors · validation\ncommissions · frequency\nImports omitidos en este recorte.\nreporting → providers (etiqueta BCE)\n\nTYPE_CHECKING:\nmodels ↔ analysis\nreporting → analysis, simulation",
+      "originalText": "constants · errors · validation\ncommissions · frequency\nImports omitidos en este recorte.\nreporting → providers (etiqueta BCE)\n\nTYPE_CHECKING:\nmodels ↔ analysis\nreporting → analysis, simulation",
       "fontSize": 22,
       "fontFamily": 2,
       "textAlign": "left",
@@ -2831,11 +2915,11 @@
       "lineHeight": 1.28
     },
     {
-      "id": "05-dependencias-80",
+      "id": "05-dependencias-82",
       "type": "text",
       "x": 82,
       "y": 1380,
-      "width": 1062.0,
+      "width": 1502.0,
       "height": 30.72,
       "angle": 0,
       "strokeColor": "#142D43",
@@ -2848,16 +2932,16 @@
       "groupIds": [],
       "frameId": null,
       "roundness": null,
-      "seed": 77680,
+      "seed": 79622,
       "version": 1,
-      "versionNonce": 8240,
+      "versionNonce": 8446,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
       "link": null,
       "locked": false,
-      "text": "Continuas: imports al cargar el módulo.   Discontinuas ámbar: imports dentro de métodos (4 aristas).",
-      "originalText": "Continuas: imports al cargar el módulo.   Discontinuas ámbar: imports dentro de métodos (4 aristas).",
+      "text": "Continuas: imports al cargar el módulo (ámbar: reporting → analysis, simulation).   Discontinuas ámbar: imports dentro de métodos (4 aristas).",
+      "originalText": "Continuas: imports al cargar el módulo (ámbar: reporting → analysis, simulation).   Discontinuas ámbar: imports dentro de métodos (4 aristas).",
       "fontSize": 24,
       "fontFamily": 2,
       "textAlign": "left",
@@ -2867,7 +2951,7 @@
       "lineHeight": 1.28
     },
     {
-      "id": "05-dependencias-81",
+      "id": "05-dependencias-83",
       "type": "line",
       "x": 72,
       "y": 1450,
@@ -2884,9 +2968,9 @@
       "groupIds": [],
       "frameId": null,
       "roundness": null,
-      "seed": 78651,
+      "seed": 80593,
       "version": 1,
-      "versionNonce": 8343,
+      "versionNonce": 8549,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2909,7 +2993,7 @@
       "endArrowhead": null
     },
     {
-      "id": "05-dependencias-82",
+      "id": "05-dependencias-84",
       "type": "text",
       "x": 74,
       "y": 1469,
@@ -2926,9 +3010,9 @@
       "groupIds": [],
       "frameId": null,
       "roundness": null,
-      "seed": 79622,
+      "seed": 81564,
       "version": 1,
-      "versionNonce": 8446,
+      "versionNonce": 8652,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,
@@ -2945,7 +3029,7 @@
       "lineHeight": 1.28
     },
     {
-      "id": "05-dependencias-83",
+      "id": "05-dependencias-85",
       "type": "text",
       "x": 1968,
       "y": 1498,
@@ -2962,9 +3046,9 @@
       "groupIds": [],
       "frameId": null,
       "roundness": null,
-      "seed": 80593,
+      "seed": 82535,
       "version": 1,
-      "versionNonce": 8549,
+      "versionNonce": 8755,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1793443200000,

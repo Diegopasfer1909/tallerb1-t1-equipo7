@@ -1,50 +1,52 @@
 {
-  "generated_at": "2026-11-05T18:34:50.456803+00:00",
-  "head": "36e080fb06383798b3442d5a449ecb181908b2da",
+  "generated_at": "2026-11-07T16:04:46.021317+00:00",
+  "head": "c6ed2d8593fcbe763e64443a9e28412483670c81",
   "basis": "HEAD; src matches the commit",
   "source_sha256": {
     "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
     "src/analysis/__init__.py": "1663ac5b6cb1ec8131559c29db0b1993d1acc77635a0d445b48aa81a9c8d6c40",
-    "src/analysis/messages.py": "489d1e983616b1f5a49b1acbe75b67935f91b54d42f293455c25d3d5f0c4d247",
-    "src/analysis/metrics.py": "f94603563f7bcea467c8dc6e88858dbbb303204c3b5f289355f7001482bf8f4a",
-    "src/analysis/portfolio_analysis.py": "5a2e1ea81d069d808fc997682656632ef7ff1e4db0c22cac9f528782ccbe910a",
-    "src/analysis/result.py": "f734638c693b5b102c0b554ab3ec08a2086f262910823186121824dca6f5996e",
-    "src/analysis/warnings.py": "86f9a42ca8620c6d31650b93c3bed7c4f86e391437af9baafc9e4b4d3eadc778",
-    "src/constants.py": "29ad235fe5d40d4292a830e97f26251c91a09eb08c617245a1c4f3657ab2953d",
+    "src/analysis/messages.py": "3fb37aa6ef537b03f0aadea59aad714f4ed9185e58adb8be2887d349ce455db4",
+    "src/analysis/metrics.py": "3a8afe51cedc2b52e79c94d644e26848fbda555339685a8e7e084e4c8d2adb87",
+    "src/analysis/portfolio_analysis.py": "d585f2e3bcfa95d3a2640e8f77d30f59f5a9e8a9978bcbd97e27f002a04b157b",
+    "src/analysis/result.py": "1b3e1e024246fd33ddb180af24f607a1cc7557e9d55735a6ec6e5724c4a6427d",
+    "src/analysis/warnings.py": "c1fc66dcf0f2c3f91df7c38a8a99f4e3e69c2d3dcbdff82873a82e34af9f9454",
+    "src/commissions.py": "12e6ae3edb94d631a8afcbf037766b0fd80deed8e80647be2c5f13a3c4c7338e",
+    "src/constants.py": "90ec8621f445818c34951f22e75ad536460ea62e9dffdaa0aa8f2d534e5fe2aa",
     "src/errors.py": "95a70c46d61c39d6bf0e19ab525259cfa9ae891f534a46f208a664262ffdaefa",
-    "src/main.py": "338147cfc03f43d4a0f2707364cc9b7fb59088be3a1ba4dbf03b900ac4f5861f",
-    "src/market_loader.py": "4e6b67a320ede5dfc6335b11e6b0ac645fc4972781de84a1c17e4c8fc9d2e832",
+    "src/frequency.py": "7d301b4882ce7188d8f48f7a7332909b5903bb80a365dd034924e599d1e09330",
+    "src/main.py": "30a60c5dc9fbac723121da5ec0514fb8d211d3479b34ae9336175a0b482637c6",
+    "src/market_loader.py": "3e3c3b8145471981073d36edeb685d3c5658d799d4db3e83637237600a735c5d",
     "src/models/__init__.py": "5048416cf8506225147ad352ad9a9d143421066a2de0e418f4c7581ef8d6166d",
-    "src/models/asset.py": "763cd8834350f831a98045e1d2322ef59edf82506f4b614c5172928469824032",
+    "src/models/asset.py": "318101b73e758929e3b25f2c75acb72a522b7394a794ecc59d8e11870307db31",
     "src/models/asset_profile.py": "e9ff9219ac87ede6ceb7d778f8e1ddec0466351735b0e43b31dbf6027af8774e",
-    "src/models/backtest.py": "4d853660a20e3dcc502c983cf390cf2e86b5484585354420b239ecc6e82c8eab",
+    "src/models/backtest.py": "b31293b2cc6ad5c5aadf84e85372f9f9a43762ad5d79dfe36c9ec7ea46274254",
     "src/models/currency.py": "cdae6a1acf6d728f19224903aeb46f95019244b11d37bd2653e3363fac1b3650",
     "src/models/economic_indicator.py": "a5fc73987077f3a20c66e19eb3edd6acb0ed2aec629e3ec875c13a5c064bf451",
     "src/models/notice.py": "e570390f07ec9e88781ceedb1345f8ecf736c39e633366b46d139a90b614b879",
-    "src/models/portfolio.py": "e4d196e5c80786eb8aadb9a21cb94cb7de403ddcc1ad9437a3ff68140ff34a83",
-    "src/models/price_history.py": "f883ff5eab29d5bbb0c5577c0b1abc35bf29afe1bdba4d2f493c90f11bf7c49f",
+    "src/models/portfolio.py": "71eed770679b3796d18cdddc1ffa1b4ee618e0297325d1da1c586eae19cffd70",
+    "src/models/price_history.py": "1fa7693ff5b789dac2d3678b9e1cb30608ac7ff53e18f4e73d145417be0da5d2",
     "src/models/references.py": "b263fcb0069cb93cbb23bbf7d449d2c81b46554f880a9bdcc39e90b0c3d187cc",
-    "src/models/snapshot.py": "e8d2ee8ca30db1dc4792c8afa58d1f5825821d81fa1921cad357e84239e5c996",
-    "src/portfolio_loader.py": "321fdeee2cf44455f66e4872f5312f59b5179325f5ccf9d2c63e86739c45b2d2",
+    "src/models/snapshot.py": "0289d6d21bd8b12c9b0704ad807dfd52486c58ffda7874a2b40e89df4057f97c",
+    "src/portfolio_loader.py": "b4f3b8074f60e99723e22aeb7ed715d4f16154458af8206b98dae425f0d980e5",
     "src/providers/__init__.py": "b87c95c789c967052f2c5ab6cb9957b8ec04240e4c7a7c8a7fac7e07e149fdd3",
     "src/providers/alpha_quota.py": "9396eefa0494ad015af7fb5254f459c0aef94df9be71d280b1be65917924247f",
     "src/providers/alpha_vantage.py": "38a42809b90b72dea7739b27c9af7b8befef3fc212674c47d500b40fcc7788a0",
-    "src/providers/base.py": "6f132078e198af5da9ff1e338ba7b51256a243988bf66b5fe27bcabf60068b7d",
+    "src/providers/base.py": "a97b6e1c9e764f50448ffd114eb98cd939e980c2a99aaf1971f7f3ed2c1f6f40",
     "src/providers/ecb.py": "e0d61f1e0806b989991b917f5e6dd66f64e9dd0610ccbd3717220e2408b8971a",
     "src/providers/fred.py": "bacf7b8637f79735d20f315c073444b13d59ea6d2be80bdf50714a254e6d3e0b",
-    "src/providers/yahoo.py": "b0f6304f2559e62874f39e956f74729ef095df0ef97cf900ec484090f498e799",
+    "src/providers/yahoo.py": "c43f66f7b04675888655ebc8eaa1e90d79efbee8d82a72c6aaaef4a7aafd4ab0",
     "src/reporting/__init__.py": "c088b21cd6984c139589fc42150ac5854c290be3ce399908e380af96a44fa339",
-    "src/reporting/export.py": "b9fcda186db7fbbb9411f6bb924c4b387a81c63d23a24f2cd5ab4d46579de0de",
+    "src/reporting/export.py": "53789f04ecac4a6842affc1afb0d2007866a19675840d82111bb2b8e6fca0b1e",
     "src/reporting/formatting.py": "58f9056a23d1959ceb9ecf478351c10a0297c79d95e24f45dde7c9749f1409b8",
-    "src/reporting/labels.py": "7f0e46d5afd952a92263b6a3a6287eccc242f028874516c50af350cc2d59ebc7",
+    "src/reporting/labels.py": "7ec4b1bc0be19a1a1f488130a0e7e9ec24da81cd7bff1779d41fe20588152c30",
     "src/reporting/plots.py": "c209d0badc45279239a5e015c0fc953b59b0222cdf459a61388d8089da34d0f7",
-    "src/reporting/report.py": "cfcd2147db6cc03f5658f58dc8e1461a12da237c74047faa128ac7d614ddc9f3",
+    "src/reporting/report.py": "fbbbea9c6850127f70636a5c0d2cc1b62a74488f38dccc83790d27768d3f429f",
     "src/reporting/sections.py": "9b2420f656d27708b495ca296c26f48664ade2d11569dfbb26bf81936bfcb206",
-    "src/reporting/texts.py": "e8ca0a25cff738ec0fa3f2c88961116f74702c34ba8a5998b8632b8833e5f58e",
+    "src/reporting/texts.py": "5cc068845d1a01cd0e2cafaf23df7c5db462f4376fcd60b9ba1b691c79dced89",
     "src/simulation/__init__.py": "098b95e4f40b0f05bd1a65f2592e998f916b75413d8f5a1fd91ae2e0de196005",
-    "src/simulation/monte_carlo.py": "f4f2d1a4c8a81e750137d19fbae56d6423d0c95df48accfe2f7c37d27a88b63e",
-    "src/simulation/result.py": "6aac708bd8c2e6bb5590e5b1d1ede8b248c536687a48cc386236d789682df4aa",
-    "src/simulation/settings.py": "1c7c0b407586ccae4bdb4ce84fcdd452d705898dc3d3838efd9a455b0776b171",
+    "src/simulation/monte_carlo.py": "56044ce3dcdf1cadc44da95dc92a08e2e1c552bcc5b52e541779f1acd2ab2634",
+    "src/simulation/result.py": "bb5775cb7862b3f7409cf2cb9ffd908164858cddc62eec1e3a17eed2b66bcaaf",
+    "src/simulation/settings.py": "84c8e4526cace6d37ebb4d1f8f19c9f20dd9a2dcd0fb24fa18f1d74365446d08",
     "src/validation.py": "02d01b449a55c0eb8442e7e5b8ab1af8b4e5b5acb148baed34896aeebdf68bc0"
   },
   "symbols": {
@@ -78,28 +80,45 @@
       "_bund_etf",
       "_alpha",
       "_on_dates",
+      "_market_prices",
       "_market",
       "_benchmark",
       "_quality",
       "_asset_details",
       "_quality_notices",
       "_reference_table",
+      "_periods_per_year",
       "analyze_portfolio",
+      "_rebalance_costs",
       "_benchmark_name"
     ],
     "src/analysis/result.py": [
+      "RebalanceCosts",
       "PortfolioAnalysis"
     ],
     "src/analysis/warnings.py": [
       "WarningThresholds",
       "RiskWarning",
       "evaluate_risk",
+      "_diversification_warnings",
+      "_cost_warnings",
+      "_performance_warnings",
+      "_context_warnings",
       "evaluate_simulation"
+    ],
+    "src/commissions.py": [
+      "CommissionSchedule",
+      "RebalanceRule",
+      "RebalanceStep",
+      "rebalance_step"
     ],
     "src/constants.py": [],
     "src/errors.py": [
       "PortfolioError",
       "ConfigurationError"
+    ],
+    "src/frequency.py": [
+      "periods_per_year"
     ],
     "src/main.py": [
       "ProviderOption",
@@ -115,11 +134,15 @@
       "build_parser",
       "parse_arguments",
       "_build_config",
+      "_rebalance_rule",
+      "_rebalance",
+      "_simulation_options",
       "check_api_keys",
       "run",
       "load_run_references",
       "show_plots",
       "print_portfolio",
+      "print_rebalance_costs",
       "print_simulation",
       "main"
     ],
@@ -142,7 +165,10 @@
       "AssetProfile"
     ],
     "src/models/backtest.py": [
+      "BacktestResult",
       "backtest_allocation",
+      "backtest_with_costs",
+      "_result",
       "_month_ends"
     ],
     "src/models/currency.py": [
@@ -167,6 +193,7 @@
       "MarketReferences"
     ],
     "src/models/snapshot.py": [
+      "_ReadOnlySeries",
       "read_only"
     ],
     "src/portfolio_loader.py": [
@@ -210,12 +237,14 @@
     ],
     "src/providers/yahoo.py": [
       "YahooFinanceAPI",
+      "_quiet_yfinance",
       "_asset_classes",
       "_frame"
     ],
     "src/reporting/__init__.py": [],
     "src/reporting/export.py": [
       "save_report",
+      "_publish",
       "_new_report_folder",
       "_check_simulation_matches"
     ],
@@ -279,6 +308,14 @@
       "_warning_message",
       "_warnings",
       "_composition",
+      "commission_description",
+      "tariff_label",
+      "_tariff_terms",
+      "rule_description",
+      "_costs_note",
+      "_rebalance_costs",
+      "_read_advantage",
+      "_shares_note",
       "_annual_results",
       "_asset_results",
       "_returns",
@@ -342,7 +379,7 @@
   "diagrams": [
     {
       "name": "01-arquitectura",
-      "elements": 80,
+      "elements": 86,
       "size": [
         1920,
         1330
@@ -350,7 +387,7 @@
     },
     {
       "name": "02-modelos-dominio",
-      "elements": 109,
+      "elements": 120,
       "size": [
         2140,
         1580
@@ -358,23 +395,23 @@
     },
     {
       "name": "03-proveedores",
-      "elements": 94,
+      "elements": 108,
       "size": [
-        2040,
+        2580,
         1490
       ]
     },
     {
       "name": "04-simulacion",
-      "elements": 79,
+      "elements": 87,
       "size": [
         1920,
-        1380
+        1470
       ]
     },
     {
       "name": "05-dependencias",
-      "elements": 83,
+      "elements": 85,
       "size": [
         2040,
         1540

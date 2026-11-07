@@ -16,19 +16,22 @@
 <text x="664" y="406.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">.env → parsear → comprobar claves</text>
 <polyline points="900,240 900,290" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,276.49329346470984 900,290 906.5244830116685,276.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="640" y="500" width="520" height="160" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="641" y="501" width="7" height="158" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<rect x="640" y="500" width="520" height="185" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="641" y="501" width="7" height="183" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <text x="664" y="547.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Cargar y mostrar cartera</text>
 <text x="664" y="586.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Pesos o número de acciones</text>
 <text x="664" y="614.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">proveedor → activos → FX → Portfolio</text>
 <text x="664" y="642.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Imprimir composición</text>
+<text x="664" y="670.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Comisiones del rebalanceo, si hay tarifa</text>
 <polyline points="900,420 900,500" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,486.49329346470984 900,500 906.5244830116685,486.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="1300" y="290" width="510" height="140" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1301" y="291" width="7" height="138" rx="16" fill="#B34545" stroke="#B34545" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1300" y="290" width="510" height="185" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1301" y="291" width="7" height="183" rx="16" fill="#B34545" stroke="#B34545" stroke-width="2" stroke-linejoin="round"/>
 <text x="1324" y="327.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#B34545">ERROR DE ENTRADA</text>
 <text x="1324" y="367.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#B34545">Argumentos inválidos</text>
-<text x="1324" y="406.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">argparse → salida 2</text>
+<text x="1324" y="406.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Opción inválida o incompatible</text>
+<text x="1324" y="434.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">(comisiones sin --rebalance monthly)</text>
+<text x="1324" y="462.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">argparse → salida 2</text>
 <polyline points="1160,355 1300,355" fill="none" stroke="#B34545" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
 <polyline points="1286.49329346471,361.52448301166845 1300,355 1286.49329346471,348.47551698833155" fill="none" stroke="#B34545" stroke-width="2"/>
 <rect x="1300" y="500" width="510" height="240" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
@@ -42,13 +45,14 @@
 <text x="1324" y="728.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Alpha sin clave: se detiene.</text>
 <polygon points="900.0,710.0 1010.0,765.0 900.0,820.0 790.0,765.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <text x="852.5" y="770.88" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿simular?</text>
-<polyline points="900,660 900,710" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="900,685 900,710" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,696.4932934647098 900,710 906.5244830116685,696.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="80" y="700" width="430" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="81" y="701" width="7" height="128" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="80" y="700" width="430" height="155" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="701" width="7" height="153" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <text x="104" y="747.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Monte Carlo</text>
-<text x="104" y="786.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Crear settings → simulate()</text>
-<text x="104" y="814.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Mostrar resumen</text>
+<text x="104" y="786.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Tipo libre de riesgo (FRED / BCE)</text>
+<text x="104" y="814.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Crear settings → simulate()</text>
+<text x="104" y="842.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Mostrar resumen</text>
 <polyline points="790,765 510,765" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="523.5067065352902,758.4755169883315 510,765 523.5067065352902,771.5244830116685" fill="none" stroke="#7052AB" stroke-width="2"/>
 <rect x="624.5" y="722" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -56,7 +60,7 @@
 <polyline points="900,820 900,895" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <rect x="914" y="843" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="920" y="865.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
-<polyline points="295,830 295,895 900,895" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="295,855 295,895 900,895" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="900.0,879.0 916.0,895.0 900.0,911.0 884.0,895.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1300" y="815" width="510" height="165" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1301" y="816" width="7" height="163" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>

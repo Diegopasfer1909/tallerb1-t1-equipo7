@@ -12,24 +12,25 @@ flowchart TB
     end
     subgraph ADAPTERS["02 · ADAPTADORES EXTERNOS"]
         PRICE["PriceProvider<br/>YahooFinanceAPI · AlphaVantageAPI"]
-        FRED["FredAPI<br/>series económicas"]
+        FRED["FredAPI · EcbAPI<br/>series económicas"]
         SUPPORT["Infraestructura compartida<br/>ApiClient · caché · cuota Alpha"]
     end
     subgraph DOMAIN["03 · DOMINIO Y DATOS VALIDADOS"]
         MARKET["PriceHistory · AssetProfile<br/>EconomicIndicator · FxRates"]
-        PORT["Asset · Portfolio<br/>alineación · conversión · valoración"]
+        PORT["Asset · Portfolio<br/>alineación · conversión · backtest con comisiones"]
         REF["MarketReferences<br/>benchmark · inflación · tipo · avisos"]
     end
     subgraph COMPUTE["04 · CÁLCULO LOCAL"]
         SIM["simulation<br/>GBM correlacionado · Monte Carlo"]
+        COMM["commissions<br/>RebalanceRule · rebalance_step()"]
         ANA["analysis<br/>métricas · referencias · avisos"]
     end
     REP["reporting<br/>tablas · Markdown · gráficos"]
-    NET["Servicios web<br/>Yahoo Finance · Alpha Vantage · FRED"]
+    NET["Servicios web<br/>Yahoo Finance · Alpha Vantage · FRED · BCE"]
     DISK[("Caché JSON · SQLite<br/>persistencia local")]
     OUTPUT[("informes/<br/>Markdown + PNG · pantalla")]
     CLI -->|"opciones validadas"| PL
-    CLI -->|"solo con --report"| ML
+    CLI -->|"--report: referencias<br/>simulación: tipo libre de riesgo"| ML
     PY -->|"carga programática"| PL
     PY -->|"modelos ya cargados"| PORT
     PL -->|"FX necesarios"| ML
@@ -37,7 +38,7 @@ flowchart TB
     ML -->|"benchmark / FX: Yahoo por defecto"| PRICE
     ML -->|"get_series()"| FRED
     PRICE -->|"transporte y caché"| SUPPORT
-    FRED -->|"ApiClient"| SUPPORT
+    FRED -->|"FRED: ApiClient · BCE: caché"| SUPPORT
     SUPPORT -->|"consultas"| NET
     SUPPORT -->|"lee / escribe"| DISK
     PRICE -->|"PriceHistory con ficha"| MARKET
@@ -46,11 +47,14 @@ flowchart TB
     MARKET -->|"historiales y FX"| PORT
     ML -->|"compone referencias opcionales"| REF
     PORT -->|"SimulationInputs"| SIM
+    PORT -->|"backtest: reajustes y comisiones"| COMM
+    SIM -->|"reajustes por escenario"| COMM
     PORT -->|"Portfolio"| ANA
     REF -->|"referencias + Notice"| ANA
     SIM -->|"SimulationResult"| REP
     ANA -->|"PortfolioAnalysis"| REP
     REP -->|"exporta / muestra"| OUTPUT
 %% Yahoo usa yfinance y las funciones de caché, no ApiClient.
-%% Alpha y FRED usan ApiClient; solo Alpha instala callbacks de cuota.
+%% Alpha y FRED usan ApiClient; solo Alpha instala callbacks de cuota. EcbAPI usa curl_cffi y la caché.
+%% commissions aplica la misma RebalanceRule al backtest histórico y a Monte Carlo.
 %% El cálculo no descarga; reporting sí realiza E/S al exportar o mostrar.

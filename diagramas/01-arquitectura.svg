@@ -43,7 +43,7 @@
 <text x="104" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">ADQUISICIÓN</text>
 <text x="104" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
 <text x="104" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">PriceProvider: Yahoo / Alpha</text>
-<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED: series económicas</text>
+<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED / BCE: series económicas</text>
 <text x="104" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">HTTP, caché y cuota de Alpha</text>
 <rect x="710" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="711" y="521" width="7" height="248" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
@@ -51,7 +51,7 @@
 <text x="734" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">models</text>
 <text x="734" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Portfolio · Asset · PriceHistory</text>
 <text x="734" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FxRates · MarketReferences</text>
-<text x="734" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Validación y valoración histórica</text>
+<text x="734" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Backtest con comisiones</text>
 <rect x="1340" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1341" y="521" width="7" height="248" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <text x="1364" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">ESCENARIOS</text>
@@ -87,14 +87,22 @@
 <text x="1364" y="1037.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Resultados → Markdown + PNG</text>
 <text x="1364" y="1066.6000000000001" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Gráficos en pantalla</text>
 <text x="1364" y="1096.0400000000002" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Escritura en disco al exportar</text>
+<rect x="1100" y="810" width="380" height="100" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1101" y="811" width="7" height="98" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="1124" y="857.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">commissions</text>
+<text x="1124" y="894.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">RebalanceRule · rebalance_step()</text>
+<polyline points="1160,770 1160,810" fill="none" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1153.4755169883315,796.4932934647098 1160,810 1166.5244830116685,796.4932934647098" fill="none" stroke="#526779" stroke-width="2"/>
+<polyline points="1420,770 1420,810" fill="none" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1413.4755169883315,796.4932934647098 1420,810 1426.5244830116685,796.4932934647098" fill="none" stroke="#526779" stroke-width="2"/>
 <polyline points="330,770 330,920" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="323.47551698833155,906.4932934647098 330,920 336.52448301166845,906.4932934647098" fill="none" stroke="#2464AD" stroke-width="2"/>
 <rect x="344" y="826" width="191.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="350" y="847.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">series normalizadas</text>
 <polyline points="960,770 960,920" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="953.4755169883315,906.4932934647098 960,920 966.5244830116685,906.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
-<rect x="974" y="826" width="88.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="980" y="847.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">histórico</text>
+<rect x="974" y="867" width="88.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="980" y="888.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">histórico</text>
 <polyline points="1590,770 1590,920" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="1583.4755169883315,906.4932934647098 1590,920 1596.5244830116685,906.4932934647098" fill="none" stroke="#7052AB" stroke-width="2"/>
 <rect x="1604" y="826" width="110.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
