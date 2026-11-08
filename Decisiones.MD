@@ -1074,9 +1074,15 @@ ambas columnas en una misma cartera favorecería a unos activos frente a otros.
 
 | Divisa | Índice | Inflación | Tipo libre de riesgo |
 | --- | --- | --- | --- |
-| USD | S&P 500 (`^GSPC`) | IPC de EE. UU. | Letra a 3 meses (FRED) |
-| EUR | EURO STOXX 50 (`^STOXX50E`) | IPCA de la zona euro | Deuda AAA de la zona euro a 3 meses (BCE) |
+| USD | ETF del S&P 500 (`SPY`) | IPC de EE. UU. | Letra a 3 meses (FRED) |
+| EUR | ETF del EURO STOXX 50 (`EXW1.DE`) | IPCA de la zona euro | Deuda AAA de la zona euro a 3 meses (BCE) |
 
+- **La referencia es un ETF desde el 8 de noviembre.** Los índices `^GSPC` y `^STOXX50E` no
+  incluyen dividendos y la cartera sí, lo que inflaba la ventaja y el alfa. Entre noviembre
+  de 2024 y noviembre de 2026, `^STOXX50E` rindió un 12,80 % anual y `EXW1.DE` con dividendos,
+  un 15,94 %; `^GSPC`, un 11,16 %, y `SPY`, un 12,41 %. Yahoo no devuelve datos del índice con
+  dividendos `^SX5T`, y usar un ETF en las dos divisas las trata igual. `--benchmark` sigue
+  admitiendo un índice; entonces el informe avisa de que puede no incluir dividendos.
 - **En euros no se usa la €STR**, porque mide riesgo bancario, no de Estado.
 - **El Bund a 10 años no se usa como tipo libre de riesgo**, porque tiene riesgo de precio.
   En su lugar, la cartera se compara con lo que rindió el ETF `EXHD.DE` (deuda alemana con

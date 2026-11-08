@@ -23,14 +23,16 @@ from .providers import (
 )
 
 # Referencias iniciales que el usuario puede cambiar expresamente, por ejemplo con --benchmark.
+# Se usan ETF porque sus precios ajustados incluyen dividendos, como los de la cartera; los
+# índices habituales (^GSPC, ^STOXX50E) no los incluyen e inflarían la ventaja frente a ellos.
 REPORT_DEFAULTS = {
     "USD": {
-        "benchmark_symbol": "^GSPC",
+        "benchmark_symbol": "SPY",
         "inflation_series": "CPIAUCSL",
         "risk_free_series": "DGS3MO",
     },
     "EUR": {
-        "benchmark_symbol": "^STOXX50E",
+        "benchmark_symbol": "EXW1.DE",
         "inflation_series": "CP0000EZ19M086NEST",
         "risk_free_series": AAA_3M_YIELD,
     },

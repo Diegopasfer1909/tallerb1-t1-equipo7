@@ -108,14 +108,57 @@ def _read_drawdown(value):
 
 def _read_beta(value):
     return _band(
-        value, [(0.8, "defensiva"), (1.2, "se mueve como el índice")], "amplifica al mercado"
+        value, [(0.8, "defensiva"), (1.2, "se mueve como la referencia")], "amplifica al mercado"
     )
 
 
 def _read_mean_correlation(value):
+    return _band(value, [(0.3, "buena diversificación"), (0.6, "moderada")], "poca diversificación")
+
+
+def _read_diversifier(value, name: str, refuge: str):
+    """Con los mismos tramos que la correlación media; solo una negativa clara es refugio."""
     return _band(
-        value, [(0.3, "buena diversificación"), (0.6, "moderada")], "los activos caen a la vez"
+        value,
+        [(-0.2, refuge), (0.3, f"{name} diversifica bien"), (0.6, f"{name} diversifica en parte")],
+        f"{name} diversifica poco",
     )
+
+
+def _read_oil(value):
+    return _band(
+        value,
+        [(-0.3, "le perjudica que suba el petróleo"), (0.3, "poco sensible al petróleo")],
+        "sensible al petróleo",
+    )
+
+
+def _read_alpha(value):
+    """El error del alfa ronda la volatilidad específica entre la raíz de los años: es grande."""
+    return _read_sign(
+        value,
+        "por encima de lo que explica su beta; con pocos años puede ser azar",
+        "por debajo de lo que explica su beta; con pocos años puede ser azar",
+    )
+
+
+def _read_sortino(sortino, sharpe):
+    """Con subidas y caídas simétricas, el Sortino ronda 1,4 veces el Sharpe."""
+    if pd.isna(sortino) or pd.isna(sharpe) or sharpe <= 0:
+        return ""
+    return _band(
+        sortino / sharpe,
+        [(1.2, "las caídas pesan más que las subidas"), (1.8, "subidas y caídas equilibradas")],
+        "las caídas pesan menos que las subidas",
+    )
+
+
+def _read_loss_probability(value):
+    if pd.isna(value):
+        return ""
+    if value < 0.05:
+        return "se pierde en menos de 1 de cada 20 escenarios"
+    return f"se pierde en unos {value * 10:.0f} de cada 10 escenarios"
 
 
 def _read_vix(value):
@@ -175,12 +218,12 @@ def _summary(report: ReportContext) -> str:
     dates = analysis.values.index
     header = (
         f"{format_date(dates[0])} – {format_date(dates[-1])} · {len(dates) - 1} sesiones · "
-        f"referencia: {analysis.benchmark_name or 'sin índice'} · {_strategy(analysis)}"
+        f"referencia: {analysis.benchmark_name or 'sin referencia'} · {_strategy(analysis)}"
     )
     difference = metrics["difference_from_benchmark"]
     drawdown = metrics["max_drawdown"]
     symbol = analysis.benchmark_symbol
-    benchmark_label = "Diferencia anual frente al índice"
+    benchmark_label = "Diferencia anual frente a la referencia"
     if symbol:
         benchmark_label += f" ({symbol})"
     premium = metrics["excess_annualized_return"]
@@ -194,7 +237,7 @@ def _summary(report: ReportContext) -> str:
         [
             benchmark_label,
             f"**{_annual_points(difference)}**",
-            _read_sign(difference, "batió al índice", "habría sido mejor comprar el índice"),
+            _read_sign(difference, "batió a la referencia", "rindió menos que la referencia"),
         ],
         [
             f"Diferencia frente al {_risk_free_label(analysis)}",
@@ -473,14 +516,14 @@ def _returns(report: ReportContext) -> str:
             "en renta variable, 6–9 % anual es lo habitual",
         ],
         [
-            f"CAGR de {analysis.benchmark_name or 'el índice'}",
+            f"CAGR de {analysis.benchmark_name or 'la referencia'}",
             format_number(metrics["benchmark_annualized_return"], True),
             "",
         ],
         [
-            "Diferencia frente al índice",
+            "Diferencia frente a la referencia",
             _annual_points(difference),
-            _read_sign(difference, "la cartera batió al índice", "el índice rindió más"),
+            _read_sign(difference, "la cartera batió a la referencia", "la referencia rindió más"),
         ],
         ["Inflación media anual", format_number(metrics["annualized_inflation"], True), ""],
         [
@@ -555,13 +598,6 @@ def _risk_adjusted(report: ReportContext) -> str:
     analysis = report.analysis
     metrics = analysis.metrics
     sharpe, sortino = metrics["sharpe"], metrics["sortino"]
-    sortino_read = ""
-    if pd.notna(sharpe) and pd.notna(sortino):
-        sortino_read = (
-            "volatilidad sobre todo al alza"
-            if sortino > 1.5 * sharpe and sharpe > 0
-            else "similar al Sharpe"
-        )
     premium = metrics["excess_annualized_return"]
     premium_read = ""
     if pd.notna(premium):
@@ -573,15 +609,11 @@ def _risk_adjusted(report: ReportContext) -> str:
     label = _risk_free_label(analysis)
     rows = [
         ["Ratio de Sharpe", format_number(sharpe), _read_sharpe(sharpe)],
-        ["Ratio de Sortino", format_number(sortino), sortino_read],
+        ["Ratio de Sortino", format_number(sortino), _read_sortino(sortino, sharpe)],
         [
             "Alfa de Jensen (anual)",
             format_number(metrics["alpha"], True, signed=True),
-            _read_sign(
-                metrics["alpha"],
-                "la selección de valores aportó",
-                "habría sido mejor comprar el índice",
-            ),
+            _read_alpha(metrics["alpha"]),
         ],
         [f"Prima frente al {label}", _annual_points(premium), premium_read],
         [
@@ -625,7 +657,7 @@ def _diversification(report: ReportContext) -> str:
         [
             "Nº efectivo de activos",
             f"{format_number(effective)} de {len(weights)}",
-            f"en la práctica, unas {effective:.0f} apuestas distintas",
+            f"reparto equivalente a unos {effective:.0f} activos iguales; mide pesos, no riesgo",
         ],
     ]
     contributions = _table(
@@ -656,9 +688,6 @@ def _market(report: ReportContext) -> str:
     analysis = report.analysis
     market = analysis.market
     gold = market.gold_correlation
-    gold_read = ""
-    if pd.notna(gold):
-        gold_read = "el oro aportaría diversificación" if gold < 0.2 else "el oro diversifica poco"
     rows = [
         [
             "VIX actual",
@@ -669,17 +698,17 @@ def _market(report: ReportContext) -> str:
         [
             "Correlación con el Brent",
             format_number(market.brent_correlation),
-            _read_sign(
-                market.brent_correlation,
-                "sensible al petróleo",
-                "le perjudica que suba el petróleo",
-            ),
+            _read_oil(market.brent_correlation),
         ],
-        ["Correlación con el oro", format_number(gold), gold_read],
+        [
+            "Correlación con el oro",
+            format_number(gold),
+            _read_diversifier(gold, "el oro", "el oro tiende a compensar las caídas"),
+        ],
         [
             "Correlación con el ETF de Bunds",
             format_number(market.bund_etf_correlation),
-            _read_sign(market.bund_etf_correlation, "caen juntos", "el Bund hace de refugio"),
+            _read_diversifier(market.bund_etf_correlation, "el Bund", "el Bund hace de refugio"),
         ],
         [
             "Bund en el 5 % de peores días",
@@ -939,7 +968,7 @@ def _simulation(report: ReportContext) -> str:
             [
                 "Probabilidad de pérdida",
                 format_number(probability, True),
-                "se pierde en casi 1 de cada 3 escenarios o más" if probability > 0.3 else "",
+                _read_loss_probability(probability),
             ],
             [
                 f"VaR al horizonte ({level})",

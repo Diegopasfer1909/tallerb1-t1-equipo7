@@ -300,15 +300,15 @@ class ReportTextTests(unittest.TestCase):
         )
         self.assertIn("Concentración sectorial: Tecnología.", report)
         self.assertNotIn("Concentración sectorial: Technology", report)
-        self.assertIn("![Evolución de la cartera frente al índice", report)
+        self.assertIn("![Evolución de la cartera frente a la referencia", report)
         self.assertIn("Por qué las medidas de rentabilidad pueden discrepar", report)
 
     def test_summary_names_the_benchmark(self):
         benchmark = history("^IXIC", [100, 101, 103])
         portfolio = buy_and_hold([asset("A", [100, 102, 104])], [1])
         report = build_report(portfolio.analyze(MarketReferences(benchmark=benchmark)))
-        self.assertIn("Diferencia anual frente al índice (^IXIC)", report)
-        self.assertIn("Comparación con el índice ^IXIC:", report)
+        self.assertIn("Diferencia anual frente a la referencia (^IXIC)", report)
+        self.assertIn("Comparación con ^IXIC:", report)
 
 
 if __name__ == "__main__":

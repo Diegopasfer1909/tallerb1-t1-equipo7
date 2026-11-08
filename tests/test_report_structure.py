@@ -154,7 +154,7 @@ class StructureTests(unittest.TestCase):
         text = portfolio().analyze().markdown(sections=["summary"])
         self.assertIn("**No disponible**", text)
         self.assertNotIn("No disponible/año", text)
-        self.assertIn("referencia: sin índice", text)
+        self.assertIn("referencia: sin referencia", text)
 
     def test_summary_compares_with_the_risk_free_rate_in_every_currency(self):
         for currency in ("USD", "EUR"):

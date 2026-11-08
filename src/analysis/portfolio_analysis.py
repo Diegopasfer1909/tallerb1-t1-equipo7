@@ -301,10 +301,21 @@ def _benchmark(
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
     notice = Notice(
-        messages.BENCHMARK_COMPARISON.format(symbol=benchmark.symbol, dates=len(prices)),
+        _benchmark_comparison(benchmark, price_column).format(
+            symbol=benchmark.symbol, dates=len(prices)
+        ),
         kind="method",
     )
     return _Measures(measured, notes, [notice]), prices
+
+
+def _benchmark_comparison(benchmark: PriceHistory, price_column: PriceColumn) -> str:
+    """Explica si la cartera y su referencia están en igualdad de condiciones con los dividendos."""
+    if price_column != ADJ_CLOSE:
+        return messages.BENCHMARK_COMPARISON_CLOSE
+    if benchmark.profile.asset_type == "index":
+        return messages.BENCHMARK_COMPARISON_INDEX
+    return messages.BENCHMARK_COMPARISON
 
 
 def _quality(
@@ -424,7 +435,7 @@ def _reference_table(references: MarketReferences, fx_rates: FxRates) -> pd.Data
     rows = []
     if references.benchmark is not None:
         benchmark = references.benchmark
-        rows.append(("Índice de referencia", benchmark.symbol, benchmark.source))
+        rows.append(("Referencia", benchmark.symbol, benchmark.source))
     if references.inflation is not None:
         inflation = references.inflation
         rows.append(("Inflación", inflation.series_id, inflation.source))

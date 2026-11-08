@@ -610,7 +610,7 @@ class MainTests(unittest.TestCase):
         fred_requests.assert_not_called()
         self.assertIn("Aviso: FRED_API_KEY no está configurada", errors.getvalue())
         self.assertIn("porque falta la clave de FRED", report)
-        self.assertIn("Comparación con el índice", report)
+        self.assertIn("Comparación con", report)
 
     def test_no_key_warnings_when_the_keys_are_configured(self):
         keys = {"ALPHA_VANTAGE_API_KEY": "a", "FRED_API_KEY": "f"}

@@ -1,7 +1,7 @@
 """Textos fijos del informe. Los que contienen llaves se completan con str.format()."""
 
 # Resumen
-BENCHMARK_COVERAGE = "Comparación con el índice {symbol}: {start} – {end}, {dates} fechas comunes."
+BENCHMARK_COVERAGE = "Comparación con {symbol}: {start} – {end}, {dates} fechas comunes."
 
 # Advertencias
 SECTOR_CONCENTRATION = "Concentración sectorial: {sector}."
