@@ -10,13 +10,16 @@ classDiagram
         +units : Series | None
         +initial_capital : float
         +rebalance : Rebalance
+        +rebalance_rule : RebalanceRule
         +reporting_currency : str
         -_cache : dict
         +from_units(assets, units)$ Portfolio
         +close_prices() DataFrame
         +position_values() DataFrame
         +holdings() DataFrame
+        +backtest() BacktestResult
         +analyze(references) PortfolioAnalysis
+        +monte_carlo(settings, estimation_prices) SimulationResult
     }
     class Asset {
         <<frozen dataclass>>
@@ -74,6 +77,19 @@ classDiagram
         +risk_free_rate : EconomicIndicator?
         +fx_rates : FxRates
     }
+    class RebalanceRule {
+        <<frozen dataclass · commissions>>
+        +commissions : CommissionSchedule
+        +band : float
+        +max_order_cost : float?
+    }
+    class CommissionSchedule {
+        <<frozen dataclass · commissions>>
+        +rate : float
+        +fixed : float
+        +minimum : float
+        +maximum : float?
+    }
     class Notice {
         <<frozen dataclass>>
         +message : str
@@ -91,6 +107,8 @@ classDiagram
     MarketReferences "0..*" --> "1" FxRates : fx_rates
     MarketReferences "0..*" o-- "0..*" Notice : notices
     Portfolio ..> MarketReferences : analyze() recibe
+    Portfolio "0..*" --> "1" RebalanceRule : rebalance_rule
+    RebalanceRule "0..*" --> "1" CommissionSchedule : commissions
     note for PriceHistory "prices, mean y std devuelven copias.\nSe conserva OHLCV y la procedencia."
     note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración guardada por columna en _cache."
     note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."

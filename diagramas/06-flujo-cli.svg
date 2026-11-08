@@ -44,11 +44,12 @@
 <text x="852.5" y="770.88" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿simular?</text>
 <polyline points="900,660 900,710" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,696.4932934647098 900,710 906.5244830116685,696.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="80" y="700" width="430" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="81" y="701" width="7" height="128" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<text x="104" y="747.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Monte Carlo</text>
-<text x="104" y="786.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Crear settings → simulate()</text>
-<text x="104" y="814.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Mostrar resumen</text>
+<rect x="80" y="690" width="430" height="180" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="691" width="7" height="178" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="737.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Monte Carlo</text>
+<text x="104" y="776.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Precios de estimación (5 años)</text>
+<text x="104" y="804.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">→ simulate() → resumen</text>
+<text x="104" y="832.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Aviso si hay menos de 3 años</text>
 <polyline points="790,765 510,765" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="523.5067065352902,758.4755169883315 510,765 523.5067065352902,771.5244830116685" fill="none" stroke="#7052AB" stroke-width="2"/>
 <rect x="624.5" y="722" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -56,7 +57,7 @@
 <polyline points="900,820 900,895" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <rect x="914" y="843" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="920" y="865.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
-<polyline points="295,830 295,895 900,895" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="295,870 295,895 900,895" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polygon points="900.0,879.0 916.0,895.0 900.0,911.0 884.0,895.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1300" y="815" width="510" height="165" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1301" y="816" width="7" height="163" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
@@ -85,7 +86,7 @@
 <rect x="80" y="1110" width="430" height="170" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="1111" width="7" height="168" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <text x="104" y="1157.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Cargar referencias</text>
-<text x="104" y="1195.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Benchmark + FX + FRED</text>
+<text x="104" y="1195.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Benchmark + FX + FRED / BCE</text>
 <text x="104" y="1222.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Fallo opcional → Notice</text>
 <text x="104" y="1249.08" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">market_loader.load_references()</text>
 <polyline points="785,1190 510,1190" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>

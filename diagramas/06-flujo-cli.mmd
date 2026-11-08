@@ -19,10 +19,10 @@ flowchart TD
         LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios → activos → FX → cartera"]
         PRINT["print_portfolio()"]
         SIMQ{"¿config.simulation<br/>es distinto de None?"}
-        SIM["portfolio.monte_carlo()<br/>print_simulation()"]
+        SIM["run_simulation(): tipo libre de riesgo<br/>load_estimation_prices(): 5 años<br/>portfolio.monte_carlo(estimation_prices)<br/>aviso si < 3 años · print_simulation()"]
         OUT{"¿--report o<br/>--plots-report?"}
         REFQ{"¿--report?"}
-        REFS["load_references()<br/>benchmark · inflación · tipo<br/>fallos opcionales → Notice"]
+        REFS["load_references()<br/>benchmark · inflación · tipo (FRED o BCE)<br/>fallos opcionales → Notice"]
         ANALYZE["portfolio.analyze(references)<br/>PortfolioAnalysis"]
         REPORTQ{"¿--report?"}
         REPORT["analysis.report(simulation)<br/>carpeta temporal → Markdown + PNG<br/>renombrar al completar"]

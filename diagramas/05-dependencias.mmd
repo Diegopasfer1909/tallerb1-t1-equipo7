@@ -30,6 +30,9 @@ flowchart TB
         A --> D
         A --> S
         D --> S
+        R --> A
+        R --> S
+        R --> P
     end
     subgraph DEFERRED["B · IMPORTS DIFERIDOS · al llamar al método"]
         direction LR
@@ -53,9 +56,9 @@ flowchart TB
         TR -. "tipos" .-> TA
         TR -. "tipos" .-> TS
     end
-    CORE["Infraestructura transversal<br/>constants · errors · validation<br/>validation importa constants y errors"]
-    linkStyle 16,17,18,19 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
-    linkStyle 20,21,22,23 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
+    CORE["Infraestructura transversal<br/>constants · errors · validation<br/>commissions · frequency<br/>validation importa constants y errors"]
+    linkStyle 19,20,21,22 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
+    linkStyle 23,24,25,26 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
 
 %% Imports transversales omitidos visualmente:
 %% origen           | constants | errors | validation
@@ -68,6 +71,11 @@ flowchart TB
 %% simulation       | sí        | sí     | sí
 %% reporting        | sí        | sí     | sí
 %% validation       | sí        | sí     | --
+%% commissions: main, portfolio_loader, models, simulation, analysis, reporting.
+%% frequency: analysis, simulation. commissions importa errors y validation;
+%% frequency importa constants.
+%% reporting importa al cargar analysis (métricas, avisos), simulation (supuestos)
+%% y providers (identificador de la serie del BCE).
 %% constants y errors no importan otros paquetes internos.
 %% 4 aristas diferidas = 7 sentencias de importación.
 %% Los imports internos dentro del mismo paquete no se representan.
