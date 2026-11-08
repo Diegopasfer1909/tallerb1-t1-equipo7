@@ -43,7 +43,7 @@ from .metrics import (
     risk_contributions,
     total_growth,
 )
-from .result import PortfolioAnalysis, RebalanceCosts
+from .result import BenchmarkDividends, PortfolioAnalysis, RebalanceCosts
 from .warnings import WarningThresholds, evaluate_risk
 
 if TYPE_CHECKING:
@@ -342,10 +342,23 @@ def _benchmark(
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
     notice = Notice(
-        messages.BENCHMARK_COMPARISON.format(symbol=benchmark.symbol, dates=len(prices)),
+        messages.BENCHMARK_COMPARISONS[_benchmark_dividends(benchmark, price_column)].format(
+            symbol=benchmark.symbol, dates=len(prices)
+        ),
         kind="method",
     )
     return _Measures(measured, notes, [notice]), prices
+
+
+def _benchmark_dividends(
+    benchmark: PriceHistory | None, price_column: PriceColumn
+) -> BenchmarkDividends | None:
+    """Si la cartera y su referencia están en igualdad de condiciones con los dividendos."""
+    if benchmark is None:
+        return None
+    if price_column != ADJ_CLOSE:
+        return "none"
+    return "index" if benchmark.profile.asset_type == "index" else "both"
 
 
 def _quality(
@@ -465,7 +478,7 @@ def _reference_table(references: MarketReferences, fx_rates: FxRates) -> pd.Data
     rows = []
     if references.benchmark is not None:
         benchmark = references.benchmark
-        rows.append(("Índice de referencia", benchmark.symbol, benchmark.source))
+        rows.append(("Referencia", benchmark.symbol, benchmark.source))
     if references.inflation is not None:
         inflation = references.inflation
         rows.append(("Inflación", inflation.series_id, inflation.source))
@@ -627,6 +640,7 @@ def analyze_portfolio(
         warning_thresholds=thresholds,
         units=None if portfolio.units is None else portfolio.units.copy(),
         rebalance_costs=rebalance_costs,
+        benchmark_dividends=_benchmark_dividends(references.benchmark, price_column),
     )
 
 

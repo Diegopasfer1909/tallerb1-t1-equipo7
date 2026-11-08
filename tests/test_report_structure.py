@@ -166,7 +166,7 @@ class StructureTests(unittest.TestCase):
         text = portfolio().analyze().markdown(sections=["summary"])
         self.assertIn("**No disponible**", text)
         self.assertNotIn("No disponible/año", text)
-        self.assertIn("referencia: sin índice", text)
+        self.assertIn("referencia: sin referencia", text)
 
     def test_summary_compares_with_the_risk_free_rate_in_every_currency(self):
         for currency in ("USD", "EUR"):
@@ -270,7 +270,7 @@ class ShortHistoryReportTests(unittest.TestCase):
     def test_report_shows_period_returns_and_explains_why(self):
         text = self.analysis.markdown(sections=["summary", "returns", "risk_adjusted"])
         self.assertIn("en total, sin anualizar", text)
-        self.assertIn("Diferencia frente al índice en el período (IDX)", text)
+        self.assertIn("Diferencia frente a la referencia en el período (IDX)", text)
         self.assertIn("Rentabilidad de Índice de prueba en el período", text)
         self.assertIn(SHORT_HISTORY_RETURNS, text)
         for annualized in ("al año", "/año", "CAGR", "Inflación media anual"):
@@ -285,7 +285,7 @@ class ShortHistoryReportTests(unittest.TestCase):
         analysis = Portfolio(assets, {"A": 1}).analyze(MarketReferences(benchmark=benchmark))
         text = analysis.markdown(sections=["summary", "returns"])
         self.assertIn("al año", text)
-        self.assertIn("Diferencia anual frente al índice (IDX)", text)
+        self.assertIn("Diferencia anual frente a la referencia (IDX)", text)
         self.assertIn("Rentabilidad anualizada (CAGR)", text)
         self.assertNotIn(SHORT_HISTORY_RETURNS, text)
 

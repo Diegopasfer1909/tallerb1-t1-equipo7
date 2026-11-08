@@ -291,7 +291,7 @@ def _context_warnings(
                 "medium",
                 "Cartera repartida en varias divisas ("
                 + ", ".join(currencies.index)
-                + "); principal:",
+                + f"); la principal es {currencies.idxmax()}.",
                 float(currencies.max()),
                 title="Riesgo de divisa",
             )

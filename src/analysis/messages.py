@@ -60,11 +60,31 @@ BENCHMARK_COVERAGE_NOTE = (
     "Faltan precios comparables o tipos de cambio del índice para algunas fechas."
 )
 BENCHMARK_COMPARISON = (
-    "Comparación con el índice {symbol} basada en {dates} fechas comunes, con la misma divisa y "
-    "el mismo tipo de precio. Ambas rentabilidades se miden entre las mismas fechas extremas y, "
-    "con un año o más de historia, se anualizan por los días naturales transcurridos. Revisa si "
-    "el índice incorpora dividendos."
+    "Comparación con {symbol} basada en {dates} fechas comunes, en la misma divisa y con precios "
+    "ajustados por dividendos en los dos lados. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
 )
+BENCHMARK_COMPARISON_INDEX = (
+    "Comparación con {symbol} basada en {dates} fechas comunes y en la misma divisa. {symbol} es "
+    "un índice: si es de precios, como la mayoría, no incluye dividendos y la ventaja de la "
+    "cartera, que sí los incluye, queda sobrestimada. Para comparar en igualdad de condiciones, "
+    "elige un ETF con `--benchmark`. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
+)
+BENCHMARK_COMPARISON_CLOSE = (
+    "Comparación con {symbol} basada en {dates} fechas comunes y en la misma divisa, sin "
+    "dividendos en ninguno de los dos lados. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
+)
+# Texto de la comparación según los dividendos que incluye cada lado.
+BENCHMARK_COMPARISONS = {
+    "both": BENCHMARK_COMPARISON,
+    "index": BENCHMARK_COMPARISON_INDEX,
+    "none": BENCHMARK_COMPARISON_CLOSE,
+}
 MARKET_PRICES_STALE = (
     "{reference} ({symbol}): faltan cierres de menos de {days} días para algunas fechas de la "
     "cartera, o hay menos de tres. No se usa, porque rellenar los huecos inventaría "

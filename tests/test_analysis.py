@@ -553,8 +553,8 @@ class MarketLoaderTests(unittest.TestCase):
 
     def test_report_defaults_follow_reporting_currency_and_can_be_overridden(self):
         for currency, benchmark, rate in [
-            ("USD", "^GSPC", "DGS3MO"),
-            ("EUR", "^STOXX50E", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M"),
+            ("USD", "SPY", "DGS3MO"),
+            ("EUR", "EXW1.DE", "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M"),
         ]:
             with (
                 patch(

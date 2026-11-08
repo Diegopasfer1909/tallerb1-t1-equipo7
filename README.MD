@@ -15,7 +15,7 @@ y explora escenarios con Monte Carlo. **Los mensajes y los informes se generan e
 
 [Empezar](#es-inicio) · [Cartera](#es-cartera) · [Salidas](#es-salidas) ·
 [`--simulate`](#es-simulate) · [`--plots-report`](#es-plots) · [`--report`](#es-report) ·
-[Rebalanceo](#es-rebalanceo) · [Ejemplo](#es-ejemplo) · [Claves](#es-claves) ·
+[Advertencias](#es-advertencias) · [Rebalanceo](#es-rebalanceo) · [Ejemplo](#es-ejemplo) · [Claves](#es-claves) ·
 [Problemas](#es-problemas) · [Python y desarrollo](#es-desarrollo)
 
 <a id="es-inicio"></a>
@@ -159,7 +159,7 @@ sin necesidad de añadir esa opción.
 | `--report-sections CLAVE ...` | Secciones a incluir | Todas |
 | `--report-detail compact\|full` | Secciones plegadas o todo desplegado | `compact` |
 | `--output-dir CARPETA` | Carpeta de los informes | `informes/`, en la carpeta actual |
-| `--benchmark SÍMBOLO` | Índice o fondo con el que comparar | `^GSPC` en USD; `^STOXX50E` en EUR |
+| `--benchmark SÍMBOLO` | Índice o fondo con el que comparar | ETF con dividendos: `SPY` en USD; `EXW1.DE` en EUR |
 
 | Clave de sección | Qué encontrarás |
 | --- | --- |
@@ -195,7 +195,39 @@ python src/main.py --shares AAPL:10 SPY:5 --currency EUR --report
 ```
 
 Lee primero `summary`, `warnings` y `data`. «No disponible» indica datos ausentes o una
-medida que no se puede calcular; no significa cero. Las advertencias son orientativas.
+medida que no se puede calcular; no significa cero.
+
+<a id="es-advertencias"></a>
+
+**Advertencias (sección `warnings`).** El informe compara los resultados con estos umbrales y
+muestra solo las que saltan, primero las de nivel alto:
+
+| Advertencia | Nivel | Cuándo salta |
+| --- | --- | --- |
+| Concentración en un activo | 🔴 Alta | Una posición pesa más del 40 % |
+| Concentración en un activo | 🟠 Media | La mayor posición pesa más del 25 %, sin llegar al 40 % |
+| Riesgo no compensado | 🔴 Alta | El ratio de Sharpe es negativo |
+| Riesgo no compensado | 🟠 Media | Sharpe no negativo, pero la prima frente al tipo libre de riesgo es inferior a 2 puntos al año |
+| Caída máxima elevada | 🔴 Alta | La caída máxima supera el 30 % |
+| Historia corta | 🔴 Alta | El historial cubre menos de 350 días naturales |
+| Concentración sectorial | 🟠 Media | Un sector pesa más del 50 % |
+| Activos redundantes | 🟠 Media | El par más correlacionado supera 0,8 |
+| Poca diversificación | 🟠 Media | La correlación media entre activos supera 0,6 |
+| Caída sin recuperar | 🟠 Media | La mayor caída sigue sin recuperarse al final del historial |
+| Volatilidad elevada | 🟠 Media | La volatilidad anual de la cartera supera el 25 % |
+| Pérdida frente a la inflación | 🟠 Media | La rentabilidad anual real es negativa; requiere `FRED_API_KEY` |
+| Riesgo de divisa | 🟠 Media | Los activos cotizan en más de una divisa |
+| Mercado en estrés | 🟠 Media | El VIX supera 30; requiere `FRED_API_KEY` |
+| Datos poco fiables | 🟠 Media | Más del 5 % de las fechas de un activo se descartan por no coincidir con los demás |
+| Las comisiones anulan el rebalanceo | 🟠 Media | Sin comisiones, rebalancear habría superado a comprar y mantener; con ellas, no |
+| Comisiones elevadas | 🟠 Media | Las comisiones superan el 10 % de la ganancia antes de comisiones |
+| Escenarios desfavorables | 🟠 Media | Se pierde dinero en más del 45 % de los escenarios de Monte Carlo |
+
+Son orientativas: señalan qué revisar, no qué hacer. Los pesos que se evalúan son los
+actuales, y un dato ausente no activa ninguna regla. Los umbrales se cambian desde Python con
+`portfolio.analyze(warning_thresholds=WarningThresholds(drawdown=0.2))`, importando
+`WarningThresholds` de `src.analysis`; no hay opción de consola. Los avisos sobre claves o
+datos que faltan son otra cosa: salen en la consola y en la sección `data`.
 
 <a id="es-rebalanceo"></a>
 
@@ -381,7 +413,7 @@ performance, and explore Monte Carlo scenarios. **Program messages and reports a
 
 [Get started](#en-start) · [Portfolio](#en-portfolio) · [Outputs](#en-outputs) ·
 [`--simulate`](#en-simulate) · [`--plots-report`](#en-plots) · [`--report`](#en-report) ·
-[Rebalancing](#en-rebalancing) · [Example](#en-example) · [Keys](#en-keys) ·
+[Warnings](#en-warnings) · [Rebalancing](#en-rebalancing) · [Example](#en-example) · [Keys](#en-keys) ·
 [Troubleshooting](#en-troubleshooting) · [Python and development](#en-development)
 
 <a id="en-start"></a>
@@ -525,7 +557,7 @@ needing that flag.
 | `--report-sections KEY ...` | Sections to include | All |
 | `--report-detail compact\|full` | Collapsible or fully expanded sections | `compact` |
 | `--output-dir FOLDER` | Reports folder | `informes/` under the current folder |
-| `--benchmark SYMBOL` | Index or fund to compare against | `^GSPC` for USD; `^STOXX50E` for EUR |
+| `--benchmark SYMBOL` | Index or fund to compare against | ETF with dividends: `SPY` for USD; `EXW1.DE` for EUR |
 
 | Section key | Contents |
 | --- | --- |
@@ -561,7 +593,39 @@ python src/main.py --shares AAPL:10 SPY:5 --currency EUR --report
 ```
 
 Read `summary`, `warnings`, and `data` first. «No disponible» means missing data or a measure
-that cannot be calculated; it does not mean zero. Warnings are indicative.
+that cannot be calculated; it does not mean zero.
+
+<a id="en-warnings"></a>
+
+**Warnings (`warnings` section).** The report compares the results with these thresholds and
+shows only those triggered, high-severity first. Warning titles appear in Spanish in the report:
+
+| Warning | Report title | Level | Triggered when |
+| --- | --- | --- | --- |
+| Single-asset concentration | Concentración en un activo | 🔴 High | A position exceeds 40% |
+| Single-asset concentration | Concentración en un activo | 🟠 Medium | The largest position exceeds 25% but not 40% |
+| Uncompensated risk | Riesgo no compensado | 🔴 High | The Sharpe ratio is negative |
+| Uncompensated risk | Riesgo no compensado | 🟠 Medium | Sharpe is not negative, but the premium over the risk-free rate is below 2 points a year |
+| Large drawdown | Caída máxima elevada | 🔴 High | Maximum drawdown exceeds 30% |
+| Short history | Historia corta | 🔴 High | The history covers fewer than 350 calendar days |
+| Sector concentration | Concentración sectorial | 🟠 Medium | A sector exceeds 50% |
+| Redundant assets | Activos redundantes | 🟠 Medium | The most correlated pair exceeds 0.8 |
+| Low diversification | Poca diversificación | 🟠 Medium | Mean correlation between assets exceeds 0.6 |
+| Unrecovered drawdown | Caída sin recuperar | 🟠 Medium | The largest drawdown is still unrecovered at the end of the history |
+| High volatility | Volatilidad elevada | 🟠 Medium | Annual portfolio volatility exceeds 25% |
+| Inflation loss | Pérdida frente a la inflación | 🟠 Medium | The real annual return is negative; requires `FRED_API_KEY` |
+| Currency risk | Riesgo de divisa | 🟠 Medium | Assets are quoted in more than one currency |
+| Market stress | Mercado en estrés | 🟠 Medium | VIX exceeds 30; requires `FRED_API_KEY` |
+| Unreliable data | Datos poco fiables | 🟠 Medium | More than 5% of an asset's dates are dropped for not matching the others |
+| Commissions cancel rebalancing | Las comisiones anulan el rebalanceo | 🟠 Medium | Without commissions rebalancing would have beaten buy-and-hold; with them it does not |
+| High commissions | Comisiones elevadas | 🟠 Medium | Commissions exceed 10% of the gain before commissions |
+| Unfavorable scenarios | Escenarios desfavorables | 🟠 Medium | Money is lost in more than 45% of Monte Carlo scenarios |
+
+They are indicative: they point to what to review, not what to do. Current weights are
+evaluated, and missing data never triggers a rule. Change thresholds from Python with
+`portfolio.analyze(warning_thresholds=WarningThresholds(drawdown=0.2))`, importing
+`WarningThresholds` from `src.analysis`; there is no CLI option. Notices about missing keys or
+data are separate: they appear in the terminal and in the `data` section.
 
 <a id="en-rebalancing"></a>
 

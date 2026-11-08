@@ -69,12 +69,12 @@ RISK_FREE_NAMES = {
 # Texto alternativo de cada gráfico del informe, con las claves de CHARTS.
 CHART_TITLES = {
     "exposure": "Exposición de la cartera por sector y por divisa",
-    "evolution": "Evolución de la cartera frente al índice y al ETF de Bunds",
+    "evolution": "Evolución de la cartera frente a la referencia y al ETF de Bunds",
     "assets": "Evolución comparada de los activos",
-    "annual_returns": "Rentabilidad de cada año, cartera frente al índice",
+    "annual_returns": "Rentabilidad de cada año, cartera frente a la referencia",
     "drawdown": "Caídas de la cartera desde sus máximos",
     "distribution": "Rentabilidades diarias frente a una distribución normal",
-    "risk_return": "Riesgo y rentabilidad de los activos, la cartera y el índice",
+    "risk_return": "Riesgo y rentabilidad de los activos, la cartera y la referencia",
     "correlations": "Correlaciones entre las rentabilidades de los activos",
     "risk_shares": "Peso de cada activo frente a su contribución al riesgo",
     "volatility_vix": "Volatilidad de la cartera frente al VIX",

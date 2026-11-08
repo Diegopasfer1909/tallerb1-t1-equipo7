@@ -19,18 +19,26 @@ from .models.currency import MINOR_UNITS
 from .ports import IndicatorProvider, PriceProvider, ReferenceSources, is_ecb_series
 
 # Referencias iniciales que el usuario puede cambiar expresamente, por ejemplo con --benchmark.
+# Se usan ETF porque sus precios ajustados incluyen dividendos, como los de la cartera; los
+# índices habituales (^GSPC, ^STOXX50E) no los incluyen e inflarían la ventaja frente a ellos.
 REPORT_DEFAULTS = {
     "USD": {
-        "benchmark_symbol": "^GSPC",
+        "benchmark_symbol": "SPY",
         "inflation_series": "CPIAUCSL",
         "risk_free_series": "DGS3MO",
     },
     "EUR": {
-        "benchmark_symbol": "^STOXX50E",
+        "benchmark_symbol": "EXW1.DE",
         "inflation_series": "CP0000EZ19M086NEST",
         "risk_free_series": AAA_3M_YIELD,
     },
 }
+
+DEFAULT_BENCHMARK_NOTE = (
+    "Por defecto, la referencia es un ETF porque sus precios ajustados incluyen dividendos; "
+    "los índices habituales no los incluyen y, frente a una cartera con dividendos, "
+    "sobrestimarían su ventaja."
+)
 
 # Contexto de mercado del informe: campo de MarketReferences, nombre y serie.
 MARKET_SERIES = {
@@ -273,7 +281,9 @@ def load_references(
                 "necesitan las referencias no indicadas quedan sin calcular."
             )
         )
-    elif not all((benchmark_symbol, inflation_series, risk_free_series)):
+    elif not benchmark_symbol:
+        notes.append(Notice(DEFAULT_BENCHMARK_NOTE, kind="method"))
+    if defaults and not all((benchmark_symbol, inflation_series, risk_free_series)):
         notes.append(
             Notice(
                 "Las referencias no indicadas se han elegido según la divisa del informe. "

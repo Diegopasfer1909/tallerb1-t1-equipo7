@@ -1,7 +1,12 @@
 """Textos fijos del informe. Los que contienen llaves se completan con str.format()."""
 
 # Resumen
-BENCHMARK_COVERAGE = "Comparación con el índice {symbol}: {start} – {end}, {dates} fechas comunes."
+BENCHMARK_COVERAGE = "Comparación con {symbol}: {start} – {end}, {dates} fechas comunes."
+BENCHMARK_DIVIDENDS = {
+    "both": "Con dividendos en los dos lados.",
+    "index": "La referencia es un índice: si es de precios, no incluye dividendos.",
+    "none": "Sin dividendos en ninguno de los dos lados.",
+}
 
 # Advertencias
 SECTOR_CONCENTRATION = "Concentración sectorial: {sector}."
