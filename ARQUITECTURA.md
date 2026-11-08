@@ -2,7 +2,7 @@
 
 Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** código del commit **`1df047d`** (8 de noviembre de 2026). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
+**Referencia:** código del commit **`95d89ee`** (8 de noviembre de 2026) más `returns_mean` y `returns_std` en `PriceHistory`. [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 `FxRates` agrupa pares directos o inversos y `ExchangeRate` añade significado de divisa a un `EconomicIndicator`. `MarketReferences` contiene referencias opcionales de benchmark, inflación y tipo libre de riesgo, además de cambios de divisa para el benchmark. `FxRates.combine()` permite reunirlos con los de la cartera para la comparación.
 
-`PriceHistory` guarda copias defensivas y calcula las estadísticas de los niveles de precio al construirse; los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
+`PriceHistory` guarda copias defensivas y calcula al construirse la media y la desviación típica de los niveles de precio (`mean`, `std`) y de las rentabilidades de `Close` y `Adj Close` (`returns_mean`, `returns_std`); los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
 
 **Fuentes:** [models/portfolio.py](src/models/portfolio.py), [asset.py](src/models/asset.py), [price_history.py](src/models/price_history.py), [currency.py](src/models/currency.py), [references.py](src/models/references.py), [snapshot.py](src/models/snapshot.py).
 
