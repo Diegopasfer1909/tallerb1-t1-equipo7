@@ -16,6 +16,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import fixtures
 import numpy as np
 import pandas as pd
 
@@ -37,7 +38,6 @@ from src.providers import (
     YahooFinanceAPI,
 )
 from src.providers.base import cache_lock, cache_path, prune_cache, read_cache, write_cache
-from tests import fixtures
 
 WAIT = 5  # Segundos máximos de cualquier espera entre hilos: un fallo no bloquea la suite.
 START, END = "2026-01-01", "2026-01-10"
