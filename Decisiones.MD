@@ -29,10 +29,12 @@ conversación no se considera aplicada solo por haberse recomendado.
 
 ## Dónde encontrar cada explicación
 
-El [README](README.MD) resume cómo empezar. La [guía de uso](docs/uso.md) conserva la
-referencia de parámetros, los ejemplos completos y la ayuda. Este registro reúne los
-criterios técnicos y su justificación, incluidos los detalles trasladados del README al
-simplificarlo el 6 de noviembre de 2026. Se amplían las entradas existentes sin duplicarlas.
+El [README](README.MD) reúne la instalación, todos los parámetros con sus valores por
+defecto (agrupados en `--simulate`, `--plots-report` y `--report`), los ejemplos y la ayuda.
+Desde el 8 de noviembre de 2026 sustituye a la antigua guía `docs/uso.md`, que se eliminó
+para no mantener dos referencias de parámetros. Este registro reúne los criterios técnicos y
+su justificación, incluidos los detalles trasladados del README al simplificarlo el 6 de
+noviembre de 2026. Se amplían las entradas existentes sin duplicarlas.
 
 | Tema | Decisiones |
 | --- | --- |
