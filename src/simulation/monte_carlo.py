@@ -146,6 +146,9 @@ def simulate(
         ),
         risk_free_rate=settings.risk_free_rate,
         equity_premium=settings.equity_premium,
+        estimation_start=prices.index[0],
+        estimation_end=prices.index[-1],
+        estimation_returns=len(returns),
     )
 
 

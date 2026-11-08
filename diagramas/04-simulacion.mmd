@@ -8,8 +8,9 @@ classDiagram
         +monte_carlo(settings, options) SimulationResult
     }
     class Portfolio {
-        +simulation_inputs(price_column) SimulationInputs
-        +monte_carlo(settings, options) SimulationResult
+        +rebalance_rule : RebalanceRule
+        +simulation_inputs(price_column, estimation_prices) SimulationInputs
+        +monte_carlo(settings, estimation_prices, options) SimulationResult
     }
     class SimulationInputs {
         <<frozen dataclass>>
@@ -18,8 +19,8 @@ classDiagram
         +currency : str
         +price_column : str
         +rebalance_weights : Series?
-        +equity_shares : Series?
         +rebalance_rule : RebalanceRule
+        +equity_shares : Series?
     }
     class SimulationSettings {
         <<frozen dataclass>>
@@ -29,6 +30,8 @@ classDiagram
         +confidence : float
         +expected_returns : Assumption
         +volatilities : Assumption
+        +equity_premium : float
+        +risk_free_rate : float?
         +from_options(settings, options) SimulationSettings$
     }
     class monte_carlo {
@@ -47,6 +50,8 @@ classDiagram
         +rebalance_rule : RebalanceRule?
         +commissions : Series?
         +/mean_commissions : float
+        +estimation_start : Timestamp?
+        +estimation_end : Timestamp?
         +summary() Series
         +plot(show, max_paths) Figure
     }
@@ -75,6 +80,6 @@ classDiagram
     monte_carlo ..> frequency : 252 o 365 si no se indica
     SimulationResult ..> reporting : plot() importa al llamar
     note for monte_carlo "GBM correlacionado. Cholesky o autovalores.\nRebalanceo opcional con comisiones. Sin red ni exportación."
-    note for SimulationInputs "Contrato común para activo y cartera.\nNo contiene el proveedor de precios."
+    note for SimulationInputs "Contrato común para activo y cartera.\nNo contiene el proveedor de precios.\nprices puede venir de estimation_prices:\nσ y correlaciones de otro período;\nvalor inicial y pesos, de la cartera."
     note for SimulationSettings "Supuestos comunes o por activo.\nSin supuesto: estimación histórica.\nSin steps: un año de sesiones."
     note for commissions "La misma regla que backtest_with_costs().\nLas comisiones se descuentan de paths."

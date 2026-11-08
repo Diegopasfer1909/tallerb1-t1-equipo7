@@ -56,7 +56,7 @@ flowchart TB
         TR -. "tipos" .-> TA
         TR -. "tipos" .-> TS
     end
-    CORE["Infraestructura transversal<br/>constants · errors · validation · commissions · frequency<br/>validation importa constants y errors"]
+    CORE["Infraestructura transversal<br/>constants · errors · validation<br/>commissions · frequency<br/>validation importa constants y errors"]
     linkStyle 19,20,21,22 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
     linkStyle 23,24,25,26 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
 
@@ -73,6 +73,8 @@ flowchart TB
 %% validation       | sí        | sí     | --         | no          | no
 %% commissions      | no        | sí     | sí         | --          | no
 %% frequency        | sí        | no     | no         | no          | --
+%% reporting importa al cargar analysis (métricas, avisos), simulation (supuestos)
+%% y providers (identificador de la serie del BCE).
 %% constants y errors no importan otros paquetes internos.
 %% reporting → providers solo toma la etiqueta AAA_3M_YIELD de providers.ecb.
 %% 4 aristas diferidas = 7 sentencias de importación.

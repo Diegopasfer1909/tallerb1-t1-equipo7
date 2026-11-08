@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-07T16:04:46.021317+00:00",
-  "head": "c6ed2d8593fcbe763e64443a9e28412483670c81",
-  "basis": "HEAD; src matches the commit",
+  "generated_at": "2026-11-08T18:14:40.618714+00:00",
+  "head": "be97db694dbe13c804707a224ea7806b8165a856",
+  "basis": "working tree; src differs from HEAD",
   "source_sha256": {
     "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
     "src/analysis/__init__.py": "1663ac5b6cb1ec8131559c29db0b1993d1acc77635a0d445b48aa81a9c8d6c40",
@@ -11,10 +11,10 @@
     "src/analysis/result.py": "1b3e1e024246fd33ddb180af24f607a1cc7557e9d55735a6ec6e5724c4a6427d",
     "src/analysis/warnings.py": "c1fc66dcf0f2c3f91df7c38a8a99f4e3e69c2d3dcbdff82873a82e34af9f9454",
     "src/commissions.py": "12e6ae3edb94d631a8afcbf037766b0fd80deed8e80647be2c5f13a3c4c7338e",
-    "src/constants.py": "90ec8621f445818c34951f22e75ad536460ea62e9dffdaa0aa8f2d534e5fe2aa",
+    "src/constants.py": "4ec7babb66ee60db2f16629e01a5722a41634f368b6a8f4bd215c26faeeef82d",
     "src/errors.py": "95a70c46d61c39d6bf0e19ab525259cfa9ae891f534a46f208a664262ffdaefa",
     "src/frequency.py": "7d301b4882ce7188d8f48f7a7332909b5903bb80a365dd034924e599d1e09330",
-    "src/main.py": "30a60c5dc9fbac723121da5ec0514fb8d211d3479b34ae9336175a0b482637c6",
+    "src/main.py": "febe9a1180b6800e9bcc5f3c9563d1472b035b69c53b20ee78627f0655564b21",
     "src/market_loader.py": "3e3c3b8145471981073d36edeb685d3c5658d799d4db3e83637237600a735c5d",
     "src/models/__init__.py": "5048416cf8506225147ad352ad9a9d143421066a2de0e418f4c7581ef8d6166d",
     "src/models/asset.py": "318101b73e758929e3b25f2c75acb72a522b7394a794ecc59d8e11870307db31",
@@ -23,8 +23,8 @@
     "src/models/currency.py": "cdae6a1acf6d728f19224903aeb46f95019244b11d37bd2653e3363fac1b3650",
     "src/models/economic_indicator.py": "a5fc73987077f3a20c66e19eb3edd6acb0ed2aec629e3ec875c13a5c064bf451",
     "src/models/notice.py": "e570390f07ec9e88781ceedb1345f8ecf736c39e633366b46d139a90b614b879",
-    "src/models/portfolio.py": "71eed770679b3796d18cdddc1ffa1b4ee618e0297325d1da1c586eae19cffd70",
-    "src/models/price_history.py": "1fa7693ff5b789dac2d3678b9e1cb30608ac7ff53e18f4e73d145417be0da5d2",
+    "src/models/portfolio.py": "bfef089f930ea9bd42494751529f9f6e65d457e3a759be84a654a389507bbbd9",
+    "src/models/price_history.py": "84515f9ed3bc9b6c14ddb34a6d35bb24a6a139049f1f69bbae7cf57707d938ef",
     "src/models/references.py": "b263fcb0069cb93cbb23bbf7d449d2c81b46554f880a9bdcc39e90b0c3d187cc",
     "src/models/snapshot.py": "0289d6d21bd8b12c9b0704ad807dfd52486c58ffda7874a2b40e89df4057f97c",
     "src/portfolio_loader.py": "b4f3b8074f60e99723e22aeb7ed715d4f16154458af8206b98dae425f0d980e5",
@@ -40,12 +40,12 @@
     "src/reporting/formatting.py": "58f9056a23d1959ceb9ecf478351c10a0297c79d95e24f45dde7c9749f1409b8",
     "src/reporting/labels.py": "7ec4b1bc0be19a1a1f488130a0e7e9ec24da81cd7bff1779d41fe20588152c30",
     "src/reporting/plots.py": "c209d0badc45279239a5e015c0fc953b59b0222cdf459a61388d8089da34d0f7",
-    "src/reporting/report.py": "fbbbea9c6850127f70636a5c0d2cc1b62a74488f38dccc83790d27768d3f429f",
+    "src/reporting/report.py": "b5fb29a8bcaceac6d4992286b93b7dcce62ccee3c67a4e469be87dfa5ed1bc7d",
     "src/reporting/sections.py": "9b2420f656d27708b495ca296c26f48664ade2d11569dfbb26bf81936bfcb206",
-    "src/reporting/texts.py": "5cc068845d1a01cd0e2cafaf23df7c5db462f4376fcd60b9ba1b691c79dced89",
+    "src/reporting/texts.py": "08ec6c066fd84b3229560bc32e5f3f27fa3924cbaa4de4641d39f019cb8aa9cf",
     "src/simulation/__init__.py": "098b95e4f40b0f05bd1a65f2592e998f916b75413d8f5a1fd91ae2e0de196005",
-    "src/simulation/monte_carlo.py": "56044ce3dcdf1cadc44da95dc92a08e2e1c552bcc5b52e541779f1acd2ab2634",
-    "src/simulation/result.py": "bb5775cb7862b3f7409cf2cb9ffd908164858cddc62eec1e3a17eed2b66bcaaf",
+    "src/simulation/monte_carlo.py": "fc990aa0670b8d3e3f314b912912d6fdde423621d5714476c2306747acff13e2",
+    "src/simulation/result.py": "8caf82463ca82f37117806db5d306e9d9dc40bb29a344831b2d8422d718b1bc6",
     "src/simulation/settings.py": "84c8e4526cace6d37ebb4d1f8f19c9f20dd9a2dcd0fb24fa18f1d74365446d08",
     "src/validation.py": "02d01b449a55c0eb8442e7e5b8ab1af8b4e5b5acb148baed34896aeebdf68bc0"
   },
@@ -134,11 +134,14 @@
       "build_parser",
       "parse_arguments",
       "_build_config",
+      "_estimation_start",
       "_rebalance_rule",
       "_rebalance",
       "_simulation_options",
       "check_api_keys",
       "run",
+      "run_simulation",
+      "load_estimation_prices",
       "load_run_references",
       "show_plots",
       "print_portfolio",
@@ -299,6 +302,7 @@
       "_read_vix",
       "_read_sign",
       "_strategy",
+      "band_condition",
       "_risk_free_label",
       "_annual_points",
       "_read_gap",
@@ -312,6 +316,7 @@
       "tariff_label",
       "_tariff_terms",
       "rule_description",
+      "discarded_orders",
       "_costs_note",
       "_rebalance_costs",
       "_read_advantage",
@@ -328,6 +333,8 @@
       "_sensitivity_row",
       "_return_sensitivity",
       "_return_note",
+      "_estimation_window",
+      "_estimation_notes",
       "_simulation",
       "_data",
       "build_report"
@@ -398,7 +405,7 @@
       "elements": 108,
       "size": [
         2580,
-        1490
+        1520
       ]
     },
     {
@@ -406,12 +413,12 @@
       "elements": 87,
       "size": [
         1920,
-        1470
+        1520
       ]
     },
     {
       "name": "05-dependencias",
-      "elements": 85,
+      "elements": 92,
       "size": [
         2040,
         1540

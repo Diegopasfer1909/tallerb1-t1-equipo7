@@ -22,14 +22,14 @@ flowchart TB
     end
     subgraph COMPUTE["04 · CÁLCULO LOCAL"]
         SIM["simulation<br/>GBM correlacionado · Monte Carlo"]
-        COMM["commissions<br/>RebalanceRule · rebalance_step()"]
         ANA["analysis<br/>métricas · referencias · avisos"]
+        COMM["commissions · frequency<br/>RebalanceRule · rebalance_step() · 252 o 365"]
     end
     REP["reporting<br/>tablas · Markdown · gráficos"]
     NET["Servicios web<br/>Yahoo Finance · Alpha Vantage · FRED · BCE"]
     DISK[("Caché JSON · SQLite<br/>persistencia local")]
     OUTPUT[("informes/<br/>Markdown + PNG · pantalla")]
-    CLI -->|"opciones validadas"| PL
+    CLI -->|"opciones validadas<br/>y precios de estimación (5 años)"| PL
     CLI -->|"--report: referencias<br/>simulación: tipo libre de riesgo"| ML
     PY -->|"carga programática"| PL
     PY -->|"modelos ya cargados"| PORT
@@ -38,7 +38,7 @@ flowchart TB
     ML -->|"benchmark / FX: Yahoo por defecto"| PRICE
     ML -->|"get_series()"| FRED
     PRICE -->|"transporte y caché"| SUPPORT
-    FRED -->|"FRED: ApiClient · BCE: caché"| SUPPORT
+    FRED -->|"ApiClient (FRED) · caché (BCE)"| SUPPORT
     SUPPORT -->|"consultas"| NET
     SUPPORT -->|"lee / escribe"| DISK
     PRICE -->|"PriceHistory con ficha"| MARKET
@@ -46,9 +46,9 @@ flowchart TB
     PL -->|"construye activos y cartera"| PORT
     MARKET -->|"historiales y FX"| PORT
     ML -->|"compone referencias opcionales"| REF
-    PORT -->|"SimulationInputs"| SIM
-    PORT -->|"backtest: reajustes y comisiones"| COMM
-    SIM -->|"reajustes por escenario"| COMM
+    PORT -->|"SimulationInputs<br/>+ estimation_prices"| SIM
+    PORT -->|"backtest con comisiones"| COMM
+    SIM -->|"rebalanceo por escenario"| COMM
     PORT -->|"Portfolio"| ANA
     REF -->|"referencias + Notice"| ANA
     SIM -->|"SimulationResult"| REP

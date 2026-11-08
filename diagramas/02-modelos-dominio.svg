@@ -18,7 +18,7 @@
 <text x="100" y="412.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency, asset_type: str</text>
 <text x="100" y="464.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ symbol / latest_price</text>
 <text x="100" y="492.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulation_inputs()</text>
-<rect x="820" y="270" width="500" height="355" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="820" y="270" width="500" height="383" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="821" y="271" width="498" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="840" y="299.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
 <text x="840" y="337.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">Portfolio</text>
@@ -29,9 +29,10 @@
 <text x="840" y="440.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">units: Series | None</text>
 <text x="840" y="468.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">reporting_currency; rebalance</text>
 <text x="840" y="496.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rebalance_rule: RebalanceRule</text>
-<text x="840" y="548.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ from_units() / holdings() / analyze()</text>
-<text x="840" y="576.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ backtest(): BacktestResult</text>
-<text x="840" y="604.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ monte_carlo()</text>
+<text x="840" y="548.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ from_units() / close_prices()</text>
+<text x="840" y="576.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ holdings() / backtest()</text>
+<text x="840" y="604.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ analyze()</text>
+<text x="840" y="632.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ monte_carlo(estimation_prices)</text>
 <rect x="740" y="700" width="400" height="215" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="741" y="701" width="398" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="760" y="729.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
@@ -49,7 +50,7 @@
 <polyline points="1600,405 2060,405" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="384.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rates: tuple[ExchangeRate, ...]</text>
 <text x="1620" y="436.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ convert() / combine()</text>
-<rect x="80" y="730" width="470" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="80" y="730" width="470" height="271" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="731" width="468" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="100" y="759.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
 <text x="100" y="797.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">PriceHistory</text>
@@ -59,6 +60,7 @@
 <text x="100" y="872.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">prices: DataFrame; profile</text>
 <text x="100" y="924.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ closing_prices() / returns()</text>
 <text x="100" y="952.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ mean / std</text>
+<text x="100" y="980.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ returns_mean / returns_std</text>
 <rect x="1600" y="680" width="460" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1601" y="681" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="709.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
@@ -111,7 +113,7 @@
 <polyline points="308.47551698833155,716.4932934647098 315,730 321.52448301166845,716.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="331" y="622" width="102.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="337" y="644.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">history  1</text>
-<polyline points="315,973 315,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="315,1001 315,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="308.47551698833155,1156.49329346471 315,1170 321.52448301166845,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="331" y="1077" width="97.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="337" y="1099.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">profile  1</text>
@@ -128,15 +130,15 @@
 <polyline points="1823.4755169883315,1156.49329346471 1830,1170 1836.5244830116685,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="1844" y="1032" width="120.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="1850" y="1054.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">indicator  1</text>
-<polyline points="940,625 940,700" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="940,653 940,700" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="933.4755169883315,686.4932934647098 940,700 946.5244830116685,686.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="954" y="661" width="181.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="960" y="683.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">rebalance_rule  1</text>
-<polyline points="1240,625 1240,1020" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1240,653 1240,1020" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
 <polyline points="1233.4755169883315,1006.4932934647098 1240,1020 1246.5244830116685,1006.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="1254" y="757" width="142.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="1260" y="779.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">parámetro de</text>
-<text x="1260" y="806.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">analyze()</text>
+<rect x="1254" y="797" width="142.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1260" y="819.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">parámetro de</text>
+<text x="1260" y="846.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">analyze()</text>
 <polyline points="820,1110 680,1110 680,860 550,860" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="563.5067065352902,853.4755169883315 550,860 563.5067065352902,866.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
 <rect x="684" y="937" width="121.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -156,5 +158,5 @@
 <text x="1375.5" y="1300.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">risk_free_rate  0..1</text>
 <polyline points="72,1490 2068,1490" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="74" y="1526.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Rombo hueco: agregación compartida. Discontinua: dependencia de uso. «frozen» no implica inmutabilidad profunda.</text>
-<text x="74" y="1550.8" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">vix, brent, gold y bund_etf: asociaciones 0..1 listadas como atributos.</text>
+<text x="74" y="1550.8" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">RebalanceRule vive en el módulo transversal commissions. vix, brent, gold y bund_etf: asociaciones 0..1 listadas como atributos.</text>
 </svg>

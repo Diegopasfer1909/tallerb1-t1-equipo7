@@ -2,7 +2,7 @@
 
 Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** código del commit **`c6ed2d8`** (7 de noviembre de 2026), con las comisiones del rebalanceo. [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
+**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`. [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Las flechas se interpretan según la vista: **responsabilidad/interacción** en 
 
 [PNG](diagramas/01-arquitectura.png) · [Editar en Excalidraw](diagramas/01-arquitectura.excalidraw) · [Fuente Mermaid](diagramas/01-arquitectura.mmd)
 
-Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las importaciones. `main` compone la ejecución; los cargadores obtienen y transforman datos; los adaptadores encapsulan los servicios externos. Los modelos y los cálculos trabajan con contratos normalizados. `reporting` presenta resultados y escribe Markdown e imágenes, por lo que sí realiza E/S local.
+Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las importaciones. `main` compone la ejecución; los cargadores obtienen y transforman datos, incluidos los precios de 5 años con los que Monte Carlo estima la volatilidad y las correlaciones; los adaptadores encapsulan los servicios externos (Yahoo, Alpha Vantage, FRED y BCE). Los módulos transversales `commissions` y `frequency` aplican la misma regla de rebalanceo y el mismo calendario (252 o 365) en el histórico y en la simulación. Los modelos y los cálculos trabajan con contratos normalizados. `reporting` presenta resultados y escribe Markdown e imágenes, por lo que sí realiza E/S local.
 
 El límite `PriceProvider` aplica inversión de dependencias en la carga de precios. La selección concreta sigue siendo responsabilidad de la composición de la aplicación: la CLI y los cargadores también conocen adaptadores. Esta separación se inspira en puertos y adaptadores; no presupone una arquitectura hexagonal estricta en todo el repositorio.
 
@@ -47,11 +47,11 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 [PNG](diagramas/02-modelos-dominio.png) · [Editar en Excalidraw](diagramas/02-modelos-dominio.excalidraw) · [Fuente Mermaid](diagramas/02-modelos-dominio.mmd)
 
-`PriceHistory` conserva precios y procedencia; `AssetProfile`, los metadatos; `Asset`, la identidad y divisa del activo. `Portfolio` reúne activos y asigna pesos, capital y política de rebalanceo; `Portfolio.from_units()` la crea a partir del número de acciones, que conserva en `units`; sin rebalanceo las cantidades no cambian y con `rebalance="monthly"` cada mes se vuelve a los pesos iniciales. `RebalanceRule` fija la tarifa del bróker (`CommissionSchedule`), la banda de desviación y el coste máximo por orden; `Portfolio.backtest()` devuelve un `BacktestResult` con la valoración, las órdenes y las comisiones pagadas. Un activo puede participar en varias carteras: su peso pertenece a cada cartera, no al propio activo. Por eso las relaciones del dominio usan asociación o agregación compartida.
+`PriceHistory` conserva precios y procedencia; `AssetProfile`, los metadatos; `Asset`, la identidad y divisa del activo. `Portfolio` reúne activos y asigna pesos, capital y política de rebalanceo; `Portfolio.from_units()` la crea a partir del número de acciones, que conserva en `units`; sin rebalanceo las cantidades no cambian y con `rebalance="monthly"` cada mes se vuelve a los pesos iniciales. `rebalance_rule` (`RebalanceRule`, del módulo `commissions`) fija la tarifa del bróker (`CommissionSchedule`), la banda de desviación y el coste máximo por orden; `Portfolio.backtest()` devuelve un `BacktestResult` con la valoración, las órdenes y las comisiones pagadas. Un activo puede participar en varias carteras: su peso pertenece a cada cartera, no al propio activo. Por eso las relaciones del dominio usan asociación o agregación compartida.
 
 `FxRates` agrupa pares directos o inversos y `ExchangeRate` añade significado de divisa a un `EconomicIndicator`. `MarketReferences` contiene referencias opcionales de benchmark, inflación, tipo libre de riesgo, VIX, Brent, oro y ETF de Bunds, además de cambios de divisa para el benchmark. `FxRates.combine()` permite reunirlos con los de la cartera para la comparación.
 
-`PriceHistory` guarda copias defensivas y calcula las estadísticas de los niveles de precio al construirse; los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
+`PriceHistory` guarda copias defensivas y calcula al construirse la media y la desviación típica de los niveles de precio (`mean`, `std`) y de las rentabilidades de `Close` y `Adj Close` (`returns_mean`, `returns_std`); los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
 
 **Fuentes:** [models/portfolio.py](src/models/portfolio.py), [asset.py](src/models/asset.py), [price_history.py](src/models/price_history.py), [currency.py](src/models/currency.py), [references.py](src/models/references.py), [snapshot.py](src/models/snapshot.py), [backtest.py](src/models/backtest.py), [commissions.py](src/commissions.py).
 
@@ -61,7 +61,7 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 [PNG](diagramas/03-proveedores.png) · [Editar en Excalidraw](diagramas/03-proveedores.excalidraw) · [Fuente Mermaid](diagramas/03-proveedores.mmd)
 
-Yahoo y Alpha satisfacen estructuralmente `PriceProvider.get_prices()`: no heredan nominalmente del protocolo y `get_info()` no forma parte de ese contrato. FRED y el BCE (`EcbAPI`) devuelven `EconomicIndicator`, por lo que se representan fuera de esa realización. Los adaptadores traducen formatos externos al dominio común: ese es el patrón **Adapter** que justifica intercambiarlos.
+Yahoo y Alpha satisfacen estructuralmente `PriceProvider.get_prices()`: no heredan nominalmente del protocolo y `get_info()` no forma parte de ese contrato. FRED y el BCE (`EcbAPI`, que no necesita clave) devuelven `EconomicIndicator`, por lo que se representan fuera de esa realización. Los adaptadores traducen formatos externos al dominio común: ese es el patrón **Adapter** que justifica intercambiarlos.
 
 Alpha y FRED crean su propio `ApiClient`; Yahoo utiliza `yfinance` y `EcbAPI` utiliza `curl_cffi`: ambos comparten utilidades de caché, pero no ese cliente HTTP. Alpha crea además `AlphaVantageQuota` e inyecta sus métodos como callbacks genéricos del cliente. `requests.Session` puede suministrarse desde fuera, así que su relación es asociación, no composición exclusiva. La cuota persistente y la caché tienen cometidos distintos.
 
@@ -76,6 +76,8 @@ Alpha y FRED crean su propio `ApiClient`; Yahoo utiliza `yfinance` y `EcbAPI` ut
 `Asset` y `Portfolio` construyen `SimulationInputs` y delegan en la misma función `simulate()`. No existe una superclase común de simulación ni un `MonteCarloMixin`. La reutilización se obtiene mediante **composición y un contrato de datos**: precios históricos, valor inicial de posiciones y pesos opcionales de rebalanceo, junto con la `RebalanceRule` que fija comisiones, banda de desviación y coste máximo por orden.
 
 El módulo transversal `commissions` contiene `CommissionSchedule`, las tarifas de `BROKER_PRESETS`, `RebalanceRule` y la función vectorizada `rebalance_step()`. La usan igual el backtest histórico (`backtest_with_costs()`, una fila) y Monte Carlo (una fila por escenario), de modo que ambos recorridos aplican la misma regla y descuentan las mismas comisiones.
+
+`Portfolio.monte_carlo(estimation_prices=...)` permite estimar la volatilidad y las correlaciones con otro período; la consola le pasa 5 años, mientras el valor inicial, los pesos objetivo y la `RebalanceRule` siguen siendo los de la cartera analizada.
 
 `SimulationSettings` separa configuración y supuestos del estado del dominio. Sin `steps` se simula un año: `simulate()` deduce 252 sesiones o 365 días (carteras solo cripto) con `frequency.periods_per_year()`. `SimulationResult` guarda la regla aplicada y las comisiones pagadas en cada escenario, ya descontadas de las trayectorias. El motor valida las entradas, estima parámetros y genera trayectorias correlacionadas; `SimulationResult` conserva resultados y metadatos, ofrece un resumen y delega la presentación. No debe representarse como una dataclass congelada. El módulo `monte_carlo` contiene funciones, no una clase ficticia de motor.
 
@@ -113,7 +115,7 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | `reporting → analysis` | `PortfolioAnalysis` en `export`, `plots` y `report`. |
 | `reporting → simulation` | `SimulationResult` en `export`, `plots` y `report`. |
 
-Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
+Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. Además, `reporting` importa al cargar `analysis` (métricas y avisos), `simulation` (supuestos de Monte Carlo) y `providers` (identificador de la serie del BCE); la lámina 05 los dibuja como líneas continuas ámbar. El grafo de imports de módulo sigue siendo acíclico. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
 
 **Fuentes:** [portfolio.py](src/models/portfolio.py), [analysis/result.py](src/analysis/result.py), [analysis/portfolio_analysis.py](src/analysis/portfolio_analysis.py), [simulation/result.py](src/simulation/result.py), [reporting](src/reporting), [main.py](src/main.py).
 
@@ -125,7 +127,7 @@ Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se 
 
 La CLI carga entorno y argumentos, comprueba la configuración necesaria y crea los colaboradores. El cargador obtiene los históricos y, cuando procede, los tipos de cambio antes de construir la cartera. Parte de la validación necesita los datos y ocurre al construir modelos o ejecutar cálculos: el análisis de argumentos no sustituye esas comprobaciones.
 
-Las opciones de comisiones (`--broker`, `--commission-*`, `--rebalance-band`, `--max-order-cost`) solo se admiten con `--rebalance monthly`; en otro caso `argparse` termina con código `2`. Después se muestran las posiciones, con las comisiones del backtest si hay tarifa, y se ejecuta la simulación si la configuración la solicita; antes de simular se consulta el tipo libre de riesgo de la divisa. El análisis se necesita para informe o gráficos; las referencias económicas se descargan solamente con `--report`, por lo que pueden consultarse después de crear la cartera. La selección de secciones del informe también puede activar su simulación al preparar la configuración.
+Las opciones de comisiones (`--broker`, `--commission-*`, `--rebalance-band`, `--max-order-cost`) solo se admiten con `--rebalance monthly`; en otro caso `argparse` termina con código `2`. Después se muestran las posiciones, con las comisiones del backtest si hay tarifa, y se ejecuta la simulación si la configuración la solicita; antes de simular se consulta el tipo libre de riesgo de la divisa. Con Yahoo, la simulación descarga además los precios de los 5 años anteriores (o desde `--start`, si es anterior; o desde `--estimation-start`) para estimar la volatilidad y las correlaciones, y avisa si cubren menos de 3 años. El análisis se necesita para informe o gráficos; las referencias económicas se descargan solamente con `--report`, por lo que pueden consultarse después de crear la cartera. La selección de secciones del informe también puede activar su simulación al preparar la configuración.
 
 Las referencias opcionales fallidas se explican mediante avisos y medidas ausentes cuando la carga admite degradación; otros errores terminan la ejecución. `main()` devuelve `0` al completar y `1` para `PortfolioError`, `ProviderError` u `OSError`; los errores de argumentos siguen el comportamiento de `argparse`.
 

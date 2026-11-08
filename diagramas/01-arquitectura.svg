@@ -18,8 +18,8 @@
 <rect x="681" y="231" width="7" height="153" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
 <text x="704" y="267.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">COORDINACIÓN</text>
 <text x="704" y="307.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">main + loaders</text>
-<text x="704" y="347.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Configuran, descargan y construyen</text>
-<text x="704" y="376.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">la cartera y sus referencias</text>
+<text x="704" y="347.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Cartera, referencias y precios</text>
+<text x="704" y="376.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">para estimar Monte Carlo (5 años)</text>
 <rect x="1420" y="230" width="420" height="155" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1421" y="231" width="7" height="153" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
 <text x="1444" y="267.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">OTRA ENTRADA</text>
@@ -43,7 +43,7 @@
 <text x="104" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">ADQUISICIÓN</text>
 <text x="104" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
 <text x="104" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">PriceProvider: Yahoo / Alpha</text>
-<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED / BCE: series económicas</text>
+<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED y BCE: series económicas</text>
 <text x="104" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">HTTP, caché y cuota de Alpha</text>
 <rect x="710" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="711" y="521" width="7" height="248" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
@@ -51,14 +51,14 @@
 <text x="734" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">models</text>
 <text x="734" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Portfolio · Asset · PriceHistory</text>
 <text x="734" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FxRates · MarketReferences</text>
-<text x="734" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Backtest con comisiones</text>
+<text x="734" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Valoración, backtest y comisiones</text>
 <rect x="1340" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1341" y="521" width="7" height="248" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <text x="1364" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">ESCENARIOS</text>
 <text x="1364" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">simulation</text>
 <text x="1364" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">SimulationInputs + Settings</text>
 <text x="1364" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">simulate() → SimulationResult</text>
-<text x="1364" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">GBM correlacionado y rebalanceo</text>
+<text x="1364" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">GBM · rebalanceo con comisiones</text>
 <polyline points="580,645 710,645" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="696.4932934647098,651.5244830116685 710,645 696.4932934647098,638.4755169883315" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="613.5" y="602" width="63.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -113,5 +113,5 @@
 <polyline points="1326.49329346471,1036.5244830116685 1340,1030 1326.49329346471,1023.4755169883315" fill="none" stroke="#A66810" stroke-width="2"/>
 <text x="82" y="1213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#087D76">Adaptadores de proveedor  ·  contratos de datos explícitos  ·  cálculo separado de la descarga</text>
 <polyline points="72,1240 1848,1240" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<text x="74" y="1276.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Flechas: colaboración / datos, no imports. Las dependencias de código y sus excepciones se detallan en la lámina 05.</text>
+<text x="74" y="1276.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Flechas: colaboración / datos, no imports. commissions (backtest y Monte Carlo) y frequency (252 o 365) son transversales: lámina 05.</text>
 </svg>

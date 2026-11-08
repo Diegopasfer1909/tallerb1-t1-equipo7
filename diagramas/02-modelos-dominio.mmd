@@ -10,8 +10,8 @@ classDiagram
         +units : Series | None
         +initial_capital : float
         +rebalance : Rebalance
-        +reporting_currency : str
         +rebalance_rule : RebalanceRule
+        +reporting_currency : str
         +/fixed_units : bool
         -_cache : dict
         +from_units(assets, units, rebalance, rebalance_rule)$ Portfolio
@@ -21,6 +21,7 @@ classDiagram
         +backtest() BacktestResult
         +rebalance_trades() DataFrame
         +analyze(references) PortfolioAnalysis
+        +monte_carlo(settings, estimation_prices) SimulationResult
     }
     class Asset {
         <<frozen dataclass>>
@@ -38,6 +39,8 @@ classDiagram
         +/prices : DataFrame
         +/mean : Series
         +/std : Series
+        +/returns_mean : Series
+        +/returns_std : Series
         +closing_prices() Series
         +returns() Series
     }
@@ -83,14 +86,14 @@ classDiagram
         +fx_rates : FxRates
     }
     class RebalanceRule {
-        <<frozen dataclass>>
+        <<frozen dataclass · commissions>>
         +commissions : CommissionSchedule
         +band : float
         +max_order_cost : float?
         +/is_free : bool
     }
     class CommissionSchedule {
-        <<frozen dataclass>>
+        <<frozen dataclass · commissions>>
         +rate : float
         +fixed : float
         +minimum : float
@@ -129,7 +132,7 @@ classDiagram
     MarketReferences "0..*" --> "1" FxRates : fx_rates
     MarketReferences "0..*" o-- "0..*" Notice : notices
     Portfolio ..> MarketReferences : analyze() recibe
-    note for PriceHistory "prices, mean y std devuelven copias.\nSe conserva OHLCV y la procedencia."
-    note for Portfolio "Fechas comunes, sin rellenar precios.\nBacktest guardado por columna en _cache.\nCon units y sin rebalanceo, las acciones no cambian."
+    note for PriceHistory "prices y los estadísticos devuelven copias.\nmean / std: niveles de precio.\nreturns_mean / returns_std: rentabilidades.\nSe conserva OHLCV y la procedencia."
+    note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración y backtest guardados por columna en _cache.\nCon units y sin rebalanceo, las acciones no cambian."
     note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."
     note for RebalanceRule "Banda de desviación y coste máximo por orden.\nSolo se aplica con rebalanceo mensual."

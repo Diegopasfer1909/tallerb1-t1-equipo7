@@ -32,8 +32,13 @@ class PriceHistory:
     el adaptador.
 
     El historial es una instantánea: prices devuelve una copia, de modo que modificarla no
-    altera el historial ni las carteras que lo usan. Por eso la media y la desviación típica
-    se calculan una sola vez, al crearlo.
+    altera el historial ni las carteras que lo usan. Por eso los estadísticos se calculan una
+    sola vez, al crearlo:
+    - mean y std describen el nivel de cada columna de precios (Open, High, Low, Close y
+      Adj Close).
+    - returns_mean y returns_std describen las rentabilidades simples entre observaciones
+      consecutivas de Close y Adj Close. Son las que miden el riesgo: no dependen de que la
+      acción cueste 3 o 300 y permiten comparar activos.
     """
 
     symbol: str
@@ -46,15 +51,21 @@ class PriceHistory:
     _prices: pd.DataFrame = field(init=False, repr=False)
     _mean: pd.Series = field(init=False, repr=False)
     _std: pd.Series = field(init=False, repr=False)
+    _returns_mean: pd.Series = field(init=False, repr=False)
+    _returns_std: pd.Series = field(init=False, repr=False)
 
     def __post_init__(self, prices: pd.DataFrame) -> None:
         """Valida los precios, guarda una copia ordenada y calcula sus estadísticos."""
         self._validate(prices)
         prices = prices.copy().sort_index()
         levels = prices[[column for column in PRICE_LEVEL_COLUMNS if column in prices.columns]]
+        closes = prices[[column for column in PRICE_COLUMNS if column in prices.columns]]
+        returns = period_returns(closes)
         object.__setattr__(self, "_prices", prices)
         object.__setattr__(self, "_mean", levels.mean(axis="index").rename("mean"))
         object.__setattr__(self, "_std", levels.std(axis="index").rename("std"))
+        object.__setattr__(self, "_returns_mean", returns.mean(axis="index").rename("returns_mean"))
+        object.__setattr__(self, "_returns_std", returns.std(axis="index").rename("returns_std"))
 
     def _validate(self, prices: pd.DataFrame) -> None:
         """Comprueba fechas, columnas obligatorias, datos ausentes y la procedencia."""
@@ -99,6 +110,23 @@ class PriceHistory:
     def std(self) -> pd.Series:
         """Desviación típica muestral de cada columna de precios."""
         return self._std.copy()
+
+    @property
+    def returns_mean(self) -> pd.Series:
+        """Rentabilidad media por observación (diaria con datos diarios) de Close y Adj Close.
+
+        Es una fracción: 0.001 es un 0,1 %. NaN si solo hay una fecha.
+        """
+        return self._returns_mean.copy()
+
+    @property
+    def returns_std(self) -> pd.Series:
+        """Desviación típica muestral de esas rentabilidades: la volatilidad por observación.
+
+        Con datos diarios, por √252 (√365 en criptomonedas) da la volatilidad anual. NaN con
+        menos de tres fechas.
+        """
+        return self._returns_std.copy()
 
     def closing_prices(self, column: PriceColumn = CLOSE) -> pd.Series:
         """Selecciona Close o Adj Close con el símbolo como nombre de la serie."""

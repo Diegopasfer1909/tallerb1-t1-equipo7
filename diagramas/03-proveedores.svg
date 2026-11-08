@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2580" height="1490" viewBox="0 0 2580 1490" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="2580" height="1520" viewBox="0 0 2580 1520" role="img">
 <title>03-proveedores</title>
 <desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
-<rect x="0" y="0" width="2580" height="1490" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<rect x="0" y="0" width="16" height="1490" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="2580" height="1520" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1520" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
 <text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Contratos y proveedores</text>
 <text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML · realización estructural del protocolo y objetos creados por los adaptadores</text>
@@ -115,7 +115,8 @@
 <polyline points="1733.4755169883315,1046.49329346471 1740.0,1060.0 1746.5244830116685,1046.49329346471" fill="none" stroke="#2464AD" stroke-width="2"/>
 <rect x="1754" y="953" width="83.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="1760" y="974.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">client  1</text>
-<text x="82" y="1366.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">ApiClient usa callbacks genéricos; Alpha conecta reserve() y handle_rejection(). Yahoo y BCE no utilizan ApiClient.</text>
-<polyline points="72,1400 2508,1400" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<text x="74" y="1436.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Triángulo hueco + trazo discontinuo: realización. Rombo lleno: objeto creado y mantenido por el adaptador. get_info() queda fuera del protocolo.</text>
+<text x="82" y="1366.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">ApiClient usa callbacks genéricos; Alpha conecta reserve() y handle_rejection().</text>
+<text x="82" y="1395.6000000000001" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Yahoo y el BCE no utilizan ApiClient: descargan con su biblioteca y comparten las funciones de caché.</text>
+<polyline points="72,1430 2508,1430" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1466.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Triángulo hueco + trazo discontinuo: realización. Rombo lleno: objeto creado y mantenido por el adaptador. get_info() queda fuera del protocolo.</text>
 </svg>
