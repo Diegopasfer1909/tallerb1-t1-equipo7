@@ -34,6 +34,12 @@ REPORT_DEFAULTS = {
     },
 }
 
+DEFAULT_BENCHMARK_NOTE = (
+    "Por defecto, la referencia es un ETF porque sus precios ajustados incluyen dividendos; "
+    "los índices habituales no los incluyen y, frente a una cartera con dividendos, "
+    "sobrestimarían su ventaja."
+)
+
 # Contexto de mercado del informe: campo de MarketReferences, nombre y serie.
 MARKET_SERIES = {
     "vix": ("VIX", "VIXCLS"),
@@ -275,7 +281,9 @@ def load_references(
                 "necesitan las referencias no indicadas quedan sin calcular."
             )
         )
-    elif not all((benchmark_symbol, inflation_series, risk_free_series)):
+    elif not benchmark_symbol:
+        notes.append(Notice(DEFAULT_BENCHMARK_NOTE, kind="method"))
+    if defaults and not all((benchmark_symbol, inflation_series, risk_free_series)):
         notes.append(
             Notice(
                 "Las referencias no indicadas se han elegido según la divisa del informe. "

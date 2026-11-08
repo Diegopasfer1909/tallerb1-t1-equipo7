@@ -6,6 +6,7 @@ Los métodos de presentación solo delegan en el paquete reporting.
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 
@@ -23,6 +24,9 @@ from .metrics import (
     price_jumps,
 )
 from .warnings import RiskWarning, WarningThresholds
+
+# Dividendos en la comparación: en los dos lados, referencia que es un índice o en ninguno.
+BenchmarkDividends = Literal["both", "index", "none"]
 
 
 @dataclass(frozen=True)
@@ -100,6 +104,8 @@ class PortfolioAnalysis:
     units: pd.Series | None = None
     # Solo con rebalanceo mensual: comisiones y comparación con comprar y mantener.
     rebalance_costs: RebalanceCosts | None = None
+    # Si la comparación con la referencia incluye dividendos; None si no hay referencia.
+    benchmark_dividends: BenchmarkDividends | None = None
 
     @property
     def drawdown(self) -> pd.Series:

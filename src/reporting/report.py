@@ -291,6 +291,8 @@ def _summary(report: ReportContext) -> str:
                 end=format_date(comparison.index[-1]),
                 dates=len(comparison),
             )
+            + " "
+            + texts.BENCHMARK_DIVIDENDS[analysis.benchmark_dividends]
         )
     return "\n\n".join(parts)
 

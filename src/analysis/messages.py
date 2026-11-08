@@ -79,6 +79,12 @@ BENCHMARK_COMPARISON_CLOSE = (
     "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
     "historia, se anualizan por los días naturales transcurridos."
 )
+# Texto de la comparación según los dividendos que incluye cada lado.
+BENCHMARK_COMPARISONS = {
+    "both": BENCHMARK_COMPARISON,
+    "index": BENCHMARK_COMPARISON_INDEX,
+    "none": BENCHMARK_COMPARISON_CLOSE,
+}
 MARKET_PRICES_STALE = (
     "{reference} ({symbol}): faltan cierres de menos de {days} días para algunas fechas de la "
     "cartera, o hay menos de tres. No se usa, porque rellenar los huecos inventaría "

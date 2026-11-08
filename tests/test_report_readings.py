@@ -2,13 +2,14 @@
 
 import math
 import unittest
+from unittest.mock import Mock, patch
 
 import pandas as pd
 from fixtures import asset, history
 
 from src.analysis.warnings import WarningThresholds, evaluate_risk
 from src.constants import ADJ_CLOSE, CLOSE
-from src.market_loader import REPORT_DEFAULTS
+from src.market_loader import DEFAULT_BENCHMARK_NOTE, REPORT_DEFAULTS, load_references
 from src.models import MarketReferences, Portfolio
 from src.models.notice import Notice
 from src.reporting.report import (
@@ -102,6 +103,47 @@ class BenchmarkDividendTests(unittest.TestCase):
         benchmark = history("REF", CLOSES, dates=DATES, extra=extra, asset_type=benchmark_type)
         analysis = portfolio.analyze(MarketReferences(benchmark=benchmark), price_column=column)
         return [n.message for n in analysis.notices if isinstance(n, Notice) and "REF" in n.message]
+
+    def summary(self, benchmark_type, column):
+        extra = {"Adj Close": ADJUSTED}
+        portfolio = Portfolio(
+            [asset("A", CLOSES, dates=DATES, extra=extra)], {"A": 1.0}, rebalance=None
+        )
+        benchmark = history("REF", CLOSES, dates=DATES, extra=extra, asset_type=benchmark_type)
+        analysis = portfolio.analyze(MarketReferences(benchmark=benchmark), price_column=column)
+        return analysis.markdown(sections=["summary"], detail="full")
+
+    def test_summary_states_the_dividends_of_the_comparison(self):
+        for benchmark_type, column, expected in (
+            ("etf", ADJ_CLOSE, "Con dividendos en los dos lados."),
+            ("index", ADJ_CLOSE, "si es de precios, no incluye dividendos."),
+            ("etf", CLOSE, "Sin dividendos en ninguno de los dos lados."),
+        ):
+            with self.subTest(benchmark_type=benchmark_type, column=column):
+                self.assertIn(expected, self.summary(benchmark_type, column))
+
+    def test_summary_without_benchmark_does_not_mention_dividends(self):
+        portfolio = Portfolio(
+            [asset("A", CLOSES, dates=DATES, extra={"Adj Close": ADJUSTED})],
+            {"A": 1.0},
+            rebalance=None,
+        )
+        text = portfolio.analyze(price_column=ADJ_CLOSE).markdown(
+            sections=["summary"], detail="full"
+        )
+        self.assertNotIn("dos lados", text)
+
+    def explanation_shown(self, **options):
+        with (
+            patch("src.market_loader.load_market_references", return_value=MarketReferences()),
+            patch("src.market_loader.load_market_context", return_value=({}, [])),
+        ):
+            references = load_references("EUR", "2026-01-01", "2026-02-01", Mock(), **options)
+        return DEFAULT_BENCHMARK_NOTE in [notice.message for notice in references.notices]
+
+    def test_only_a_default_benchmark_is_explained_as_an_etf(self):
+        self.assertTrue(self.explanation_shown())
+        self.assertFalse(self.explanation_shown(benchmark_symbol="^IBEX"))
 
     def test_default_references_are_funds_with_dividends(self):
         self.assertEqual(REPORT_DEFAULTS["USD"]["benchmark_symbol"], "SPY")

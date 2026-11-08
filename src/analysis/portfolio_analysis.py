@@ -43,7 +43,7 @@ from .metrics import (
     risk_contributions,
     total_growth,
 )
-from .result import PortfolioAnalysis, RebalanceCosts
+from .result import BenchmarkDividends, PortfolioAnalysis, RebalanceCosts
 from .warnings import WarningThresholds, evaluate_risk
 
 if TYPE_CHECKING:
@@ -342,7 +342,7 @@ def _benchmark(
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
     notice = Notice(
-        _benchmark_comparison(benchmark, price_column).format(
+        messages.BENCHMARK_COMPARISONS[_benchmark_dividends(benchmark, price_column)].format(
             symbol=benchmark.symbol, dates=len(prices)
         ),
         kind="method",
@@ -350,13 +350,15 @@ def _benchmark(
     return _Measures(measured, notes, [notice]), prices
 
 
-def _benchmark_comparison(benchmark: PriceHistory, price_column: PriceColumn) -> str:
-    """Explica si la cartera y su referencia están en igualdad de condiciones con los dividendos."""
+def _benchmark_dividends(
+    benchmark: PriceHistory | None, price_column: PriceColumn
+) -> BenchmarkDividends | None:
+    """Si la cartera y su referencia están en igualdad de condiciones con los dividendos."""
+    if benchmark is None:
+        return None
     if price_column != ADJ_CLOSE:
-        return messages.BENCHMARK_COMPARISON_CLOSE
-    if benchmark.profile.asset_type == "index":
-        return messages.BENCHMARK_COMPARISON_INDEX
-    return messages.BENCHMARK_COMPARISON
+        return "none"
+    return "index" if benchmark.profile.asset_type == "index" else "both"
 
 
 def _quality(
@@ -638,6 +640,7 @@ def analyze_portfolio(
         warning_thresholds=thresholds,
         units=None if portfolio.units is None else portfolio.units.copy(),
         rebalance_costs=rebalance_costs,
+        benchmark_dividends=_benchmark_dividends(references.benchmark, price_column),
     )
 
 
