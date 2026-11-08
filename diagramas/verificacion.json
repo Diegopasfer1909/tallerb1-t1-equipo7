@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-08T17:37:05.022725+00:00",
-  "head": "1df047dc6e0ebbbced056e7d0bbcf34fd633cc47",
-  "basis": "HEAD; src matches the commit",
+  "generated_at": "2026-11-08T17:58:15.968633+00:00",
+  "head": "95d89ee5fedb7ed2b486aa9d15f9de77a1e905c9",
+  "basis": "working tree; src differs from HEAD",
   "source_sha256": {
     "src/__init__.py": "ce20102a5bc4debcbcd9dfffb432b60d8efdd7d46bca8e66944babefabb64948",
     "src/analysis/__init__.py": "ccd9e4252329e1a376d8ad41c6a7d947b9d5b7c8cc1f115383da0283b0b5d0cf",
@@ -24,7 +24,7 @@
     "src/models/economic_indicator.py": "9f194c8880a1209c3866376925c298e29ec00abc91d233225226a358482e4ded",
     "src/models/notice.py": "7cd73fbea1a64fc89f0d5a7c870503a0978ad935becf2ae4783221c730ba8610",
     "src/models/portfolio.py": "bfef089f930ea9bd42494751529f9f6e65d457e3a759be84a654a389507bbbd9",
-    "src/models/price_history.py": "1fa7693ff5b789dac2d3678b9e1cb30608ac7ff53e18f4e73d145417be0da5d2",
+    "src/models/price_history.py": "84515f9ed3bc9b6c14ddb34a6d35bb24a6a139049f1f69bbae7cf57707d938ef",
     "src/models/references.py": "549b0a6794ab485df965a2f631be2b8da2641759bc25c3e78c7536c8aa9bfad6",
     "src/models/snapshot.py": "47d8703a9111a4191d4c0be3cf722b4891dd389681774d43d75cb3ae9f67a7a8",
     "src/portfolio_loader.py": "b4f3b8074f60e99723e22aeb7ed715d4f16154458af8206b98dae425f0d980e5",

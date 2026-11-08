@@ -1026,6 +1026,18 @@ sola vez al crear el objeto, sobre `Open`, `High`, `Low`, `Close` y `Adj Close` 
 existen. Se excluye `Volume`, porque no es un precio. Al proteger la instantánea, esos
 estadísticos y la valoración memorizada siguen correspondiendo a los datos originales.
 
+**Estadísticos de las rentabilidades (8 de noviembre).** Desde la rama
+`feature/estadisticos-rentabilidades`, `PriceHistory` calcula también al crearse
+`returns_mean` y `returns_std`: la media y la desviación típica de las rentabilidades simples
+de `Close` y `Adj Close`. El enunciado pide media y desviación típica automáticas en la
+DataClass de precios, y las de los niveles de precio casi no tienen sentido financiero:
+dependen de lo que cueste la acción y mezclan la tendencia con la variación. Con datos reales
+de 2021 a 2026, la desviación del precio de Inditex (12,40 €) es casi cuatro veces la de
+Santander (3,19 €) solo porque su acción es más cara; la de las rentabilidades muestra lo
+contrario: Santander es más volátil (1,95 % diario frente a 1,58 %). Se conservan `mean` y
+`std` por compatibilidad. El informe no usa ninguno de los dos: calcula sus medias y
+desviaciones sobre las fechas comunes de la cartera y en su divisa, que es otra serie.
+
 **Ejemplo.** Sin esta protección, `portfolio.target_weights["IBM"] = 0.9` cambiaría los pesos
 sin pasar por la validación y la valoración ya calculada (decisión 5) quedaría desfasada.
 Ahora esa línea da un `ValueError`.

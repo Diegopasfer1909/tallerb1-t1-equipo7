@@ -41,7 +41,7 @@
 <polyline points="1600,405 2060,405" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="384.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rates: tuple[ExchangeRate, ...]</text>
 <text x="1620" y="436.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ convert() / combine()</text>
-<rect x="80" y="730" width="470" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="80" y="730" width="470" height="271" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="731" width="468" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="100" y="759.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
 <text x="100" y="797.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">PriceHistory</text>
@@ -51,6 +51,7 @@
 <text x="100" y="872.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">prices: DataFrame; profile</text>
 <text x="100" y="924.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ closing_prices() / returns()</text>
 <text x="100" y="952.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ mean / std</text>
+<text x="100" y="980.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ returns_mean / returns_std</text>
 <rect x="1600" y="680" width="460" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1601" y="681" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="709.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
@@ -101,7 +102,7 @@
 <polyline points="308.47551698833155,716.4932934647098 315,730 321.52448301166845,716.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="331" y="622" width="102.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="337" y="644.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">history  1</text>
-<polyline points="315,973 315,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="315,1001 315,1170" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="308.47551698833155,1156.49329346471 315,1170 321.52448301166845,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="331" y="1077" width="97.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="337" y="1099.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">profile  1</text>

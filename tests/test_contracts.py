@@ -87,6 +87,36 @@ class SnapshotTests(unittest.TestCase):
         statistics["Close"] = 0
         self.assertEqual(data.mean["Close"], 102)
 
+    def test_return_statistics_are_computed_at_creation_for_close_columns(self):
+        # Rentabilidades de Close: +10 %, −10 % y +5 %; de Adj Close: +20 %, 0 % y −10 %.
+        data = history(
+            "A",
+            [100, 110, 99, 103.95],
+            extra={"Adj Close": [50, 60, 60, 54], "Open": [1, 2, 3, 4], "Volume": [1, 2, 3, 4]},
+        )
+        self.assertEqual(list(data.returns_mean.index), ["Close", "Adj Close"])
+        self.assertAlmostEqual(data.returns_mean["Close"], 0.05 / 3)
+        self.assertAlmostEqual(data.returns_mean["Adj Close"], 0.1 / 3)
+        expected = pd.Series([0.1, -0.1, 0.05]).std()
+        self.assertAlmostEqual(data.returns_std["Close"], expected)
+        self.assertAlmostEqual(data.returns_std["Close"], data.returns(column="Close").std())
+        # Una copia: cambiarla no altera el historial.
+        statistics = data.returns_std
+        statistics["Close"] = 0
+        self.assertAlmostEqual(data.returns_std["Close"], expected)
+
+    def test_return_statistics_do_not_depend_on_the_price_level(self):
+        cheap = history("A", [2.0, 2.2, 2.1])
+        expensive = history("B", [200.0, 220.0, 210.0])
+        self.assertNotAlmostEqual(cheap.std["Close"], expensive.std["Close"])
+        self.assertAlmostEqual(cheap.returns_std["Close"], expensive.returns_std["Close"])
+        self.assertAlmostEqual(cheap.returns_mean["Close"], expensive.returns_mean["Close"])
+
+    def test_return_statistics_need_more_than_one_date(self):
+        data = history("A", [100])
+        self.assertTrue(np.isnan(data.returns_mean["Close"]))
+        self.assertTrue(np.isnan(data.returns_std["Close"]))
+
     def test_constructor_still_takes_prices_and_rejects_invalid_tables(self):
         frame = pd.DataFrame({"Close": [1.0, 2.0]}, index=pd.date_range("2026-01-01", periods=2))
         self.assertEqual(len(PriceHistory("A", "test", prices=frame).prices), 2)

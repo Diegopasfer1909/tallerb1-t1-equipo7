@@ -513,7 +513,7 @@ def domain():
         470,
         "PriceHistory",
         "symbol; source; price_basis\nprices: DataFrame; profile",
-        "+ closing_prices() / returns()\n+ mean / std",
+        "+ closing_prices() / returns()\n+ mean / std\n+ returns_mean / returns_std",
     )
     er = d.cls(
         1600,

@@ -37,6 +37,8 @@ classDiagram
         +/prices : DataFrame
         +/mean : Series
         +/std : Series
+        +/returns_mean : Series
+        +/returns_std : Series
         +closing_prices() Series
         +returns() Series
     }
@@ -109,6 +111,6 @@ classDiagram
     Portfolio ..> MarketReferences : analyze() recibe
     Portfolio "0..*" --> "1" RebalanceRule : rebalance_rule
     RebalanceRule "0..*" --> "1" CommissionSchedule : commissions
-    note for PriceHistory "prices, mean y std devuelven copias.\nSe conserva OHLCV y la procedencia."
+    note for PriceHistory "prices y los estadísticos devuelven copias.\nmean / std: niveles de precio.\nreturns_mean / returns_std: rentabilidades.\nSe conserva OHLCV y la procedencia."
     note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración guardada por columna en _cache."
     note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."
