@@ -1,18 +1,18 @@
 %% Componentes y responsabilidades: flechas de llamada/entrega, no de importación.
-%% Las fuentes auxiliares son las predeterminadas de CLI; Python admite inyección.
+%% Los cargadores reciben las fuentes por los puertos de ports; solo main crea adaptadores.
 %%{init: {"flowchart":{"curve":"basis","nodeSpacing":35,"rankSpacing":55}}}%%
 flowchart TB
     accTitle: B1-T1 · Arquitectura del sistema
     accDescr: Orquestación, adaptadores, dominio, cálculo y presentación.
-    CLI["main.py · entrada CLI<br/>RunConfig · registro PROVIDERS"]
+    CLI["main.py · entrada CLI<br/>RunConfig · PROVIDERS · reference_sources()"]
     PY["API Python<br/>objetos y proveedores inyectables"]
     subgraph LOAD["01 · CARGA Y NORMALIZACIÓN"]
         PL["portfolio_loader<br/>load_portfolio() · load_portfolio_from_shares()"]
         ML["market_loader<br/>load_fx_rates() · load_references()"]
     end
     subgraph ADAPTERS["02 · ADAPTADORES EXTERNOS"]
-        PRICE["PriceProvider<br/>YahooFinanceAPI · AlphaVantageAPI"]
-        FRED["FredAPI · EcbAPI<br/>series económicas"]
+        PRICE["PriceProvider (ports)<br/>YahooFinanceAPI · AlphaVantageAPI"]
+        FRED["IndicatorProvider (ports)<br/>FredAPI · EcbAPI"]
         SUPPORT["Infraestructura compartida<br/>ApiClient · caché · cuota Alpha"]
     end
     subgraph DOMAIN["03 · DOMINIO Y DATOS VALIDADOS"]
@@ -35,7 +35,7 @@ flowchart TB
     PY -->|"modelos ya cargados"| PORT
     PL -->|"FX necesarios"| ML
     PL -->|"get_prices()"| PRICE
-    ML -->|"benchmark / FX: Yahoo por defecto"| PRICE
+    ML -->|"benchmark / FX: ReferenceSources de main"| PRICE
     ML -->|"get_series()"| FRED
     PRICE -->|"transporte y caché"| SUPPORT
     FRED -->|"ApiClient (FRED) · caché (BCE)"| SUPPORT

@@ -20,6 +20,7 @@ from src.frequency import periods_per_year
 from src.main import main, parse_arguments
 from src.market_loader import load_market_references, load_references
 from src.models import Asset, ExchangeRate, MarketReferences, Portfolio, PriceHistory
+from src.ports import ReferenceSources
 from src.providers import ProviderError
 from src.reporting.report import build_report
 
@@ -195,7 +196,7 @@ class BenchmarkChoiceTests(unittest.TestCase):
         references = load_market_references(
             "2026-01-01",
             "2026-01-05",
-            price_provider=provider,
+            ReferenceSources(provider),
             benchmark_symbol="^STOXX50E",
             currency="USD",
         )
@@ -218,7 +219,7 @@ class BenchmarkChoiceTests(unittest.TestCase):
         references = load_market_references(
             "2026-01-01",
             "2026-01-05",
-            price_provider=provider,
+            ReferenceSources(provider),
             benchmark_symbol="^STOXX50E",
             currency="USD",
         )
@@ -235,7 +236,11 @@ class BenchmarkChoiceTests(unittest.TestCase):
         ):
             load.return_value = MarketReferences()
             references = load_references(
-                "USD", "2026-01-01", "2026-02-01", benchmark_symbol="^IXIC"
+                "USD",
+                "2026-01-01",
+                "2026-02-01",
+                ReferenceSources(Mock()),
+                benchmark_symbol="^IXIC",
             )
         self.assertEqual(load.call_args.kwargs["benchmark_symbol"], "^IXIC")
         self.assertEqual(load.call_args.kwargs["inflation_series"], "CPIAUCSL")

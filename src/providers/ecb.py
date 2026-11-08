@@ -1,8 +1,9 @@
 """Series del Banco Central Europeo, sin clave: API de datos en formato CSV.
 
-Los identificadores tienen la forma CONJUNTO/CLAVE. AAA_3M_YIELD es el tipo al contado a tres
-meses de la curva de deuda pública AAA de la zona euro, estimada a partir de los bonos que
-cotizan; no es el precio de una letra concreta.
+Los identificadores tienen la forma CONJUNTO/CLAVE. AAA_3M_YIELD (definido en constants, porque
+el núcleo lo elige como referencia en EUR) es el tipo al contado a tres meses de la curva de
+deuda pública AAA de la zona euro, estimada a partir de los bonos que cotizan; no es el precio
+de una letra concreta.
 """
 
 import io
@@ -12,20 +13,16 @@ from pathlib import Path
 import pandas as pd
 from curl_cffi import requests as curl_requests
 
+from ..constants import AAA_3M_YIELD
+from ..errors import ProviderError
 from ..models.economic_indicator import EconomicIndicator
 from ..validation import date_range
-from .base import ProviderError, cache_path, prune_cache, read_cache, write_cache
+from .base import cache_path, prune_cache, read_cache, write_cache
 
 URL = "https://data-api.ecb.europa.eu/service/data"
-AAA_3M_YIELD = "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M"
 FORMAT_ERROR = "Las observaciones del BCE tienen un formato incorrecto."
 # El CSV no publica estos metadatos: unidades y frecuencia de las series que usa el programa.
 SERIES = {AAA_3M_YIELD: ("Percent", "Daily")}
-
-
-def is_ecb_series(series_id: str) -> bool:
-    """Solo los identificadores del BCE incluyen una barra; los de FRED, no."""
-    return "/" in series_id
 
 
 class EcbAPI:

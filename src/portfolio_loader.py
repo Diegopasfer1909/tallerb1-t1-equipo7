@@ -5,7 +5,7 @@ from .constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
 from .errors import PortfolioError
 from .market_loader import load_fx_rates
 from .models import Asset, FxRates, Portfolio
-from .providers import PriceProvider
+from .ports import PriceProvider
 from .validation import validate_symbols, validate_units, validate_weights
 
 
@@ -26,7 +26,7 @@ def load_portfolio(
 
     Valida los pesos antes de consultar el proveedor para no gastar peticiones. currency
     indica la divisa de los activos si el proveedor no la publica; con reporting_currency y
-    sin fx_rates, los cambios necesarios se descargan con fx_provider (Yahoo por defecto).
+    sin fx_rates, los cambios necesarios se descargan con fx_provider.
     rebalance_rule fija las comisiones y cuándo compensa reajustar; por defecto, sin costes.
     """
     validate_symbols(target_weights)

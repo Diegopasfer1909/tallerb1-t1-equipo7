@@ -27,7 +27,7 @@ from src.constants import (
     PriceColumn,
     Rebalance,
 )
-from src.errors import ConfigurationError, PortfolioError
+from src.errors import ConfigurationError, PortfolioError, ProviderError
 from src.market_loader import (
     REPORT_DEFAULTS,
     load_market_references,
@@ -36,12 +36,13 @@ from src.market_loader import (
 )
 from src.models import MarketReferences, Portfolio
 from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
+from src.ports import PriceProvider, ReferenceSources
 from src.providers import (
     ALPHA_VANTAGE_KEY,
     FRED_KEY,
     AlphaVantageAPI,
-    PriceProvider,
-    ProviderError,
+    EcbAPI,
+    FredAPI,
     YahooFinanceAPI,
     has_api_key,
 )
@@ -541,6 +542,26 @@ def _simulation_options(
     return options
 
 
+def reference_sources() -> ReferenceSources:
+    """Adaptadores de las referencias: índice y precios en Yahoo, series en FRED y el BCE.
+
+    main es el único módulo que elige y crea adaptadores; los cargadores solo reciben puertos.
+    Sin clave de FRED, sus series quedan sin calcular y el informe explica el motivo.
+    """
+    try:
+        fred = FredAPI(cache_dir=CACHE_DIR)
+    except ConfigurationError:
+        fred = None
+    return ReferenceSources(
+        benchmark=YahooFinanceAPI(cache_dir=CACHE_DIR),
+        # De los cambios, el oro y los Bunds solo se usan los precios; la ficha costaría otra
+        # petición.
+        market=YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False),
+        fred=fred,
+        ecb=EcbAPI(cache_dir=CACHE_DIR),
+    )
+
+
 def check_api_keys(config: RunConfig) -> list[str]:
     """Comprueba las claves antes de descargar nada.
 
@@ -632,7 +653,7 @@ def run_simulation(
     fx_provider: PriceProvider | None = None,
 ) -> SimulationResult:
     """Simula desde el valor actual de la cartera, con σ y correlaciones de la estimación."""
-    rate = load_risk_free_rate(portfolio.currency, config.end, cache_dir=CACHE_DIR)
+    rate = load_risk_free_rate(portfolio.currency, config.end, reference_sources())
     if rate is None:
         print(
             f"Aviso: no hay tipo libre de riesgo para {portfolio.currency}; la simulación usa "
@@ -690,16 +711,16 @@ def load_run_references(config: RunConfig, currency: str) -> MarketReferences | 
             currency,
             config.start,
             config.end,
+            reference_sources(),
             benchmark_symbol=config.benchmark,
-            cache_dir=CACHE_DIR,
         )
     if not config.benchmark:
         return None
     references = load_market_references(
         config.start,
         config.end,
+        reference_sources(),
         benchmark_symbol=config.benchmark,
-        cache_dir=CACHE_DIR,
         currency=currency,
     )
     # Sin informe no hay otro lugar donde explicar por qué falta la comparación.
