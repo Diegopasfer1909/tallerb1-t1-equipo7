@@ -37,6 +37,10 @@ PERIOD_CLOSE_TOLERANCE_DAYS = 5
 # Sector o país que el proveedor no publica.
 UNKNOWN = "Unknown"
 
+# Serie del BCE con el tipo libre de riesgo en EUR: tipo al contado a tres meses de la curva de
+# deuda pública AAA de la zona euro. Los identificadores del BCE tienen la forma CONJUNTO/CLAVE.
+AAA_3M_YIELD = "YC/B.U2.EUR.4F.G_N_A.SV_C_YM.SR_3M"
+
 # Antigüedad máxima de un dato para utilizarlo en una fecha posterior.
 FX_MAX_AGE_DAYS = 7
 # Cierres de oro o del ETF de Bunds: cubre los festivos de otra bolsa, no meses sin cotizar.

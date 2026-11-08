@@ -2,15 +2,13 @@
 
 import pandas as pd
 
-from ..errors import PortfolioError
+from ..errors import DataCoverageError, PortfolioError, ProviderError
 from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
 from ..validation import date_range
 from .alpha_quota import AlphaVantageQuota, AlphaVantageQuotaError
 from .base import (
     ApiClient,
-    DataCoverageError,
-    ProviderError,
     build_profile,
     drop_missing_closes,
 )

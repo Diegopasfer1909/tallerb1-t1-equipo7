@@ -42,8 +42,8 @@
 <rect x="81" y="521" width="7" height="248" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <text x="104" y="557.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#2464AD">ADQUISICIÓN</text>
 <text x="104" y="597.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">providers</text>
-<text x="104" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">PriceProvider: Yahoo / Alpha</text>
-<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">FRED y BCE: series económicas</text>
+<text x="104" y="637.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Yahoo · Alpha · FRED · BCE</text>
+<text x="104" y="666.6" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Cumplen los puertos de ports</text>
 <text x="104" y="696.04" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">HTTP, caché y cuota de Alpha</text>
 <rect x="710" y="520" width="500" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="711" y="521" width="7" height="248" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
@@ -111,7 +111,7 @@
 <polyline points="696.4932934647098,1036.5244830116685 710,1030 696.4932934647098,1023.4755169883315" fill="none" stroke="#2464AD" stroke-width="2"/>
 <polyline points="1210,1030 1340,1030" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="1326.49329346471,1036.5244830116685 1340,1030 1326.49329346471,1023.4755169883315" fill="none" stroke="#A66810" stroke-width="2"/>
-<text x="82" y="1213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#087D76">Adaptadores de proveedor  ·  contratos de datos explícitos  ·  cálculo separado de la descarga</text>
+<text x="82" y="1213.0" font-family="Arial, Helvetica, sans-serif" font-size="25" fill="#087D76">Puertos en el núcleo  ·  adaptadores creados solo en main  ·  cálculo separado de la descarga</text>
 <polyline points="72,1240 1848,1240" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="74" y="1276.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Flechas: colaboración / datos, no imports. commissions (backtest y Monte Carlo) y frequency (252 o 365) son transversales: lámina 05.</text>
 </svg>

@@ -9,12 +9,11 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
+from ..errors import DataCoverageError, ProviderError
 from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
 from ..validation import date_range
 from .base import (
-    DataCoverageError,
-    ProviderError,
     build_profile,
     cache_path,
     drop_missing_closes,
