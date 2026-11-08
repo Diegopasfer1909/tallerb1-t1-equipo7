@@ -9,40 +9,19 @@ import re
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import NoReturn, Protocol
+from typing import NoReturn
 
 import pandas as pd
 import requests
 
 from ..constants import CLOSE
-from ..errors import ConfigurationError
+from ..errors import ConfigurationError, ProviderError
 from ..models.asset_profile import AssetProfile
-from ..models.price_history import PriceHistory
 
 # Valores con los que los proveedores indican que falta un dato de la ficha.
 MISSING_VALUES = (None, "", "None", "-")
 # Solo se eliminan archivos con el nombre que genera la caché: el resumen de la consulta.
 CACHE_FILE = re.compile(r"\.?[0-9a-f]{64}\.json(\.\d+\.tmp)?")
-
-
-class ProviderError(RuntimeError):
-    """Fallo de consulta, acceso denegado o respuesta inesperada del proveedor."""
-
-
-class DataCoverageError(ProviderError):
-    """Los datos disponibles no cubren el intervalo solicitado."""
-
-
-class PriceProvider(Protocol):
-    """Lo que el resto del programa necesita de cualquier fuente de precios.
-
-    Las opciones propias de cada proveedor se indican al crear el adaptador, de modo
-    que añadir una fuente nueva no obliga a cambiar la carga ni el análisis.
-    """
-
-    def get_prices(
-        self, symbol: str, start: str, end: str, *, adjusted: bool = False
-    ) -> PriceHistory: ...
 
 
 def build_profile(

@@ -21,6 +21,7 @@ from src.market_loader import (
 )
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences
 from src.models.backtest import backtest_allocation
+from src.ports import ReferenceSources
 from src.providers import FredAPI, ProviderError, YahooFinanceAPI
 
 matplotlib.use("Agg")
@@ -501,21 +502,26 @@ class MarketLoaderTests(unittest.TestCase):
         with self.assertRaisesRegex(ProviderError, "Cambio no disponible"):
             load_fx_rates(assets, "EUR", "2026-01-01", "2026-02-01", provider=yahoo)
 
-    def test_no_provider_is_constructed_for_empty_references(self):
-        with (
-            patch("src.market_loader.FredAPI") as fred,
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-        ):
-            references = load_market_references("2026-01-01", "2026-02-01")
-        fred.assert_not_called()
-        yahoo.assert_not_called()
+    def test_currency_loader_needs_a_provider_only_to_convert(self):
+        assets = [Asset(history("A", [100, 102, 99]))]
+        self.assertEqual(load_fx_rates(assets, "USD", "2026-01-01", "2026-02-01").rates, ())
+        with self.assertRaisesRegex(ConfigurationError, "USD a EUR"):
+            load_fx_rates(assets, "EUR", "2026-01-01", "2026-02-01")
+
+    def test_empty_references_query_no_source(self):
+        yahoo, fred = Mock(spec=YahooFinanceAPI), Mock(spec=FredAPI)
+        references = load_market_references(
+            "2026-01-01", "2026-02-01", ReferenceSources(yahoo, fred=fred)
+        )
+        yahoo.get_prices.assert_not_called()
+        fred.get_series.assert_not_called()
         self.assertIsNone(references.benchmark)
 
     def test_optional_failure_is_recorded_but_requested_fx_failure_is_fatal(self):
         yahoo = Mock(spec=YahooFinanceAPI)
         yahoo.get_prices.side_effect = ProviderError("Unavailable")
         references = load_market_references(
-            "2026-01-01", "2026-02-01", price_provider=yahoo, benchmark_symbol="INDEX"
+            "2026-01-01", "2026-02-01", ReferenceSources(yahoo), benchmark_symbol="INDEX"
         )
         self.assertIn("No se ha podido descargar", references.notices[0].message)
         fred = Mock(spec=FredAPI)
@@ -538,7 +544,10 @@ class MarketLoaderTests(unittest.TestCase):
         fred = Mock(spec=FredAPI)
         fred.get_series.return_value = indicator([300], pd.DatetimeIndex(["2025-12-01"]))
         load_market_references(
-            "2026-01-01", "2026-02-01", fred_provider=fred, inflation_series="CPIAUCSL"
+            "2026-01-01",
+            "2026-02-01",
+            ReferenceSources(Mock(spec=YahooFinanceAPI), fred=fred),
+            inflation_series="CPIAUCSL",
         )
         fred.get_series.assert_called_once_with("CPIAUCSL", "2025-10-18", "2026-02-01")
 
@@ -553,10 +562,13 @@ class MarketLoaderTests(unittest.TestCase):
                 ) as load,
                 patch("src.market_loader.load_market_context", return_value=({}, [])),
             ):
-                load_references(currency, "2026-01-01", "2026-02-01")
+                sources = ReferenceSources(Mock(spec=YahooFinanceAPI))
+                load_references(currency, "2026-01-01", "2026-02-01", sources)
                 self.assertEqual(load.call_args.kwargs["benchmark_symbol"], benchmark)
                 self.assertEqual(load.call_args.kwargs["risk_free_series"], rate)
-                load_references(currency, "2026-01-01", "2026-02-01", benchmark_symbol="CUSTOM")
+                load_references(
+                    currency, "2026-01-01", "2026-02-01", sources, benchmark_symbol="CUSTOM"
+                )
                 self.assertEqual(load.call_args.kwargs["benchmark_symbol"], "CUSTOM")
 
     def test_unknown_currency_does_not_get_a_us_reference_by_accident(self):
@@ -566,7 +578,9 @@ class MarketLoaderTests(unittest.TestCase):
             ) as load,
             patch("src.market_loader.load_market_context", return_value=({}, [])),
         ):
-            references = load_references("CAD", "2026-01-01", "2026-02-01")
+            references = load_references(
+                "CAD", "2026-01-01", "2026-02-01", ReferenceSources(Mock(spec=YahooFinanceAPI))
+            )
         self.assertIsNone(load.call_args.kwargs["risk_free_series"])
         self.assertTrue(
             any(
@@ -575,11 +589,15 @@ class MarketLoaderTests(unittest.TestCase):
             )
         )
 
-    def test_missing_fred_key_is_an_optional_reference_issue_but_fx_still_requires_it(self):
-        with patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Missing key")):
-            references = load_market_references(
-                "2026-01-01", "2026-02-01", inflation_series="CPIAUCSL"
-            )
-            self.assertIn("falta la clave de FRED", references.notices[0].message)
-            with self.assertRaises(ConfigurationError):
-                load_fred_fx_rates({("EUR", "USD"): "DEXUSEU"}, "2026-01-01", "2026-02-01")
+    def test_missing_fred_source_is_an_optional_reference_issue(self):
+        # Sin clave, main no crea el adaptador de FRED y sus series quedan sin calcular.
+        references = load_market_references(
+            "2026-01-01",
+            "2026-02-01",
+            ReferenceSources(Mock(spec=YahooFinanceAPI)),
+            inflation_series="CPIAUCSL",
+            risk_free_series="DGS3MO",
+        )
+        self.assertEqual(len(references.notices), 1)
+        self.assertIn("falta la clave de FRED", references.notices[0].message)
+        self.assertIsNone(references.inflation)

@@ -1,6 +1,6 @@
 """Etiquetas en español compartidas por la consola y los informes."""
 
-from ..providers.ecb import AAA_3M_YIELD
+from ..constants import AAA_3M_YIELD
 
 ASSET_TYPES = {
     "stock": "Acción",

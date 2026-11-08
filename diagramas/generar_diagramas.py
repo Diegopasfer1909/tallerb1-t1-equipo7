@@ -397,7 +397,7 @@ def architecture():
         500,
         250,
         "providers",
-        "PriceProvider: Yahoo / Alpha\nFRED y BCE: series económicas\nHTTP, caché y cuota de Alpha",
+        "Yahoo · Alpha · FRED · BCE\nCumplen los puertos de ports\nHTTP, caché y cuota de Alpha",
         BLUE,
         "ADQUISICIÓN",
     )
@@ -479,7 +479,7 @@ def architecture():
     d.text(
         82,
         1190,
-        "Adaptadores de proveedor  ·  contratos de datos explícitos  ·  cálculo separado de la descarga",
+        "Puertos en el núcleo  ·  adaptadores creados solo en main  ·  cálculo separado de la descarga",
         25,
         TEAL[1],
     )
@@ -620,7 +620,7 @@ def providers():
         "get_prices(symbol, start, end, *, adjusted)",
         "→ PriceHistory",
         BLUE,
-        "Protocol",
+        "Protocol · ports",
     )
     d.card(
         1500, 260, 460, 170, "PriceHistory", "Contrato OHLCV + AssetProfile", TEAL, "RESULTADO", 22
@@ -664,7 +664,7 @@ def providers():
     d.uml([(1090, 345), (1500, 345)], "dependency", TEAL[1])
     d.label(1295, 308, "retorna", 21, center=True)
     d.label(640, 502, "conformidad estructural · sin herencia nominal", 21, BLUE[1])
-    d.card(1480, 475, 1020, 76, "FRED y BCE: otro contrato (EconomicIndicator)", "", SLATE)
+    d.card(1480, 475, 1020, 76, "FRED y BCE: IndicatorProvider (ports)", "", SLATE)
     ecb = d.cls(
         2060,
         610,
@@ -880,20 +880,20 @@ def dependencies():
     d.card(80, 275, 300, 150, "main", "Selecciona y coordina", SLATE, size=21)
     d.card(520, 275, 400, 150, "portfolio_loader", "Construye Portfolio", BLUE, size=21)
     d.card(1060, 275, 400, 150, "market_loader", "Carga FX y referencias", BLUE, size=21)
-    d.card(1600, 275, 360, 150, "providers", "Normaliza las fuentes", BLUE, size=21)
+    d.card(1600, 275, 360, 150, "ports", "Contratos del núcleo", BLUE, size=21)
     for x1, x2 in [(380, 520), (920, 1060), (1460, 1600)]:
         d.line([(x1, 350), (x2, 350)], color=BLUE[1])
     d.text(
         82,
         468,
-        "Aquí se muestra la cadena principal; main y loaders también importan los contratos y servicios que coordinan.",
+        "Los loaders solo importan los puertos (ports); main importa providers y crea los adaptadores.",
         23,
         MUTED,
     )
     d.text(82, 564, "B  /  RELACIONES ENTRE PAQUETES DE LA BIBLIOTECA", 21, TEAL[1])
     d.card(80, 680, 460, 190, "analysis", "Cálculos → PortfolioAnalysis", TEAL, "MÉTRICAS", 22)
     d.card(790, 680, 460, 190, "models", "Datos + valoración histórica", TEAL, "DOMINIO", 22)
-    d.card(1500, 680, 460, 190, "providers", "Adaptadores y contratos de E/S", BLUE, "FUENTES", 22)
+    d.card(1500, 680, 460, 190, "providers", "Adaptadores de E/S", BLUE, "FUENTES", 22)
     d.card(
         80, 1110, 460, 190, "reporting", "Texto, gráficos y exportación", AMBER, "PRESENTACIÓN", 22
     )
@@ -916,21 +916,18 @@ def dependencies():
     d.label(250, 1000, "presentación", 20, AMBER[1])
     d.line([(790, 1205), (540, 1205)], dash=True, color=AMBER[1])
     d.label(665, 1164, "plot()", 20, AMBER[1], center=True)
-    # reporting también importa al cargar: métricas y avisos, supuestos de Monte Carlo y la
-    # serie del BCE con la que etiqueta el tipo libre de riesgo.
+    # reporting también importa al cargar métricas y avisos y los supuestos de Monte Carlo.
     d.line([(380, 1110), (380, 870)], color=AMBER[1])
     d.label(395, 1000, "import", 20, AMBER[1])
     d.line([(540, 1265), (790, 1265)], color=AMBER[1])
     d.label(665, 1272, "import", 20, AMBER[1], center=True)
-    d.line([(310, 1300), (310, 1335), (1400, 1335), (1400, 830), (1500, 830)], color=AMBER[1])
-    d.label(1060, 1345, "reporting → providers (serie del BCE)", 20, AMBER[1], center=True)
     d.card(
         1500,
         980,
         460,
         320,
         "Servicios transversales",
-        "constants · errors · validation\ncommissions · frequency\nImports omitidos en este recorte.\n\nTYPE_CHECKING:\nmodels ↔ analysis",
+        "constants · errors · validation\ncommissions · frequency · ports\nImports omitidos en este recorte.\n\nTYPE_CHECKING:\nmodels ↔ analysis",
         SLATE,
         "DEPENDENCIAS AUXILIARES",
         22,
@@ -1199,7 +1196,8 @@ def source_inventory():
         "src/models/currency.py": {"FxRates", "ExchangeRate"},
         "src/models/references.py": {"MarketReferences"},
         "src/models/price_history.py": {"PriceHistory"},
-        "src/providers/base.py": {"PriceProvider", "ApiClient"},
+        "src/providers/base.py": {"ApiClient"},
+        "src/ports.py": {"PriceProvider", "IndicatorProvider", "ReferenceSources"},
         "src/simulation/monte_carlo.py": {"SimulationInputs", "simulate"},
         "src/providers/ecb.py": {"EcbAPI"},
         "src/frequency.py": {"periods_per_year"},
