@@ -13,7 +13,7 @@
 De una lista de activos a un informe con gráficos: analiza tu cartera, compara su evolución
 y explora escenarios con Monte Carlo. **Los mensajes y los informes se generan en español.**
 
-[Empezar](#es-inicio) · [Uso](#es-uso) · [Opciones](#es-opciones) · [Resultados](#es-resultados)
+[Empezar](#es-inicio) · [Uso](#es-uso) · [Opciones](#es-opciones) · [Parámetros](#es-parametros) · [Resultados](#es-resultados)
 
 <a id="es-inicio"></a>
 
@@ -90,8 +90,98 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | `--broker none --rebalance-band 0` | Reajuste mensual sin comisiones ni banda de tolerancia |
 
 `--report` incluye Monte Carlo por defecto. La consola aplica una tarifa IBKR orientativa
-y una banda de 5 puntos al rebalanceo mensual. Consulta todos los parámetros y sus valores
-por defecto en la [guía de uso](docs/uso.md#es-parametros) o con `python src/main.py --help`.
+y una banda de 5 puntos al rebalanceo mensual. Abajo tienes [todos los parámetros con sus
+valores por defecto](#es-parametros); también los muestra `python src/main.py --help`, y la
+[guía de uso](docs/uso.md#es-parametros) añade más detalle.
+
+<a id="es-parametros"></a>
+
+### Todos los parámetros y sus valores por defecto
+
+<details>
+<summary><strong>Cartera y datos</strong></summary>
+
+| Parámetro | Para qué sirve | Por defecto |
+| --- | --- | --- |
+| `--assets SÍMBOLO:PESO ...` | Pesos objetivo, o un archivo `.txt` | Obligatorio si no usas `--shares` |
+| `--shares SÍMBOLO:ACCIONES ...` | Número de acciones, o un archivo `.txt`; solo con Yahoo | Alternativa a `--assets` |
+| `--provider yahoo\|alpha_vantage` | Proveedor de precios | `yahoo` |
+| `--start AAAA-MM-DD` | Inicio del análisis (incluido) | Hace 1 año con Yahoo; 120 días con Alpha Vantage |
+| `--end AAAA-MM-DD` | Fin del análisis y de la estimación (excluido) | Hoy |
+| `--currency EUR` | Divisa a la que convertir la cartera | La de los activos |
+| `--capital 10000` | Capital inicial hipotético; no se usa con `--shares` | `10000` |
+| `--rebalance monthly\|none` | Rebalanceo mensual o sin reajustes | `monthly` con `--assets`; `none` con `--shares` |
+
+</details>
+
+<details>
+<summary><strong>Informe y gráficos</strong></summary>
+
+| Parámetro | Para qué sirve | Por defecto |
+| --- | --- | --- |
+| `--report` | Guarda el informe en Markdown con sus gráficos | Desactivado |
+| `--plots-report` | Muestra los gráficos en pantalla sin guardar archivos | Desactivado |
+| `--report-detail compact\|full` | Secciones plegadas o todo desplegado; requiere `--report` | `compact` |
+| `--report-sections CLAVE ...` | Secciones a incluir; requiere `--report` | Todas |
+| `--output-dir CARPETA` | Carpeta de los informes; requiere `--report` | `informes/`, en la carpeta actual |
+| `--benchmark SÍMBOLO` | Índice o fondo de comparación; requiere `--report` o `--plots-report` | `^GSPC` en USD; `^STOXX50E` en EUR |
+
+Claves de `--report-sections`: `summary` (resumen), `warnings` (advertencias), `composition`
+(composición), `returns` (rentabilidad), `risk` (riesgo), `risk_adjusted` (rentabilidad
+ajustada al riesgo), `diversification` (diversificación), `market` (contexto de mercado),
+`simulation` (Monte Carlo) y `data` (calidad de los datos). Si incluyes `simulation`, no hace
+falta `--simulate`.
+
+</details>
+
+<details>
+<summary><strong>Monte Carlo</strong></summary>
+
+Requieren `--simulate` o un informe que incluya la sección `simulation`.
+
+| Parámetro | Para qué sirve | Por defecto |
+| --- | --- | --- |
+| `--simulate` | Ejecuta la simulación y muestra su resumen | Desactivado |
+| `--steps 252` | Horizonte, en sesiones de bolsa | Un año: `252`, o `365` si la cartera es solo cripto |
+| `--simulations 10000` | Número de escenarios | `10000` |
+| `--seed 42` | Semilla: repite los mismos escenarios | `42` |
+| `--confidence 0.95` | Nivel del VaR y del CVaR | `0.95` |
+| `--return 0.08` o `--return IBM:0.08 MSFT:0.1` | Rentabilidad anual esperada, común o por activo | Tipo libre de riesgo + prima por la parte en renta variable |
+| `--equity-premium 0.045` | Prima de la renta variable sobre el tipo libre de riesgo | `0.045` (4,5 %) |
+| `--volatility 0.2` o `--volatility IBM:0.2` | Volatilidad anual, común o por activo | Histórica |
+| `--estimation-start AAAA-MM-DD` | Inicio de los precios con los que se estiman la volatilidad y las correlaciones | 5 años antes de `--end`, o `--start` si es anterior; con Alpha Vantage, `--start` |
+
+**Cambiar el horizonte.** `--steps` se indica en sesiones: `21` es un mes, `126` medio año,
+`504` dos años y `1260` cinco años. Por ejemplo:
+
+```bash
+python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --simulate --steps 504
+```
+
+Escenarios × (sesiones + 1 + 2 × activos) no puede superar 20 millones: con 10.000
+escenarios, el máximo ronda las 1.990 sesiones (unos 8 años). Para más, baja
+`--simulations`.
+
+</details>
+
+<details>
+<summary><strong>Comisiones del rebalanceo</strong></summary>
+
+Solo se aplican con rebalanceo mensual.
+
+| Parámetro | Para qué sirve | Por defecto |
+| --- | --- | --- |
+| `--broker` | Tarifa de partida: `ibkr` (0,05 % por orden, mínimo 3), `degiro` (2 por orden), `trade_republic` (1 por orden), `xtb` o `none` (sin comisiones) | `ibkr` |
+| `--commission-rate 0.0005` | Comisión proporcional por orden | La del bróker |
+| `--commission-fixed 2` | Comisión fija por orden | La del bróker |
+| `--commission-min 3` | Comisión mínima por orden | La del bróker |
+| `--commission-max 50` | Comisión máxima por orden | La del bróker |
+| `--rebalance-band 0.05` | Solo se reajusta si algún peso se desvía más que esto; `0` reajusta cada mes | `0.05` (5 puntos) |
+| `--max-order-cost 0.01` | Descarta las órdenes cuya comisión supere esta fracción de su importe | `0.01` (1 %) |
+
+Los importes fijos se expresan en la divisa de la cartera.
+
+</details>
 
 <a id="es-resultados"></a>
 
@@ -129,7 +219,7 @@ el informe continúa con las medidas disponibles. Las simulaciones son escenario
 Turn a list of assets into a report with charts: analyze your portfolio, compare its
 performance, and explore Monte Carlo scenarios. **Program messages and reports are in Spanish.**
 
-[Get started](#en-start) · [Usage](#en-usage) · [Options](#en-options) · [Results](#en-results)
+[Get started](#en-start) · [Usage](#en-usage) · [Options](#en-options) · [Parameters](#en-parameters) · [Results](#en-results)
 
 <a id="en-start"></a>
 
@@ -206,8 +296,95 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | `--broker none --rebalance-band 0` | Monthly rebalancing without commissions or a tolerance band |
 
 `--report` includes Monte Carlo by default. The CLI applies an illustrative IBKR commission
-schedule and a 5-percentage-point band to monthly rebalancing. See every option and default
-in the [user guide](docs/uso.md#en-parameters) or run `python src/main.py --help`.
+schedule and a 5-percentage-point band to monthly rebalancing. Below are [all parameters and
+their defaults](#en-parameters); `python src/main.py --help` shows them too, and the
+[user guide](docs/uso.md#en-parameters) adds more detail.
+
+<a id="en-parameters"></a>
+
+### All parameters and defaults
+
+<details>
+<summary><strong>Portfolio and data</strong></summary>
+
+| Parameter | Purpose | Default |
+| --- | --- | --- |
+| `--assets SYMBOL:WEIGHT ...` | Target weights, or a `.txt` file | Required unless you use `--shares` |
+| `--shares SYMBOL:SHARES ...` | Number of shares, or a `.txt` file; Yahoo only | Alternative to `--assets` |
+| `--provider yahoo\|alpha_vantage` | Price provider | `yahoo` |
+| `--start YYYY-MM-DD` | Start of the analysis (inclusive) | 1 year ago with Yahoo; 120 days with Alpha Vantage |
+| `--end YYYY-MM-DD` | End of the analysis and the estimation (exclusive) | Today |
+| `--currency EUR` | Currency to convert the portfolio into | The assets' currency |
+| `--capital 10000` | Hypothetical initial capital; not used with `--shares` | `10000` |
+| `--rebalance monthly\|none` | Monthly rebalancing or none | `monthly` with `--assets`; `none` with `--shares` |
+
+</details>
+
+<details>
+<summary><strong>Report and charts</strong></summary>
+
+| Parameter | Purpose | Default |
+| --- | --- | --- |
+| `--report` | Saves the Markdown report with its charts | Off |
+| `--plots-report` | Displays the charts without saving files | Off |
+| `--report-detail compact\|full` | Collapsible or fully expanded sections; requires `--report` | `compact` |
+| `--report-sections KEY ...` | Sections to include; requires `--report` | All |
+| `--output-dir FOLDER` | Reports folder; requires `--report` | `informes/` under the current folder |
+| `--benchmark SYMBOL` | Comparison index or fund; requires `--report` or `--plots-report` | `^GSPC` for USD; `^STOXX50E` for EUR |
+
+`--report-sections` keys: `summary`, `warnings`, `composition`, `returns`, `risk`,
+`risk_adjusted`, `diversification`, `market`, `simulation` (Monte Carlo) and `data` (data
+quality). Including `simulation` makes `--simulate` unnecessary.
+
+</details>
+
+<details>
+<summary><strong>Monte Carlo</strong></summary>
+
+These require `--simulate` or a report that includes the `simulation` section.
+
+| Parameter | Purpose | Default |
+| --- | --- | --- |
+| `--simulate` | Runs the simulation and prints its summary | Off |
+| `--steps 252` | Horizon, in trading sessions | One year: `252`, or `365` for crypto-only portfolios |
+| `--simulations 10000` | Number of scenarios | `10000` |
+| `--seed 42` | Seed: repeats the same scenarios | `42` |
+| `--confidence 0.95` | VaR and CVaR level | `0.95` |
+| `--return 0.08` or `--return IBM:0.08 MSFT:0.1` | Expected annual return, common or per asset | Risk-free rate plus a premium on the equity portion |
+| `--equity-premium 0.045` | Equity premium over the risk-free rate | `0.045` (4.5%) |
+| `--volatility 0.2` or `--volatility IBM:0.2` | Annual volatility, common or per asset | Historical |
+| `--estimation-start YYYY-MM-DD` | Start of the prices used to estimate volatility and correlations | 5 years before `--end`, or `--start` if earlier; with Alpha Vantage, `--start` |
+
+**Changing the horizon.** `--steps` is in sessions: `21` is one month, `126` half a year,
+`504` two years and `1260` five years. For example:
+
+```bash
+python src/main.py --assets SAN.MC:0.5 ITX.MC:0.5 --simulate --steps 504
+```
+
+Scenarios × (sessions + 1 + 2 × assets) cannot exceed 20 million: with 10,000 scenarios the
+maximum is about 1,990 sessions (around 8 years). For more, lower `--simulations`.
+
+</details>
+
+<details>
+<summary><strong>Rebalancing commissions</strong></summary>
+
+Only applied with monthly rebalancing.
+
+| Parameter | Purpose | Default |
+| --- | --- | --- |
+| `--broker` | Starting schedule: `ibkr` (0.05% per order, minimum 3), `degiro` (2 per order), `trade_republic` (1 per order), `xtb` or `none` (no commissions) | `ibkr` |
+| `--commission-rate 0.0005` | Proportional commission per order | The broker's |
+| `--commission-fixed 2` | Fixed commission per order | The broker's |
+| `--commission-min 3` | Minimum commission per order | The broker's |
+| `--commission-max 50` | Maximum commission per order | The broker's |
+| `--rebalance-band 0.05` | Rebalances only if a weight drifts more than this; `0` rebalances every month | `0.05` (5 points) |
+| `--max-order-cost 0.01` | Skips orders whose commission exceeds this fraction of their amount | `0.01` (1%) |
+
+Fixed amounts are expressed in the portfolio currency.
+
+</details>
 
 <a id="en-results"></a>
 
