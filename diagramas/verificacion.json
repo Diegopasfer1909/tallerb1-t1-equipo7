@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-08T19:05:59.128544+00:00",
-  "head": "3b8bd5f281094bb926482bb27e527661dcd2c3dd",
-  "basis": "working tree; src differs from HEAD",
+  "generated_at": "2026-11-08T19:23:46.277816+00:00",
+  "head": "427fbf3b28d892ff7d1864ffecdfe72ae01ccf52",
+  "basis": "HEAD; src matches the commit",
   "source_sha256": {
     "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
     "src/analysis/__init__.py": "1663ac5b6cb1ec8131559c29db0b1993d1acc77635a0d445b48aa81a9c8d6c40",
