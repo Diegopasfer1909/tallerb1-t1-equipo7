@@ -105,6 +105,7 @@ en inglés porque son los que reconoce el programa.
 | `--currency EUR` | Divisa de destino; descarga los cambios necesarios | Divisa común de los activos |
 | `--capital 10000` | Capital hipotético al comienzo del histórico; solo con pesos | `10000` |
 | `--rebalance monthly\|none` | Revisar el reparto cada mes o mantener las posiciones | `monthly` con pesos; `none` con acciones |
+| `--download-workers N` | Activos que se descargan a la vez, de 1 a 4; ver [descargas simultáneas](#es-descargas) | `1` |
 
 #### Salidas e informe
 
@@ -322,6 +323,22 @@ la carpeta desde la que ejecutas el programa. Cambiar solo la simulación no obl
 a descargar los precios. Puedes borrar esa carpeta para forzar nuevas descargas; la caché
 no reinicia la cuota y las respuestas vigentes siguen disponibles aunque no quede cuota.
 
+<a id="es-descargas"></a>
+**Descargas simultáneas:** `--download-workers N` (de 1 a 4; 1 por defecto) descarga hasta
+N activos de la cartera a la vez para solapar las esperas de red. Se aplica a la carga por
+pesos, por acciones y a los precios de estimación de Monte Carlo, cada una como un lote
+independiente; el límite es por lote, no global entre ejecuciones. Solo Yahoo descarga en
+paralelo: Alpha Vantage usa siempre una descarga para respetar su cuota y su pausa entre
+peticiones, y la consola avisa una vez si pides más. Los tipos de cambio, el índice de
+referencia, FRED y el BCE se siguen descargando en secuencia. Los datos y resultados son los
+mismos con cualquier valor; si falla un activo, se detiene el lote y el error indica cuál.
+
+```powershell
+python src/main.py --provider yahoo --assets IBM:0.6 MSFT:0.4 --download-workers 4
+python src/main.py --provider yahoo --shares IBM:10 MSFT:5 --download-workers 2
+python src/main.py --provider yahoo --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+```
+
 <a id="es-problemas"></a>
 
 ### 7. Problemas frecuentes
@@ -364,6 +381,13 @@ usa `load_references()` de `src.market_loader` y pásalas a `portfolio.analyze(r
 `portfolio.monte_carlo()` ejecuta la simulación; `portfolio.report()` la genera si se incluye
 su sección. Desde Python no hay comisiones por defecto: se configuran con `RebalanceRule`.
 Los modelos protegen sus datos; para cambiar la composición se crea otra cartera.
+
+`load_portfolio()` y `load_portfolio_from_shares()` aceptan `max_workers=1..4` (solo por
+nombre) con la misma política que `--download-workers`: el proveedor declara cuántas
+descargas admite con el atributo `max_download_workers` (Yahoo 4, Alpha Vantage 1; sin
+atributo, 1). La biblioteca no imprime avisos. La consola llama una vez a
+`quiet_yfinance_warnings()` de `src.providers.yahoo` antes de descargar para ocultar los
+avisos de obsolescencia de yfinance; desde Python puedes llamarla tú o dejar que se vean.
 
 Para contribuir, instala las herramientas y ejecuta las comprobaciones sin red:
 
@@ -483,6 +507,7 @@ are the names the program accepts.
 | `--currency EUR` | Target currency; downloads the necessary exchange rates | Assets' common currency |
 | `--capital 10000` | Hypothetical capital at the start of the history; weights only | `10000` |
 | `--rebalance monthly\|none` | Check allocations monthly or keep positions unchanged | `monthly` for weights; `none` for shares |
+| `--download-workers N` | Assets downloaded at once, from 1 to 4; see [concurrent downloads](#en-downloads) | `1` |
 
 #### Output and reports
 
@@ -699,6 +724,22 @@ where you run the program. Changing only simulation settings does not require do
 prices again. Delete that folder to force fresh downloads; clearing the cache does not
 reset the quota, and valid cached responses remain usable when quota is exhausted.
 
+<a id="en-downloads"></a>
+**Concurrent downloads:** `--download-workers N` (1 to 4; 1 by default) downloads up to N
+portfolio assets at once to overlap network waits. It applies to weight-based and
+share-based loading and to the Monte Carlo estimation prices, each as an independent batch;
+the limit is per batch, not global across runs. Only Yahoo downloads in parallel: Alpha
+Vantage always uses one download to respect its quota and request spacing, and the CLI warns
+once if you ask for more. Exchange rates, the benchmark, FRED, and the ECB are still
+downloaded sequentially. Data and results are identical for any value; if one asset fails,
+the batch stops and the error names it.
+
+```powershell
+python src/main.py --provider yahoo --assets IBM:0.6 MSFT:0.4 --download-workers 4
+python src/main.py --provider yahoo --shares IBM:10 MSFT:5 --download-workers 2
+python src/main.py --provider yahoo --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+```
+
 <a id="en-troubleshooting"></a>
 
 ### 7. Troubleshooting
@@ -741,6 +782,13 @@ This example downloads prices but does not load economic references. To include 
 `portfolio.monte_carlo()` runs a simulation; `portfolio.report()` runs it when its section is
 included. Python usage has no commissions by default; configure them with `RebalanceRule`.
 Models protect their data; create another portfolio to change the allocation.
+
+`load_portfolio()` and `load_portfolio_from_shares()` accept keyword-only `max_workers=1..4`
+with the same policy as `--download-workers`: providers declare how many downloads they
+support through the `max_download_workers` attribute (Yahoo 4, Alpha Vantage 1; none
+declared, 1). The library prints no warnings. The CLI calls `quiet_yfinance_warnings()` from
+`src.providers.yahoo` once before downloading to hide yfinance deprecation noise; from Python
+you may call it yourself or leave those warnings visible.
 
 To contribute, install the development tools and run offline checks:
 

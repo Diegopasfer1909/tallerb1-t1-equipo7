@@ -2,8 +2,6 @@
 
 import json
 import warnings
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +14,7 @@ from .base import (
     DataCoverageError,
     ProviderError,
     build_profile,
+    cache_lock,
     cache_path,
     drop_missing_closes,
     prune_cache,
@@ -36,6 +35,9 @@ FIELDS = {
 ASSET_TYPES = {"EQUITY": "stock", "INDEX": "index", "ETF": "etf", "MUTUALFUND": "fund"}
 # Solo estos publican su composición por tipo de activo.
 FUND_TYPES = ("ETF", "MUTUALFUND")
+# Segundos de espera de cada petición de precios; la ficha usa el límite propio de yfinance
+# (30 s), así que ninguna descarga puede quedarse esperando indefinidamente.
+HTTP_TIMEOUT = 30
 PROFILE_ISSUE = (
     "No se ha podido consultar la ficha del activo en Yahoo Finance. Es posible que se haya "
     "alcanzado el límite de consultas o que el símbolo no tenga ficha. Faltan la divisa y los "
@@ -51,7 +53,14 @@ class YahooFinanceAPI:
     simulación o acortar el intervalo no repite descargas. Con cache_ttl igual a cero no se
     utiliza la caché. include_info=False omite la ficha cuando solo se necesitan precios,
     como en los tipos de cambio.
+
+    Admite hasta max_download_workers descargas simultáneas de activos distintos: cada
+    entrada de la caché se lee, amplía y escribe con su propio bloqueo, y cada operación
+    usa su propio Ticker. Los filtros de avisos no se modifican aquí (ver
+    quiet_yfinance_warnings).
     """
+
+    max_download_workers = 4
 
     def __init__(
         self,
@@ -68,23 +77,14 @@ class YahooFinanceAPI:
     def get_info(self, symbol: str) -> dict:
         """Consulta la ficha del activo; yfinance la obtiene con una petición adicional."""
         cache = cache_path(self.cache_dir, ["yahoo", "profile", symbol])
-        cached = read_cache(cache, self.cache_ttl)
-        if cached is not None:
-            return cached
-        try:
-            ticker = yf.Ticker(symbol)
-            with _quiet_yfinance():
-                info = dict(ticker.get_info())
-        except Exception:
-            # yfinance no documenta sus excepciones; se traducen al error común.
-            raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.") from None
-        # Para símbolos sin ficha, yfinance puede devolver un diccionario casi vacío.
-        if not info.get("quoteType"):
-            raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.")
-        if info["quoteType"] in FUND_TYPES:
-            info["assetClasses"] = _asset_classes(ticker)
-        write_cache(cache, info)
-        return info
+        # Dos solicitudes simultáneas de la misma ficha comparten una sola descarga.
+        with cache_lock(cache):
+            cached = read_cache(cache, self.cache_ttl)
+            if cached is not None:
+                return cached
+            info = _download_info(symbol)
+            write_cache(cache, info)
+            return info
 
     def get_prices(
         self, symbol: str, start: str, end: str, *, adjusted: bool = False
@@ -120,8 +120,23 @@ class YahooFinanceAPI:
     def _history(
         self, symbol: str, first: pd.Timestamp, last: pd.Timestamp, adjusted: bool
     ) -> pd.DataFrame:
-        """Reutiliza el historial guardado si cubre las fechas o lo amplía en una descarga."""
+        """Reutiliza el historial guardado si cubre las fechas o lo amplía en una descarga.
+
+        El bloqueo de la entrada cubre leer, decidir la ampliación, descargar y escribir: si
+        otro hilo acaba de ampliarla, se vuelve a leer ya ampliada.
+        """
         cache = cache_path(self.cache_dir, ["yahoo", "prices", symbol, adjusted])
+        with cache_lock(cache):
+            return self._cached_or_download(cache, symbol, first, last, adjusted)
+
+    def _cached_or_download(
+        self,
+        cache: Path | None,
+        symbol: str,
+        first: pd.Timestamp,
+        last: pd.Timestamp,
+        adjusted: bool,
+    ) -> pd.DataFrame:
         cached = read_cache(cache, self.cache_ttl)
         if cached is not None:
             try:
@@ -134,12 +149,12 @@ class YahooFinanceAPI:
                 pass
 
         try:
-            with _quiet_yfinance():
-                history = yf.Ticker(symbol).history(
-                    start=first.date().isoformat(),
-                    end=last.date().isoformat(),
-                    auto_adjust=adjusted,
-                )
+            history = yf.Ticker(symbol).history(
+                start=first.date().isoformat(),
+                end=last.date().isoformat(),
+                auto_adjust=adjusted,
+                timeout=HTTP_TIMEOUT,
+            )
         except Exception:
             # yfinance no documenta sus excepciones; se traducen al error común.
             raise ProviderError(f"Yahoo no ha podido descargar los precios de {symbol}.") from None
@@ -165,26 +180,41 @@ class YahooFinanceAPI:
         return history
 
 
-@contextmanager
-def _quiet_yfinance() -> Iterator[None]:
+def quiet_yfinance_warnings() -> None:
     """Oculta los avisos de obsolescencia que yfinance provoca en pandas 3 (Pandas4Warning).
 
     Según la versión de yfinance, son internos, no afectan a los datos y llenan la consola
     en cada descarga: yfinance activa sus propios DeprecationWarning al importarse. Solo se
-    ocultan los avisos originados en el código de yfinance; los demás se muestran. Los
-    filtros de avisos son globales, así que no conviene usarlo desde varios hilos a la vez.
+    ocultan los avisos originados en el código de yfinance; los demás se muestran.
+
+    Los filtros de avisos son globales del proceso: la consola llama a esta función una vez,
+    antes de empezar las descargas, en lugar de cambiarlos en cada petición desde varios
+    hilos. Quien use el paquete como biblioteca decide si la llama; si no, ve esos avisos.
     """
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"yfinance(\.|$)")
-        warnings.filterwarnings("ignore", category=FutureWarning, module=r"yfinance(\.|$)")
-        yield
+    warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"yfinance(\.|$)")
+    warnings.filterwarnings("ignore", category=FutureWarning, module=r"yfinance(\.|$)")
+
+
+def _download_info(symbol: str) -> dict:
+    """Ficha de yfinance con un Ticker propio; la composición solo se pide para fondos."""
+    try:
+        ticker = yf.Ticker(symbol)
+        info = dict(ticker.get_info())
+    except Exception:
+        # yfinance no documenta sus excepciones; se traducen al error común.
+        raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.") from None
+    # Para símbolos sin ficha, yfinance puede devolver un diccionario casi vacío.
+    if not info.get("quoteType"):
+        raise ProviderError("Yahoo Finance no ha devuelto la ficha del activo.")
+    if info["quoteType"] in FUND_TYPES:
+        info["assetClasses"] = _asset_classes(ticker)
+    return info
 
 
 def _asset_classes(ticker) -> dict | None:
     """La composición es complementaria: sin ella, el activo queda sin clasificar."""
     try:
-        with _quiet_yfinance():
-            classes = ticker.funds_data.asset_classes
+        classes = ticker.funds_data.asset_classes
         return {name: float(value) for name, value in classes.items()}
     except Exception:
         # yfinance no documenta sus excepciones.

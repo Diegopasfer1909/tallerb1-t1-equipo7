@@ -5,6 +5,7 @@ from .constants import DEFAULT_CAPITAL, MONTHLY, Rebalance
 from .errors import PortfolioError
 from .market_loader import load_fx_rates
 from .models import Asset, FxRates, Portfolio
+from .price_loader import load_price_histories
 from .providers import PriceProvider
 from .validation import validate_symbols, validate_units, validate_weights
 
@@ -21,6 +22,8 @@ def load_portfolio(
     rebalance: Rebalance = MONTHLY,
     fx_provider: PriceProvider | None = None,
     rebalance_rule: RebalanceRule | None = None,
+    *,
+    max_workers: int = 1,
 ) -> Portfolio:
     """Descarga los activos de una asignación como {"IBM": 0.6, "MSFT": 0.4}.
 
@@ -28,11 +31,21 @@ def load_portfolio(
     indica la divisa de los activos si el proveedor no la publica; con reporting_currency y
     sin fx_rates, los cambios necesarios se descargan con fx_provider (Yahoo por defecto).
     rebalance_rule fija las comisiones y cuándo compensa reajustar; por defecto, sin costes.
+    max_workers (1 a 4) permite descargar varios activos a la vez si el proveedor lo admite;
+    el resultado es el mismo que con una sola descarga.
     """
     validate_symbols(target_weights)
     validate_weights(list(target_weights.values()))
     assets, fx_rates = _load_assets(
-        target_weights, provider, start, end, currency, reporting_currency, fx_rates, fx_provider
+        target_weights,
+        provider,
+        start,
+        end,
+        currency,
+        reporting_currency,
+        fx_rates,
+        fx_provider,
+        max_workers,
     )
     weights = {
         asset.symbol: weight for asset, weight in zip(assets, target_weights.values(), strict=True)
@@ -59,6 +72,8 @@ def load_portfolio_from_shares(
     fx_provider: PriceProvider | None = None,
     rebalance: Rebalance = None,
     rebalance_rule: RebalanceRule | None = None,
+    *,
+    max_workers: int = 1,
 ) -> Portfolio:
     """Descarga los activos de una cartera como {"AAPL": 10, "SPY": 5} (número de acciones).
 
@@ -71,7 +86,15 @@ def load_portfolio_from_shares(
     validate_symbols(shares)
     validate_units(list(shares.values()))
     assets, fx_rates = _load_assets(
-        shares, provider, start, end, currency, reporting_currency, fx_rates, fx_provider
+        shares,
+        provider,
+        start,
+        end,
+        currency,
+        reporting_currency,
+        fx_rates,
+        fx_provider,
+        max_workers,
     )
     unadjusted = [asset.symbol for asset in assets if asset.history.price_basis == "unadjusted"]
     if unadjusted:
@@ -94,12 +117,15 @@ def _load_assets(
     reporting_currency: str,
     fx_rates: FxRates | None,
     fx_provider: PriceProvider | None,
+    max_workers: int,
 ) -> tuple[list[Asset], FxRates]:
-    """Descarga cada símbolo en lote y, si hace falta, los tipos de cambio."""
-    assets = [
-        Asset(provider.get_prices(symbol.strip(), start, end), currency=currency)
-        for symbol in symbols
-    ]
+    """Descarga los símbolos en lote y, después, los tipos de cambio que hagan falta.
+
+    Los activos se crean aquí, en el orden de entrada, cuando ya han llegado todos los
+    historiales; los cambios dependen de las divisas de esos activos.
+    """
+    histories = load_price_histories(symbols, provider, start, end, max_workers=max_workers)
+    assets = [Asset(history, currency=currency) for history in histories]
     if fx_rates is None:
         fx_rates = FxRates()
         if reporting_currency:

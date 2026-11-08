@@ -10,7 +10,7 @@ El usuario trabaja con la consola (`src/main.py`) o con `Portfolio`. La capa de 
 flowchart TB
     usuario(["Usuario"])
     main["main.py · --assets o --shares --rebalance --broker --report --simulate..."]
-    loaders["portfolio_loader · market_loader"]
+    loaders["portfolio_loader · price_loader · market_loader"]
 
     subgraph providers["providers · se conectan a las APIs"]
         direction LR
@@ -278,8 +278,9 @@ sequenceDiagram
 
     U->>M: --assets --currency --rebalance --broker --capital --benchmark --report
     M->>M: validar opciones y crear la RebalanceRule antes de descargar
-    M->>L: load_portfolio(pesos, proveedor, fechas, rebalance_rule)
-    L->>Y: precios, fichas y tipos de cambio
+    M->>L: load_portfolio(pesos, proveedor, fechas, rebalance_rule, max_workers)
+    L->>Y: precios y fichas en lote (hasta 4 a la vez con Yahoo; 1 con Alpha Vantage)
+    L->>Y: tipos de cambio, en secuencia, cuando se conocen las divisas
     L-->>M: Portfolio
     opt rebalanceo mensual con tarifa
         M->>P: backtest(price_column)

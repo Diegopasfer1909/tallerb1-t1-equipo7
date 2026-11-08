@@ -88,6 +88,7 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | `--output-dir resultados` | Guarda los informes en otra carpeta |
 | `--return 0.08 --volatility 0.20` | Fija los supuestos de la simulación |
 | `--broker none --rebalance-band 0` | Reajuste mensual sin comisiones ni banda de tolerancia |
+| `--download-workers 4` | Descarga hasta 4 activos a la vez con Yahoo; 1 por defecto |
 
 `--report` incluye Monte Carlo por defecto. La consola aplica una tarifa IBKR orientativa
 y una banda de 5 puntos al rebalanceo mensual. Consulta todos los parámetros y sus valores
@@ -204,6 +205,7 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | `--output-dir resultados` | Saves reports to a different parent folder |
 | `--return 0.08 --volatility 0.20` | Sets simulation assumptions |
 | `--broker none --rebalance-band 0` | Monthly rebalancing without commissions or a tolerance band |
+| `--download-workers 4` | Downloads up to 4 assets at once with Yahoo; 1 by default |
 
 `--report` includes Monte Carlo by default. The CLI applies an illustrative IBKR commission
 schedule and a 5-percentage-point band to monthly rebalancing. See every option and default

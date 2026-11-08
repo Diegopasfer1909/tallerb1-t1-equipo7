@@ -6,6 +6,8 @@ import json
 import math
 import os
 import re
+import tempfile
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -21,8 +23,9 @@ from ..models.price_history import PriceHistory
 
 # Valores con los que los proveedores indican que falta un dato de la ficha.
 MISSING_VALUES = (None, "", "None", "-")
-# Solo se eliminan archivos con el nombre que genera la caché: el resumen de la consulta.
-CACHE_FILE = re.compile(r"\.?[0-9a-f]{64}\.json(\.\d+\.tmp)?")
+# Solo se eliminan archivos con el nombre que genera la caché: el resumen de la consulta y,
+# para los temporales, un sufijo propio de cada escritura.
+CACHE_FILE = re.compile(r"\.?(?P<entry>[0-9a-f]{64}\.json)(\.[^.]+\.tmp)?")
 
 
 class ProviderError(RuntimeError):
@@ -126,11 +129,30 @@ def _is_fresh(path: Path, ttl: float) -> bool:
     return time.time() - path.stat().st_mtime < ttl
 
 
+# Un bloqueo por archivo de caché, compartido por todas las instancias del proceso: las
+# descargas simultáneas de entradas distintas avanzan en paralelo y las de la misma esperan.
+_cache_locks: dict[str, threading.RLock] = {}
+_cache_locks_guard = threading.Lock()
+
+
+def cache_lock(cache: Path | None):
+    """Bloqueo reentrante de una entrada; sin caché no hay nada que coordinar.
+
+    Solo coordina hilos del mismo proceso. Entre procesos, los temporales únicos y el
+    reemplazo atómico evitan archivos a medio escribir, pero no unen sus intervalos.
+    """
+    if cache is None:
+        return contextlib.nullcontext()
+    key = os.path.normcase(str(Path(cache).resolve()))
+    with _cache_locks_guard:
+        return _cache_locks.setdefault(key, threading.RLock())
+
+
 def read_cache(cache: Path | None, ttl: float) -> dict | None:
     """Devuelve una respuesta vigente; una caducada o vacía se elimina."""
     if cache is None:
         return None
-    with contextlib.suppress(OSError, ValueError):
+    with cache_lock(cache), contextlib.suppress(OSError, ValueError):
         if _is_fresh(cache, ttl):
             cached = json.loads(cache.read_text(encoding="utf-8"))
             if isinstance(cached, dict) and cached:
@@ -140,28 +162,50 @@ def read_cache(cache: Path | None, ttl: float) -> dict | None:
 
 
 def write_cache(cache: Path | None, payload: dict) -> None:
-    """Guarda la respuesta de forma atómica; un fallo no impide la consulta."""
+    """Guarda la respuesta de forma atómica; un fallo no impide la consulta.
+
+    Cada escritura usa su propio temporal en la carpeta de destino y solo elimina ese.
+    """
     if cache is None:
         return
-    temporary = cache.with_name(f".{cache.name}.{os.getpid()}.tmp")
-    try:
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        temporary.write_text(json.dumps(payload), encoding="utf-8")
-        os.replace(temporary, cache)
-    except (OSError, TypeError, ValueError):
-        with contextlib.suppress(OSError):
-            temporary.unlink(missing_ok=True)
+    temporary = None
+    with cache_lock(cache):
+        try:
+            text = json.dumps(payload)
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=cache.parent,
+                prefix=f".{cache.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as file:
+                temporary = Path(file.name)
+                file.write(text)
+            # Cerrado antes de reemplazar: Windows no permite mover un archivo abierto.
+            os.replace(temporary, cache)
+        except (OSError, TypeError, ValueError):
+            if temporary is not None:
+                with contextlib.suppress(OSError):
+                    temporary.unlink(missing_ok=True)
 
 
 def prune_cache(cache_dir: Path | None, ttl: float) -> None:
-    """Elimina las respuestas caducadas para que la caché no crezca sin límite."""
+    """Elimina las respuestas caducadas para que la caché no crezca sin límite.
+
+    Cada archivo se revisa con el bloqueo de su entrada: no se borra una respuesta recién
+    publicada ni el temporal de una escritura en curso de este proceso.
+    """
     if cache_dir is None or not cache_dir.is_dir():
         return
     for path in cache_dir.iterdir():
-        if CACHE_FILE.fullmatch(path.name):
-            with contextlib.suppress(OSError):
-                if not _is_fresh(path, ttl):
-                    path.unlink()
+        match = CACHE_FILE.fullmatch(path.name)
+        if match is None:
+            continue
+        with cache_lock(path.with_name(match["entry"])), contextlib.suppress(OSError):
+            if not _is_fresh(path, ttl):
+                path.unlink()
 
 
 class ApiClient:
