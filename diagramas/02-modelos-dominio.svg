@@ -33,6 +33,15 @@
 <text x="840" y="576.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ holdings() / backtest()</text>
 <text x="840" y="604.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ analyze()</text>
 <text x="840" y="632.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ monte_carlo(estimation_prices)</text>
+<rect x="740" y="700" width="400" height="215" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="741" y="701" width="398" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
+<text x="760" y="729.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
+<text x="760" y="767.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">RebalanceRule</text>
+<polyline points="740,783 1140,783" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="740,863 1140,863" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="760" y="814.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">commissions: CommissionSchedule</text>
+<text x="760" y="842.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">band; max_order_cost?</text>
+<text x="760" y="894.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ is_free</text>
 <rect x="1600" y="270" width="460" height="187" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1601" y="271" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="299.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
@@ -71,18 +80,20 @@
 <text x="100" y="1284.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency; name; asset_type</text>
 <text x="100" y="1312.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">sector; raw; issue</text>
 <text x="100" y="1364.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">validación en construcción</text>
-<rect x="820" y="1020" width="500" height="299" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="820" y="1020" width="500" height="355" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="821" y="1021" width="498" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="840" y="1049.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
 <text x="840" y="1087.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#087D76">MarketReferences</text>
 <polyline points="820,1103 1320,1103" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="820,1267 1320,1267" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="820,1323 1320,1323" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="840" y="1134.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">benchmark: PriceHistory?</text>
 <text x="840" y="1162.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">inflation: EconomicIndicator?</text>
 <text x="840" y="1190.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">risk_free_rate: EconomicIndicator?</text>
-<text x="840" y="1218.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">fx_rates: FxRates</text>
-<text x="840" y="1246.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">notices: tuple[Notice, ...]</text>
-<text x="840" y="1298.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">—</text>
+<text x="840" y="1218.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">vix, brent: EconomicIndicator?</text>
+<text x="840" y="1246.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">gold, bund_etf: PriceHistory?</text>
+<text x="840" y="1275.04" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">fx_rates: FxRates</text>
+<text x="840" y="1303.2" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">notices: tuple[Notice, ...]</text>
+<text x="840" y="1354.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">—</text>
 <rect x="1600" y="1170" width="460" height="243" rx="0" fill="#FFFFFF" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1601" y="1171" width="458" height="80" rx="0" fill="#E4F5F1" stroke="#E4F5F1" stroke-width="2" stroke-linejoin="round"/>
 <text x="1620" y="1199.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#087D76">«dataclass · frozen»</text>
@@ -119,11 +130,15 @@
 <polyline points="1823.4755169883315,1156.49329346471 1830,1170 1836.5244830116685,1156.49329346471" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="1844" y="1032" width="120.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="1850" y="1054.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">indicator  1</text>
-<polyline points="1070,653 1070,1020" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
-<polyline points="1063.4755169883315,1006.4932934647098 1070,1020 1076.5244830116685,1006.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="1084" y="797" width="142.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="1090" y="819.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">parámetro de</text>
-<text x="1090" y="846.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">analyze()</text>
+<polyline points="940,653 940,700" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="933.4755169883315,686.4932934647098 940,700 946.5244830116685,686.4932934647098" fill="none" stroke="#087D76" stroke-width="2"/>
+<rect x="954" y="661" width="181.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="960" y="683.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">rebalance_rule  1</text>
+<polyline points="1240,653 1240,1020" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="1233.4755169883315,1006.4932934647098 1240,1020 1246.5244830116685,1006.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1254" y="797" width="142.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1260" y="819.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">parámetro de</text>
+<text x="1260" y="846.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">analyze()</text>
 <polyline points="820,1110 680,1110 680,860 550,860" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="563.5067065352902,853.4755169883315 550,860 563.5067065352902,866.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
 <rect x="684" y="937" width="121.0" height="61.76" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -143,5 +158,5 @@
 <text x="1375.5" y="1300.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">risk_free_rate  0..1</text>
 <polyline points="72,1490 2068,1490" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="74" y="1526.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Rombo hueco: agregación compartida. Discontinua: dependencia de uso. «frozen» no implica inmutabilidad profunda.</text>
-<text x="74" y="1550.8" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">RebalanceRule (comisiones, banda, coste máximo por orden) está en el módulo transversal commissions.</text>
+<text x="74" y="1550.8" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">RebalanceRule vive en el módulo transversal commissions. vix, brent, gold y bund_etf: asociaciones 0..1 listadas como atributos.</text>
 </svg>

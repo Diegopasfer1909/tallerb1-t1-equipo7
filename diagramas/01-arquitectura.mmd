@@ -17,7 +17,7 @@ flowchart TB
     end
     subgraph DOMAIN["03 · DOMINIO Y DATOS VALIDADOS"]
         MARKET["PriceHistory · AssetProfile<br/>EconomicIndicator · FxRates"]
-        PORT["Asset · Portfolio<br/>alineación · conversión · valoración"]
+        PORT["Asset · Portfolio<br/>alineación · conversión · backtest con comisiones"]
         REF["MarketReferences<br/>benchmark · inflación · tipo · avisos"]
     end
     subgraph COMPUTE["04 · CÁLCULO LOCAL"]
@@ -30,7 +30,7 @@ flowchart TB
     DISK[("Caché JSON · SQLite<br/>persistencia local")]
     OUTPUT[("informes/<br/>Markdown + PNG · pantalla")]
     CLI -->|"opciones validadas<br/>y precios de estimación (5 años)"| PL
-    CLI -->|"solo con --report"| ML
+    CLI -->|"--report: referencias<br/>simulación: tipo libre de riesgo"| ML
     PY -->|"carga programática"| PL
     PY -->|"modelos ya cargados"| PORT
     PL -->|"FX necesarios"| ML
@@ -55,5 +55,6 @@ flowchart TB
     ANA -->|"PortfolioAnalysis"| REP
     REP -->|"exporta / muestra"| OUTPUT
 %% Yahoo usa yfinance y las funciones de caché, no ApiClient.
-%% Alpha y FRED usan ApiClient; solo Alpha instala callbacks de cuota.
+%% Alpha y FRED usan ApiClient; solo Alpha instala callbacks de cuota. EcbAPI usa curl_cffi y la caché.
+%% commissions aplica la misma RebalanceRule al backtest histórico y a Monte Carlo.
 %% El cálculo no descarga; reporting sí realiza E/S al exportar o mostrar.

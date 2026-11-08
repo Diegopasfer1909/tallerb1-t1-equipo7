@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1480" viewBox="0 0 1920 1480" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1520" viewBox="0 0 1920 1520" role="img">
 <title>04-simulacion</title>
 <desc>Arquitectura de tallerb1-t1-equipo7. Fuente editable Excalidraw y alternativa Mermaid junto a esta imagen.</desc>
-<rect x="0" y="0" width="1920" height="1480" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<rect x="0" y="0" width="16" height="1480" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="1920" height="1520" rx="0" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<rect x="0" y="0" width="16" height="1520" rx="0" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
 <text x="72" y="52.480000000000004" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#087D76">MIAX  /  B1–T1  /  EQUIPO 7</text>
 <text x="72" y="118.32" font-family="Arial, Helvetica, sans-serif" font-size="46" fill="#142D43">Una abstracción común para simular</text>
 <text x="74" y="161.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">UML de contratos · Asset y Portfolio adaptan su estado al mismo motor funcional</text>
@@ -46,8 +46,8 @@
 <text x="1360" y="327.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">SimulationSettings</text>
 <polyline points="1340,343 1840,343" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="1340,479 1840,479" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<text x="1360" y="374.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">steps?; simulations; seed</text>
-<text x="1360" y="402.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">confidence</text>
+<text x="1360" y="374.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">steps? (por defecto, un año)</text>
+<text x="1360" y="402.40000000000003" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">simulations; seed; confidence</text>
 <text x="1360" y="430.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">expected_returns?; volatilities?</text>
 <text x="1360" y="458.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">equity_premium; risk_free_rate?</text>
 <text x="1360" y="510.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">validación en construcción</text>
@@ -61,18 +61,29 @@
 <text x="720" y="992.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">μ: tipo libre + prima o supuesto</text>
 <text x="720" y="1020.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">trayectorias GBM + rebalanceo</text>
 <text x="720" y="1072.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ simulate(inputs, settings,</text>
-<text x="720" y="1100.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">    periods_per_year)</text>
-<rect x="1340" y="850" width="500" height="271" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="720" y="1100.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">    periods_per_year=None)</text>
+<rect x="1340" y="850" width="500" height="299" rx="0" fill="#FFFFFF" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
 <rect x="1341" y="851" width="498" height="80" rx="0" fill="#F0EBFF" stroke="#F0EBFF" stroke-width="2" stroke-linejoin="round"/>
 <text x="1360" y="879.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#7052AB">«dataclass»</text>
 <text x="1360" y="917.68" font-family="Arial, Helvetica, sans-serif" font-size="29" fill="#7052AB">SimulationResult</text>
 <polyline points="1340,933 1840,933" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="1340,1041 1840,1041" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1340,1069 1840,1069" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <text x="1360" y="964.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">paths; assumptions; correlation</text>
-<text x="1360" y="992.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency; confidence; commissions</text>
-<text x="1360" y="1020.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">estimation_start / end</text>
-<text x="1360" y="1072.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ summary()</text>
-<text x="1360" y="1100.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ plot()</text>
+<text x="1360" y="992.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">currency; confidence</text>
+<text x="1360" y="1020.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">rebalance_rule?; commissions?</text>
+<text x="1360" y="1048.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">estimation_start / end</text>
+<text x="1360" y="1100.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ summary() / plot()</text>
+<text x="1360" y="1128.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#142D43">+ mean_commissions</text>
+<rect x="700" y="1175" width="490" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="701" y="1176" width="7" height="148" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="724" y="1212.64" font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#526779">MÓDULO COMPARTIDO</text>
+<text x="724" y="1252.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">commissions</text>
+<text x="724" y="1290.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">rebalance_step(): reajuste + comisión</text>
+<text x="724" y="1317.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">la misma regla que el backtest</text>
+<polyline points="945,1121 945,1175" fill="none" stroke="#526779" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
+<polyline points="938.4755169883315,1161.49329346471 945,1175 951.5244830116685,1161.49329346471" fill="none" stroke="#526779" stroke-width="2"/>
+<rect x="959" y="1132" width="219.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="965" y="1153.4" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#526779">aplica en cada reajuste</text>
 <polyline points="530,370 700,370" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round" stroke-dasharray="9 7"/>
 <polyline points="686.4932934647098,376.52448301166845 700,370 686.4932934647098,363.47551698833155" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="588.5" y="328" width="53.0" height="33.6" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
@@ -101,10 +112,13 @@
 <text x="104" y="1174.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">y llama a simulate().</text>
 <text x="104" y="1202.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">No existe clase de motor</text>
 <text x="104" y="1230.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">ni herencia Asset → Portfolio.</text>
-<text x="704" y="1235.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">estimation_prices: σ y correlaciones de otro período (5 años en la consola);</text>
-<text x="704" y="1263.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">valor inicial, pesos objetivo y RebalanceRule siguen siendo los de la cartera.</text>
-<text x="704" y="1291.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Rebalanceo con commissions.rebalance_step(); 252 o 365 períodos con frequency.</text>
-<text x="704" y="1319.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">SimulationResult.plot() delega en reporting mediante un import diferido.</text>
-<polyline points="72,1390 1848,1390" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<text x="74" y="1426.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Las flechas discontinuas expresan uso / creación, no transferencia de propiedad. El motor no descarga datos de proveedores.</text>
+<text x="1344" y="1195.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">estimation_prices: σ y correlaciones de otro</text>
+<text x="1344" y="1223.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">período (5 años en la consola); valor inicial,</text>
+<text x="1344" y="1251.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">pesos y RebalanceRule son los de la cartera.</text>
+<text x="1344" y="1279.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Las comisiones pagadas ya están descontadas</text>
+<text x="1344" y="1307.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">de paths. 252 o 365 períodos con frequency.</text>
+<text x="1344" y="1336.04" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">plot() delega en reporting mediante un</text>
+<text x="1344" y="1364.2" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">import diferido.</text>
+<polyline points="72,1430 1848,1430" fill="none" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<text x="74" y="1466.48" font-family="Arial, Helvetica, sans-serif" font-size="19" fill="#526779">Las flechas discontinuas expresan uso / creación, no transferencia de propiedad. El motor no descarga datos de proveedores.</text>
 </svg>

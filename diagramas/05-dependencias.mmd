@@ -61,21 +61,21 @@ flowchart TB
     linkStyle 23,24,25,26 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
 
 %% Imports transversales omitidos visualmente:
-%% origen           | constants | errors | validation
-%% main             | sí        | sí     | sí
-%% portfolio_loader | sí        | no     | sí
-%% market_loader    | sí        | sí     | no
-%% providers        | sí        | sí     | sí
-%% models           | sí        | sí     | sí
-%% analysis         | sí        | sí     | sí
-%% simulation       | sí        | sí     | sí
-%% reporting        | sí        | sí     | sí
-%% validation       | sí        | sí     | --
-%% commissions: main, portfolio_loader, models, simulation, analysis, reporting.
-%% frequency: analysis, simulation. commissions importa errors y validation;
-%% frequency importa constants.
+%% origen           | constants | errors | validation | commissions | frequency
+%% main             | sí        | sí     | sí         | sí          | no
+%% portfolio_loader | sí        | sí     | sí         | sí          | no
+%% market_loader    | sí        | sí     | no         | no          | no
+%% providers        | sí        | sí     | sí         | no          | no
+%% models           | sí        | sí     | sí         | sí          | no
+%% analysis         | sí        | sí     | sí         | sí          | sí
+%% simulation       | sí        | sí     | sí         | sí          | sí
+%% reporting        | sí        | sí     | sí         | sí          | no
+%% validation       | sí        | sí     | --         | no          | no
+%% commissions      | no        | sí     | sí         | --          | no
+%% frequency        | sí        | no     | no         | no          | --
 %% reporting importa al cargar analysis (métricas, avisos), simulation (supuestos)
 %% y providers (identificador de la serie del BCE).
 %% constants y errors no importan otros paquetes internos.
+%% reporting → providers solo toma la etiqueta AAA_3M_YIELD de providers.ecb.
 %% 4 aristas diferidas = 7 sentencias de importación.
 %% Los imports internos dentro del mismo paquete no se representan.

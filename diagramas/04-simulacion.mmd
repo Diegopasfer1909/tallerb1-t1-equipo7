@@ -36,7 +36,7 @@ classDiagram
     }
     class monte_carlo {
         <<module>>
-        +simulate(inputs, settings, periods_per_year) SimulationResult$
+        +simulate(inputs, settings, periods_per_year=None) SimulationResult$
         +estimate_parameters(returns, periods_per_year) DataFrame$
     }
     class SimulationResult {
@@ -47,7 +47,9 @@ classDiagram
         +valuation_date : Timestamp
         +currency : str
         +rebalance_interval : int?
+        +rebalance_rule : RebalanceRule?
         +commissions : Series?
+        +/mean_commissions : float
         +estimation_start : Timestamp?
         +estimation_end : Timestamp?
         +summary() Series
@@ -74,9 +76,10 @@ classDiagram
     monte_carlo ..> SimulationInputs : lee y valida
     monte_carlo ..> SimulationSettings : utiliza
     monte_carlo ..> SimulationResult : crea
-    monte_carlo ..> commissions : reajusta y cobra
-    monte_carlo ..> frequency : 252 o 365
+    monte_carlo ..> commissions : rebalance_step() en cada reajuste
+    monte_carlo ..> frequency : 252 o 365 si no se indica
     SimulationResult ..> reporting : plot() importa al llamar
-    note for monte_carlo "GBM correlacionado. Cholesky o autovalores.\nRebalanceo opcional. Sin red ni exportación."
+    note for monte_carlo "GBM correlacionado. Cholesky o autovalores.\nRebalanceo opcional con comisiones. Sin red ni exportación."
     note for SimulationInputs "Contrato común para activo y cartera.\nNo contiene el proveedor de precios.\nprices puede venir de estimation_prices:\nσ y correlaciones de otro período;\nvalor inicial y pesos, de la cartera."
-    note for SimulationSettings "Supuestos comunes o por activo.\nSin supuesto: estimación histórica."
+    note for SimulationSettings "Supuestos comunes o por activo.\nSin supuesto: estimación histórica.\nSin steps: un año de sesiones."
+    note for commissions "La misma regla que backtest_with_costs().\nLas comisiones se descuentan de paths."

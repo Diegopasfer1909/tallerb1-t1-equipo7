@@ -12,12 +12,14 @@ classDiagram
         +rebalance : Rebalance
         +rebalance_rule : RebalanceRule
         +reporting_currency : str
+        +/fixed_units : bool
         -_cache : dict
-        +from_units(assets, units)$ Portfolio
+        +from_units(assets, units, rebalance, rebalance_rule)$ Portfolio
         +close_prices() DataFrame
         +position_values() DataFrame
         +holdings() DataFrame
         +backtest() BacktestResult
+        +rebalance_trades() DataFrame
         +analyze(references) PortfolioAnalysis
         +monte_carlo(settings, estimation_prices) SimulationResult
     }
@@ -77,6 +79,10 @@ classDiagram
         +benchmark : PriceHistory?
         +inflation : EconomicIndicator?
         +risk_free_rate : EconomicIndicator?
+        +vix : EconomicIndicator?
+        +brent : EconomicIndicator?
+        +gold : PriceHistory?
+        +bund_etf : PriceHistory?
         +fx_rates : FxRates
     }
     class RebalanceRule {
@@ -84,6 +90,7 @@ classDiagram
         +commissions : CommissionSchedule
         +band : float
         +max_order_cost : float?
+        +/is_free : bool
     }
     class CommissionSchedule {
         <<frozen dataclass · commissions>>
@@ -91,6 +98,15 @@ classDiagram
         +fixed : float
         +minimum : float
         +maximum : float?
+        +name : str
+    }
+    class BacktestResult {
+        <<frozen dataclass>>
+        +positions : DataFrame
+        +trades : DataFrame
+        +rebalance_dates : DatetimeIndex
+        +skipped_orders : int
+        +/total_commissions : float
     }
     class Notice {
         <<frozen dataclass>>
@@ -101,16 +117,22 @@ classDiagram
     Asset "0..*" --> "1" PriceHistory : history
     PriceHistory "0..*" --> "1" AssetProfile : profile
     Portfolio "0..*" --> "1" FxRates : fx_rates
+    Portfolio "0..*" --> "1" RebalanceRule : rebalance_rule
+    RebalanceRule "0..*" --> "1" CommissionSchedule : commissions
+    Portfolio ..> BacktestResult : backtest() crea
     FxRates "0..*" o-- "0..*" ExchangeRate : rates
     ExchangeRate "0..*" --> "1" EconomicIndicator : indicator
     MarketReferences "0..*" --> "0..1" PriceHistory : benchmark
     MarketReferences "0..*" --> "0..1" EconomicIndicator : inflation
     MarketReferences "0..*" --> "0..1" EconomicIndicator : risk_free_rate
+    MarketReferences "0..*" --> "0..1" EconomicIndicator : vix
+    MarketReferences "0..*" --> "0..1" EconomicIndicator : brent
+    MarketReferences "0..*" --> "0..1" PriceHistory : gold
+    MarketReferences "0..*" --> "0..1" PriceHistory : bund_etf
     MarketReferences "0..*" --> "1" FxRates : fx_rates
     MarketReferences "0..*" o-- "0..*" Notice : notices
     Portfolio ..> MarketReferences : analyze() recibe
-    Portfolio "0..*" --> "1" RebalanceRule : rebalance_rule
-    RebalanceRule "0..*" --> "1" CommissionSchedule : commissions
     note for PriceHistory "prices y los estadísticos devuelven copias.\nmean / std: niveles de precio.\nreturns_mean / returns_std: rentabilidades.\nSe conserva OHLCV y la procedencia."
-    note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración guardada por columna en _cache."
+    note for Portfolio "Fechas comunes, sin rellenar precios.\nValoración y backtest guardados por columna en _cache.\nCon units y sin rebalanceo, las acciones no cambian."
     note for MarketReferences "Los FX adicionales permiten comparar\nun benchmark de otra divisa."
+    note for RebalanceRule "Banda de desviación y coste máximo por orden.\nSolo se aplica con rebalanceo mensual."

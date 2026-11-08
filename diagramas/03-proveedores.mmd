@@ -42,6 +42,10 @@ classDiagram
         +reserve()
         +handle_rejection(status, reason)
     }
+    class curl_cffi {
+        <<library>>
+        +requests.get(url, params, timeout)
+    }
     class Session {
         <<requests>>
         +get(url, params, timeout, allow_redirects)
@@ -51,13 +55,14 @@ classDiagram
     AlphaVantageAPI "1" *-- "1" ApiClient : client creado
     AlphaVantageAPI "1" *-- "1" AlphaVantageQuota : quota creada
     FredAPI "1" *-- "1" ApiClient : client creado
+    EcbAPI ..> curl_cffi : descarga SDMX
     ApiClient "0..*" --> "1" Session : session propia o inyectada
     ApiClient ..> AlphaVantageQuota : callbacks inyectados por Alpha
     note for PriceProvider "FredAPI y EcbAPI devuelven series económicas.\nNo realizan este Protocol."
     note for EcbAPI "Sin clave. CSV del BCE con curl_cffi.\nNo utiliza ApiClient; comparte la caché."
     note for YahooFinanceAPI "yfinance.Ticker y funciones de caché.\nNo utiliza ApiClient."
     note for AlphaVantageQuota "SQLite independiente de la caché.\n25 reservas / ventana móvil de 24 h.\nHash de clave y marcas temporales."
-    note for ApiClient "Caché → ritmo → callback → HTTP.\nFRED no instala callbacks de cuota."
+    note for ApiClient "Caché → ritmo → callback → HTTP.\nFRED no instala callbacks de cuota.\nYahoo y BCE no utilizan ApiClient."
 %% Excepciones reales (no confundidas con el contrato):
 %% ValueError <|-- PortfolioError <|-- ConfigurationError
 %% RuntimeError <|-- ProviderError <|-- DataCoverageError
