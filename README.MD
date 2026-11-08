@@ -78,6 +78,7 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | Opción | Qué cambia |
 | --- | --- |
 | `--start 2025-01-01 --end 2026-01-01` | Período histórico: inicio incluido, fin excluido |
+| `--estimation-start 2015-01-01` | Inicio de los datos con los que Monte Carlo estima volatilidad y correlaciones; 5 años por defecto |
 | `--capital 10000` | Capital inicial hipotético; 10.000 por defecto con pesos |
 | `--currency EUR` | Convierte la cartera a euros |
 | `--rebalance none` | Mantiene las posiciones sin reajustarlas |
@@ -193,6 +194,7 @@ python src/main.py --assets cartera_ejemplo.txt --simulate --steps 126 --simulat
 | Option | What it changes |
 | --- | --- |
 | `--start 2025-01-01 --end 2026-01-01` | Historical interval: inclusive start, exclusive end |
+| `--estimation-start 2015-01-01` | Start of the data Monte Carlo uses to estimate volatility and correlations; 5 years by default |
 | `--capital 10000` | Initial hypothetical capital; 10,000 by default with weights |
 | `--currency EUR` | Converts the portfolio to euros |
 | `--rebalance none` | Keeps positions without rebalancing |

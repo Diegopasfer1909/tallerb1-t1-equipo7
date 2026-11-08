@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from functools import partial
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -473,7 +474,11 @@ class MainTests(unittest.TestCase):
                         for symbol in symbols
                     ]
                     yahoo = Mock(spec=YahooFinanceAPI)
-                    yahoo.get_prices.side_effect = histories
+                    by_symbol = {history.symbol: history for history in histories}
+                    # Con Yahoo se descargan también 5 años para estimar Monte Carlo.
+                    yahoo.get_prices.side_effect = partial(
+                        lambda prices, symbol, *a, **k: prices[symbol], by_symbol
+                    )
                     session = Mock(spec=requests.Session)
                     responses = []
                     for history in histories:
@@ -547,7 +552,7 @@ class MainTests(unittest.TestCase):
                     else:
                         yahoo_factory.assert_called_once()
                         alpha_factory.assert_not_called()
-                        self.assertEqual(yahoo.get_prices.call_count, len(symbols))
+                        self.assertEqual(yahoo.get_prices.call_count, 2 * len(symbols))
                         self.assertIn("Yahoo Finance (IBM)", report)
 
     def test_alpha_without_key_stops_before_downloading_and_suggests_yahoo(self):

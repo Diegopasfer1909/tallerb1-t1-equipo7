@@ -100,7 +100,7 @@ en inglés porque son los que reconoce el programa.
 | `--assets SÍMBOLO:PESO ...` | Pesos objetivo o un archivo `.txt` | Obligatorio si no usas `--shares` |
 | `--shares SÍMBOLO:CANTIDAD ...` | Acciones o participaciones, o un archivo `.txt` | Alternativa a `--assets`; solo Yahoo |
 | `--provider yahoo\|alpha_vantage` | Proveedor de precios de los activos | `yahoo` |
-| `--start AAAA-MM-DD` | Inicio incluido | Hoy menos 365 días con Yahoo; menos 120 con Alpha Vantage |
+| `--start AAAA-MM-DD` | Inicio incluido del análisis | Hoy menos 365 días con Yahoo; menos 120 con Alpha Vantage |
 | `--end AAAA-MM-DD` | Fin excluido | Hoy |
 | `--currency EUR` | Divisa de destino; descarga los cambios necesarios | Divisa común de los activos |
 | `--capital 10000` | Capital hipotético al comienzo del histórico; solo con pesos | `10000` |
@@ -136,8 +136,16 @@ Estas opciones requieren `--simulate` o un informe que incluya `simulation`.
 | `--equity-premium 0.045` | Prima anual sobre el tipo libre de riesgo, aplicada a la parte en renta variable | `0.045` (4,5 %) |
 | `--return 0.08` | Deriva anual del modelo para todos los activos | Tipo libre de riesgo + prima; sin tipo disponible, retorno histórico con aviso |
 | `--return IBM:0.08 MSFT:0.10` | Cambiar la deriva solo para los activos indicados | Los demás conservan el supuesto por defecto |
-| `--volatility 0.20` | Volatilidad anual para todos los activos; no negativa | Estimada con el histórico |
+| `--estimation-start AAAA-MM-DD` | Inicio de los precios con los que se estiman la volatilidad y las correlaciones, hasta `--end` | Con Yahoo, 5 años antes de `--end`, o `--start` si es anterior; con Alpha Vantage, `--start` |
+| `--volatility 0.20` | Volatilidad anual para todos los activos; no negativa | Estimada con los precios de `--estimation-start` |
 | `--volatility IBM:0.20 MSFT:0.30` | Cambiar la volatilidad por activo; conserva las correlaciones históricas | Los demás conservan la estimación histórica |
+
+El análisis y la simulación usan períodos distintos: el informe describe `--start` a `--end`
+(un año por defecto), mientras que la volatilidad y las correlaciones de Monte Carlo se
+estiman con 5 años, para que no dependan de un solo año tranquilo o agitado. La simulación
+sigue partiendo del valor actual de la cartera analizada, con sus pesos objetivo y su regla de
+rebalanceo. Si hay menos de 3 años de datos (por ejemplo, un activo reciente), la consola y el
+informe lo avisan.
 
 `0.08` representa un 8 % como parámetro del modelo. Al ser una deriva continua,
 `--return 0.08` implica un crecimiento esperado de aproximadamente `exp(0.08) - 1 = 8,33 %`
@@ -470,7 +478,7 @@ are the names the program accepts.
 | `--assets SYMBOL:WEIGHT ...` | Target weights or a `.txt` file | Required unless you use `--shares` |
 | `--shares SYMBOL:QUANTITY ...` | Share or fund-unit quantities, or a `.txt` file | Alternative to `--assets`; Yahoo only |
 | `--provider yahoo\|alpha_vantage` | Price provider for portfolio assets | `yahoo` |
-| `--start YYYY-MM-DD` | Inclusive start date | Today minus 365 days for Yahoo; minus 120 for Alpha Vantage |
+| `--start YYYY-MM-DD` | Inclusive start date of the analysis | Today minus 365 days for Yahoo; minus 120 for Alpha Vantage |
 | `--end YYYY-MM-DD` | Exclusive end date | Today |
 | `--currency EUR` | Target currency; downloads the necessary exchange rates | Assets' common currency |
 | `--capital 10000` | Hypothetical capital at the start of the history; weights only | `10000` |
@@ -506,8 +514,15 @@ These options require `--simulate` or a report containing `simulation`.
 | `--equity-premium 0.045` | Annual premium over the risk-free rate, applied to the equity portion | `0.045` (4.5%) |
 | `--return 0.08` | Annual model drift for every asset | Risk-free rate plus premium; historical return with a warning if no rate is available |
 | `--return IBM:0.08 MSFT:0.10` | Override drift for specified assets | Others keep their default assumption |
-| `--volatility 0.20` | Annual volatility for every asset; nonnegative | Estimated from history |
+| `--estimation-start YYYY-MM-DD` | Start of the prices used to estimate volatility and correlations, up to `--end` | With Yahoo, 5 years before `--end`, or `--start` if earlier; with Alpha Vantage, `--start` |
+| `--volatility 0.20` | Annual volatility for every asset; nonnegative | Estimated from the `--estimation-start` prices |
 | `--volatility IBM:0.20 MSFT:0.30` | Override volatility by asset; retains historical correlations | Others keep their historical estimate |
+
+Analysis and simulation use different periods: the report covers `--start` to `--end` (one
+year by default), while Monte Carlo estimates volatility and correlations from 5 years, so they
+do not depend on a single calm or turbulent year. The simulation still starts from the current
+value of the analysed portfolio, with its target weights and rebalancing rule. With less than 3
+years of data (for example, a recent asset), the terminal and the report show a warning.
 
 `0.08` represents 8% as a model parameter. Because this is continuous drift,
 `--return 0.08` implies approximately `exp(0.08) - 1 = 8.33%` expected growth over a year
