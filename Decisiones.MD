@@ -1,6 +1,6 @@
 # Registro de decisiones
 
-Este documento recoge las decisiones técnicas del proyecto en cuatro partes:
+Este documento recoge las decisiones técnicas del proyecto en cinco partes:
 
 - **Parte I (decisiones 1 a 32):** las tomadas en las sesiones de revisión y desarrollo entre
   el 30 de octubre y el 6 de noviembre de 2026.
@@ -14,6 +14,9 @@ Este documento recoge las decisiones técnicas del proyecto en cuatro partes:
   octubre al 6 de noviembre de 2026 y contrastadas con el código el 7 de noviembre. Lo que
   ya estaba registrado se amplía en su entrada original (1, 10, 18, 36, 40, 42, 45, 46, 50,
   51, 54 y 55).
+- **Parte V (decisión 73):** la sesión del 7 y 8 de noviembre de 2026 sobre Monte Carlo
+  (PR #26). Las alternativas que se descartaron en ella se añaden a sus entradas originales
+  (27, 40, 47, 50 y 67).
 
 Cada entrada explica qué se decidió, por qué y qué alternativas se descartaron, con un
 ejemplo sencillo para entenderla.
@@ -38,7 +41,7 @@ simplificarlo el 6 de noviembre de 2026. Se amplían las entradas existentes sin
 | Validación, fechas comunes y datos sin rellenar | 12–14, 36–38, 66–67 |
 | Calendarios, anualización y datos inmutables | [40](#contrato-temporal), 41–42 |
 | Precios ajustados y referencias por divisa | 43–46 |
-| Modelo y supuestos de Monte Carlo | [47](#modelo-monte-carlo), 59, 62, 64 |
+| Modelo y supuestos de Monte Carlo | [47](#modelo-monte-carlo), 59, 62, 64, 73 |
 | Caché, informe y controles de calidad | 15, 19–24, 51–55, 68, 71–72 |
 | Diagramas y documentación de arquitectura | 56, 69 |
 
@@ -174,6 +177,12 @@ o el usuario la eligió, y las propuestas descartadas se indican como tales.
 | 70 | Datos macro | API oficial de FRED con clave, no la descarga CSV | Vigente |
 | 71 | Instalación | Inicio rápido por sistema y publicación del informe con reintentos | Vigente |
 | 72 | Código limpio | Simplificar sin cambiar el comportamiento | Modificada en parte (ver 54) |
+
+**Parte V · Decisiones sobre Monte Carlo (7 y 8 de noviembre)**
+
+| # | Tema | Decisión | Estado |
+| --- | --- | --- | --- |
+| 73 | Simulación | Estimar volatilidad y correlaciones con 5 años, aparte del período del informe | Vigente |
 
 ---
 
@@ -692,6 +701,11 @@ el 1 % de su importe (`--max-order-cost 0.01`). Monte Carlo aplica la misma regl
 - Si una de las órdenes es de 200 €, el mínimo de 3 € supone un 1,5 % y esa orden se
   descarta.
 
+**Estado.** Vigente. Hasta la PR #26 el informe solo decía «rebalanceo mensual» en la
+cabecera y en Monte Carlo, aunque se aplicaba la banda. Ahora ambas indican «si algún peso se
+desvía más de 5,00 p. p. de su objetivo» (ver 73). Con `--rebalance-band 0` desaparece la
+condición.
+
 ### 28. Comparar con comprar y mantener
 
 **Decisión.** El informe añade la tabla «Coste del rebalanceo», con:
@@ -968,6 +982,18 @@ de la frecuencia de las observaciones y deben leerse con esa limitación.
   daban un 20,00 % anual y, quitando diez fechas intermedias, un 20,91 %. Por eso el
   crecimiento anualizado pasó a contar días naturales y no filas (commit `c10fe69`).
 
+**Alternativa descartada (5 de noviembre): anualizar con las sesiones reales.** Al cruzar
+bolsas con festivos distintos, las fechas comunes son menos de 252 al año, y se planteó
+anualizar con el número real de sesiones. Se midió el efecto:
+- España y EE. UU. pierden un 2,8 % de las fechas; EE. UU. y Japón, un 6,2 %. El movimiento
+  del día eliminado no se pierde: entra en la rentabilidad del día siguiente.
+- La volatilidad apenas cambia: 18,44 % frente a 18,45 % en un caso y 19,47 % frente a
+  19,52 % en otro.
+
+Se mantienen las fechas comunes y 252 períodos, la convención del mercado, para que las
+cifras sean comparables con las de cualquier otra fuente. Solo las carteras de criptomonedas,
+que cotizan todos los días, usan 365 (ver 41).
+
 ### 41. 365 períodos al año en carteras solo cripto
 
 **Origen.** Commit `c04ac05` (5 de noviembre) y `src/frequency.py`.
@@ -1149,6 +1175,28 @@ cambian las series descargadas.
 - Sobre el umbral: a un año, una cartera de bolsa pierde en cerca del 40 % de los
   escenarios. Avisar por encima del 30 % habría saltado casi siempre.
 
+**Distribución normal, no t de Student (8 de noviembre).** Se planteó usar una t de Student
+para recoger las colas gruesas de los rendimientos diarios. Se midió con una acción de
+μ = 6,5 % y σ = 20 %, 100.000 escenarios y la t escalada para tener la misma volatilidad:
+
+| Distribución | Percentil 5 a un año | CVaR 95 % a un año | Peor día simulado |
+| --- | --- | --- | --- |
+| Normal | −24,7 % | −30,5 % | −5,4 % |
+| t de Student (5 grados) | −24,6 % | −30,4 % | −13,8 % |
+| t de Student (3 grados) | −24,2 % | −30,7 % | −33,9 % |
+
+A un día la t sí cambia las colas, pero a un año el VaR y el CVaR son casi iguales: al sumar
+252 días independientes, el resultado vuelve a parecerse a una normal (teorema central del
+límite). Lo que hace las pérdidas reales peores, las rachas de volatilidad y las caídas
+conjuntas de los activos, no lo recoge ninguna de las dos si los días son independientes.
+Se mantiene la normal. Las alternativas que sí cambiarían el resultado, el *bootstrap*
+histórico por bloques o los escenarios de estrés, quedan como posibles mejoras.
+
+**Horizonte de un año por defecto.** Se mantiene: es el plazo habitual del VaR y en el que
+más se sostiene un modelo con μ, σ y correlaciones constantes. `--steps` lo cambia, en
+sesiones: 21 para un mes y 1.260 para cinco años. A más años, el resultado depende cada vez
+más del retorno supuesto.
+
 ### 48. Un mes o un año está completo con un cierre hasta 5 días antes de su final
 
 **Origen.** Commit `7888fe2` (constante `PERIOD_CLOSE_TOLERANCE_DAYS = 5`).
@@ -1213,6 +1261,15 @@ puntos. Los principales:
   Vantage se detiene gracias a `ProviderOption.split_adjusted`.
 - **Diagramas.** Las láminas 02 y 06 se actualizaron en un commit aparte, para que el
   manifiesto registre el commit exacto del código.
+
+**Alternativa descartada (8 de noviembre): indicar la cartera por importes.** Se planteó una
+tercera forma de definir la cartera, con el importe invertido en cada activo. Se descartó
+porque equivale a pesos más capital: «6.000 € en SAN y 4.000 € en ITX» es
+`--assets SAN.MC:0.6 ITX.MC:0.4 --capital 10000`. Añadiría opciones, validaciones y pruebas
+sin dar ningún resultado nuevo, y podría confundir el importe invertido al principio con
+el valor de hoy, que es lo que ya resuelve `--shares`. Tampoco se normalizan importes
+escritos en `--assets`: los pesos deben sumar 1 a propósito, para que un error al
+escribirlos no pase desapercibido (ver 13).
 
 ### 51. Caché de Yahoo por símbolo
 
@@ -1658,7 +1715,9 @@ del año con tres semanas de enero. Con un año de datos entran períodos tranqu
 agitados del mercado.
 
 **Estado.** Vigente. El aviso de historial corto se mide en días naturales (ver 40), para que
-un año con 249 sesiones comunes no cuente como «menos de un año».
+un año con 249 sesiones comunes no cuente como «menos de un año». Desde la PR #26 (8 de
+noviembre), este año solo es el período del informe: Monte Carlo estima la volatilidad y
+las correlaciones con 5 años (ver 73).
 
 ## Informe y documentación
 
@@ -1804,3 +1863,64 @@ análisis calcula y el informe presenta.
 **Estado.** Modificada en parte. Los límites de complejidad de Ruff (decisión 54) obligaron
 después a dividir `evaluate_risk` en funciones auxiliares, conservando el orden de sus
 avisos.
+
+---
+
+# Parte V · Decisiones sobre Monte Carlo (7 y 8 de noviembre)
+
+Estas entradas recogen la sesión de trabajo del 7 y 8 de noviembre de 2026 sobre la
+simulación. Se han contrastado con el código fusionado en `main` (PR #26).
+
+### 73. Estimar volatilidad y correlaciones con 5 años, aparte del período del informe
+
+**Origen.** Commit `3afe24e`, fusionado en la PR #26 (8 de noviembre);
+[`src/main.py`](src/main.py) (`_estimation_start` y `load_estimation_prices`) y
+`Portfolio.monte_carlo(estimation_prices=...)`.
+
+**Contexto.** El informe y Monte Carlo usaban el mismo período, un año por defecto con
+Yahoo (ver 67). Un año sirve para contar cómo le ha ido a la cartera, pero no para estimar
+su riesgo futuro: si ese año fue tranquilo, la volatilidad sale baja y el VaR parece seguro,
+sin que el usuario lo note porque no ha elegido el período.
+
+**Decisión.**
+- El informe mantiene su período: `--start` a `--end`, un año por defecto.
+- Monte Carlo estima la volatilidad y las correlaciones con los 5 años anteriores a `--end`
+  o, si `--start` es anterior, desde `--start`: nunca con menos datos que el informe.
+- `--estimation-start AAAA-MM-DD` elige el inicio a mano. Solo se admite si hay simulación.
+- Con Alpha Vantage se sigue usando el período del informe, porque su modo gratuito no da
+  5 años.
+- Solo cambian σ y las correlaciones. La simulación sigue partiendo del valor actual de la
+  cartera del informe, con sus pesos objetivo, comisiones y banda de rebalanceo. Con
+  `--shares --rebalance monthly`, el objetivo son los pesos de las acciones al inicio del
+  análisis, no al inicio de la estimación. El retorno no cambia: es el tipo libre de riesgo
+  más la prima (ver 47).
+- Si la estimación cubre menos de 3 años, por ejemplo por un activo reciente, la consola y
+  el informe avisan.
+- El informe muestra las fechas reales de la estimación y explica por qué la volatilidad
+  de la simulación puede no coincidir con la del análisis. También describe la banda de
+  rebalanceo en la cabecera y en Monte Carlo (ver 27).
+- Desde Python, `monte_carlo()` no descarga nada: usa el período de la cartera salvo que
+  se le pasen `estimation_prices`, con los mismos activos y la misma fecha final.
+
+**Por qué 5 años.** Es la referencia habitual de fondos y analistas, incluye con más
+probabilidad algún episodio de tensión y Yahoo los ofrece gratis. Un período más largo
+tendría más riesgo de mezclar mercados que ya no se parecen al actual.
+
+**Alternativas descartadas.**
+- **Un solo período de 5 años para todo.** Era más sencillo, pero cambiaba el informe por
+  defecto de «el último año» a «los últimos 5 años».
+- **Mantener un año y solo avisar.** El aviso no corregía el problema para quien no toca
+  las opciones.
+
+**Ejemplo real** (SAN.MC e Inditex al 50 %, valoración del 6 de noviembre de 2026):
+
+| Estimación | Volatilidad SAN | Volatilidad ITX | VaR 95 % a un año |
+| --- | --- | --- | --- |
+| Último año | 31,8 % | 25,5 % | 3.744 € |
+| 5 años | 30,9 % | 25,0 % | 3.597 € |
+
+Aquí la diferencia es pequeña porque el último año fue parecido a la media; lo importante
+es que el resultado ya no depende de eso. Con un año más tranquilo, la volatilidad de un
+año habría salido claramente por debajo.
+
+**Estado.** Vigente.
