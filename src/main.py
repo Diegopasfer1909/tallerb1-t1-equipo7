@@ -600,15 +600,18 @@ def run(config: RunConfig) -> None:
     # Con Adj Close las rentabilidades, la simulación y el informe incluyen los dividendos.
     price_column = portfolio.preferred_price_column
     print_portfolio(portfolio, price_column)
+    # El análisis va antes que la simulación: si faltan datos, se avisa sin simular en balde.
+    analysis = None
+    if config.report or config.plots_report:
+        analysis = portfolio.analyze(
+            load_run_references(config, portfolio.currency), price_column=price_column
+        )
     simulation = None
     if config.simulation is not None:
         simulation = run_simulation(config, portfolio, price_column, provider, fx_provider)
         print_simulation(simulation)
-    if not (config.report or config.plots_report):
+    if analysis is None:
         return
-    analysis = portfolio.analyze(
-        load_run_references(config, portfolio.currency), price_column=price_column
-    )
     if config.report:
         path = analysis.report(
             simulation,

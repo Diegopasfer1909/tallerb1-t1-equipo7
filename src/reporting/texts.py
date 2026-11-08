@@ -62,6 +62,19 @@ RETURN_MEASURES_NOTE = (
     "media es +0,5 %, pero el valor cae un 2,8 % (1,20 × 0,81 − 1). Por eso un Sharpe positivo "
     "puede convivir con una rentabilidad anualizada negativa."
 )
+SHORT_RETURN_MEASURES_NOTE = (
+    "**Por qué las medidas de rentabilidad pueden discrepar:** la rentabilidad del período es el "
+    "crecimiento compuesto entre la primera y la última fecha. Las ratios de Sharpe y Sortino "
+    "usan la media aritmética de las rentabilidades por período, que no es menor que el "
+    "crecimiento compuesto equivalente: con +20 % y −19 %, la media es +0,5 %, pero el valor cae "
+    "un 2,8 % (1,20 × 0,81 − 1). Por eso un Sharpe positivo puede convivir con una rentabilidad "
+    "negativa en el período."
+)
+SHORT_HISTORY_RETURNS = (
+    "**Menos de un año de historia:** las rentabilidades y sus diferencias se dan para el "
+    "período completo, sin anualizar, porque anualizar unas semanas o meses las magnificaría. "
+    "La volatilidad, las ratios de Sharpe y Sortino y el alfa siguen siendo anuales."
+)
 
 # Simulación
 SIMULATION_NOT_CONFIGURED = (
