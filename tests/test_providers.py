@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import requests
 
+from src import main as main_module
 from src.models.economic_indicator import EconomicIndicator
 from src.models.price_history import PriceHistory
 from src.providers import (
@@ -21,6 +22,7 @@ from src.providers import (
     YahooFinanceAPI,
 )
 from src.providers.base import ApiClient, has_api_key
+from src.providers.yahoo import HTTP_TIMEOUT, quiet_yfinance_warnings
 
 
 def session_for(*payloads):
@@ -277,7 +279,7 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(result.prices.index[0], pd.Timestamp("2026-10-22"))
         self.assertEqual(result.price_basis, "split_adjusted")
         ticker.return_value.history.assert_called_once_with(
-            start="2026-10-22", end="2026-10-24", auto_adjust=False
+            start="2026-10-22", end="2026-10-24", auto_adjust=False, timeout=HTTP_TIMEOUT
         )
 
     def test_yahoo_profile_failure_keeps_downloaded_prices(self):
@@ -338,7 +340,7 @@ class ProviderTests(unittest.TestCase):
             # Ampliar el intervalo descarga una vez lo guardado y lo nuevo.
             YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("IBM", "2025-12-01", "2026-01-15")
             ticker.return_value.history.assert_called_with(
-                start="2025-12-01", end="2026-02-01", auto_adjust=False
+                start="2025-12-01", end="2026-02-01", auto_adjust=False, timeout=HTTP_TIMEOUT
             )
             YahooFinanceAPI(cache_dir=Path(tmp)).get_prices("IBM", "2025-12-01", "2026-02-01")
             self.assertEqual(ticker.return_value.history.call_count, 3)
@@ -449,8 +451,10 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(session.get.call_count, 1)
 
     def test_yfinance_deprecation_noise_is_hidden_but_other_warnings_are_not(self):
-        # Con pandas 3, yfinance provoca avisos Pandas4Warning en cada descarga.
+        # Con pandas 3, yfinance provoca avisos Pandas4Warning en cada descarga. La consola
+        # configura el filtro una vez; las descargas no tocan los filtros, que son globales.
         def noisy_history(**kwargs):
+            filters_during_download.append(list(warnings.filters))
             warnings.warn_explicit(
                 "The inplace keyword is deprecated",
                 DeprecationWarning,
@@ -464,16 +468,32 @@ class ProviderTests(unittest.TestCase):
                 index=pd.DatetimeIndex(["2026-10-22", "2026-10-23"]),
             )
 
+        filters_during_download = []
+        for configured in (False, True):
+            with (
+                self.subTest(configured=configured),
+                patch("src.providers.yahoo.yf.Ticker") as ticker,
+                warnings.catch_warnings(record=True) as caught,
+            ):
+                warnings.simplefilter("always")
+                if configured:
+                    quiet_yfinance_warnings()
+                before = list(warnings.filters)
+                ticker.return_value.history.side_effect = noisy_history
+                YahooFinanceAPI(include_info=False).get_prices("IBM", "2026-10-22", "2026-10-24")
+                self.assertEqual(filters_during_download[-1], before)
+                self.assertEqual(list(warnings.filters), before)
+                messages = [str(warning.message) for warning in caught]
+                self.assertIn("aviso propio", messages)
+                hidden = "The inplace keyword is deprecated" not in messages
+                self.assertEqual(hidden, configured)
+
+    def test_cli_configures_the_yfinance_filter_before_downloading(self):
         with (
-            patch("src.providers.yahoo.yf.Ticker") as ticker,
-            warnings.catch_warnings(record=True) as caught,
+            patch("src.main.quiet_yfinance_warnings") as quiet,
+            patch("src.main.run", side_effect=lambda config: quiet.assert_called_once()),
         ):
-            warnings.simplefilter("always")
-            ticker.return_value.history.side_effect = noisy_history
-            YahooFinanceAPI(include_info=False).get_prices("IBM", "2026-10-22", "2026-10-24")
-        messages = [str(warning.message) for warning in caught]
-        self.assertNotIn("The inplace keyword is deprecated", messages)
-        self.assertIn("aviso propio", messages)
+            self.assertEqual(main_module.main(["--assets", "IBM:1"]), 0)
 
 
 if __name__ == "__main__":
