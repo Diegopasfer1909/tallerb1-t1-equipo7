@@ -9,7 +9,7 @@ El usuario trabaja con la consola (`src/main.py`) o con `Portfolio`. La capa de 
 ```mermaid
 flowchart TB
     usuario(["Usuario"])
-    main["main.py · --assets o --shares --report --simulate --benchmark..."]
+    main["main.py · --assets o --shares --rebalance --broker --report --simulate..."]
     loaders["portfolio_loader · market_loader"]
 
     subgraph providers["providers · se conectan a las APIs"]
@@ -22,10 +22,12 @@ flowchart TB
 
     subgraph models["models · DataClasses"]
         direction LR
-        portfolio["Portfolio<br/>.analyze() · .monte_carlo() · .report() · .plots_report()"]
+        portfolio["Portfolio<br/>.backtest() · .analyze() · .monte_carlo() · .report() · .plots_report()"]
         asset["Asset · PriceHistory · AssetProfile"]
         refs["MarketReferences · EconomicIndicator · FxRates"]
     end
+
+    commissions["commissions · RebalanceRule · rebalance_step()<br/>misma regla en el backtest y en Monte Carlo"]
 
     subgraph calc["analysis y simulation · solo pandas y numpy"]
         direction LR
@@ -50,6 +52,7 @@ flowchart TB
     yahoo & av & fred --> apis
     loaders -- "crean" --> asset & refs & portfolio
     portfolio --> an & sim
+    portfolio & sim -- "reajustes y comisiones" --> commissions
     an --> rep & plots
     sim --> rep & plots
     rep & plots --> exp
@@ -140,11 +143,47 @@ classDiagram
         +fx_rates: FxRates
         +initial_capital: float
         +rebalance: str
+        +units: Series
+        +rebalance_rule: RebalanceRule
+        +from_units(assets, units, rebalance, rebalance_rule)$ Portfolio
         +holdings(price_column) DataFrame
+        +backtest(price_column) BacktestResult
         +analyze(references) PortfolioAnalysis
         +monte_carlo(settings) SimulationResult
         +report(references, simulation, sections, detail) Path
         +plots_report(directory, show) dict
+    }
+    class CommissionSchedule {
+        <<dataclass>>
+        +name: str
+        +rate: float
+        +fixed: float
+        +minimum: float
+        +maximum: float
+    }
+    class RebalanceRule {
+        <<dataclass>>
+        +commissions: CommissionSchedule
+        +band: float
+        +max_order_cost: float
+        +is_free: bool
+    }
+    class BacktestResult {
+        <<dataclass>>
+        +positions: DataFrame
+        +trades: DataFrame
+        +rebalance_dates: DatetimeIndex
+        +skipped_orders: int
+        +total_commissions: float
+    }
+    class RebalanceCosts {
+        <<dataclass>>
+        +rule: RebalanceRule
+        +rebalances: int
+        +commissions: float
+        +final_value: float
+        +buy_and_hold_value: float
+        +advantage: float
     }
     class SimulationSettings {
         <<dataclass>>
@@ -162,6 +201,9 @@ classDiagram
         +paths: DataFrame
         +assumptions: DataFrame
         +confidence: float
+        +rebalance_rule: RebalanceRule
+        +commissions: Series
+        +mean_commissions: float
         +summary() Series
         +plot(show, max_paths) Figure
     }
@@ -191,6 +233,7 @@ classDiagram
         +market: MarketContext
         +risk_warnings: list
         +notices: list
+        +rebalance_costs: RebalanceCosts
         +markdown(sections, detail) str
         +report(simulation, sections, detail, directory) Path
         +plots_report(directory, show) dict
@@ -212,6 +255,12 @@ classDiagram
     Portfolio ..> PortfolioAnalysis : crea
     PortfolioAnalysis *-- MarketContext
     PortfolioAnalysis o-- RiskWarning
+    Portfolio o-- RebalanceRule
+    RebalanceRule o-- CommissionSchedule
+    Portfolio ..> BacktestResult : crea
+    PortfolioAnalysis *-- RebalanceCosts : solo con rebalanceo mensual
+    RebalanceCosts o-- RebalanceRule
+    SimulationResult o-- RebalanceRule
 ```
 
 ## 3. Flujo de una ejecución
@@ -227,11 +276,15 @@ sequenceDiagram
     participant A as analysis y simulation
     participant R as reporting
 
-    U->>M: --assets --currency --rebalance --capital --benchmark --report
-    M->>M: validar opciones antes de descargar
-    M->>L: load_portfolio(pesos, proveedor, fechas)
+    U->>M: --assets --currency --rebalance --broker --capital --benchmark --report
+    M->>M: validar opciones y crear la RebalanceRule antes de descargar
+    M->>L: load_portfolio(pesos, proveedor, fechas, rebalance_rule)
     L->>Y: precios, fichas y tipos de cambio
     L-->>M: Portfolio
+    opt rebalanceo mensual con tarifa
+        M->>P: backtest(price_column)
+        P-->>M: reajustes, órdenes y comisiones pagadas
+    end
     M->>L: load_risk_free_rate(divisa, fin)
     L->>F: último tipo libre de riesgo
     M->>P: monte_carlo(settings, price_column)

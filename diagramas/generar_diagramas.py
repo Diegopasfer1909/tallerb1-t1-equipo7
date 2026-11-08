@@ -456,10 +456,22 @@ def architecture():
         AMBER,
         "PRESENTACIÓN Y SALIDA",
     )
+    d.card(
+        1100,
+        810,
+        380,
+        100,
+        "commissions",
+        "RebalanceRule · rebalance_step()",
+        SLATE,
+        size=20,
+    )
+    d.line([(1160, 770), (1160, 810)], color=SLATE[1])
+    d.line([(1420, 770), (1420, 810)], color=SLATE[1])
     d.line([(330, 770), (330, 920)], color=BLUE[1])
     d.label(350, 829, "series normalizadas", 20)
     d.line([(960, 770), (960, 920)], color=TEAL[1])
-    d.label(980, 829, "histórico", 20)
+    d.label(980, 870, "histórico", 20)
     d.line([(1590, 770), (1590, 920)], color=VIOLET[1])
     d.label(1610, 829, "escenarios", 20)
     d.line([(580, 1030), (710, 1030)], color=BLUE[1])
@@ -504,6 +516,14 @@ def domain():
         "+ from_units() / close_prices()\n+ holdings() / backtest()\n"
         "+ analyze()\n+ monte_carlo(estimation_prices)",
     )
+    rule = d.cls(
+        740,
+        700,
+        400,
+        "RebalanceRule",
+        "commissions: CommissionSchedule\nband; max_order_cost?",
+        "+ is_free",
+    )
     fx = d.cls(
         1600, 270, 460, "FxRates", "rates: tuple[ExchangeRate, ...]", "+ convert() / combine()"
     )
@@ -536,7 +556,9 @@ def domain():
         1020,
         500,
         "MarketReferences",
-        "benchmark: PriceHistory?\ninflation: EconomicIndicator?\nrisk_free_rate: EconomicIndicator?\nfx_rates: FxRates\nnotices: tuple[Notice, ...]",
+        "benchmark: PriceHistory?\ninflation: EconomicIndicator?\nrisk_free_rate: EconomicIndicator?\n"
+        "vix, brent: EconomicIndicator?\ngold, bund_etf: PriceHistory?\n"
+        "fx_rates: FxRates\nnotices: tuple[Notice, ...]",
         "—",
     )
     d.cls(
@@ -559,8 +581,10 @@ def domain():
     d.label(1850, 590, "rates  0..*", 21)
     d.uml([(1830, er["y"] + er["height"]), (1830, 1170)], color=TEAL[1])
     d.label(1850, 1035, "indicator  1", 21)
-    d.uml([(1070, pf["y"] + pf["height"]), (1070, 1020)], "dependency")
-    d.label(1090, 800, "parámetro de\nanalyze()", 21)
+    d.uml([(940, pf["y"] + pf["height"]), (940, rule["y"])], color=TEAL[1])
+    d.label(960, 664, "rebalance_rule  1", 21)
+    d.uml([(1240, pf["y"] + pf["height"]), (1240, 1020)], "dependency")
+    d.label(1260, 800, "parámetro de\nanalyze()", 21)
     d.uml([(820, 1110), (680, 1110), (680, 860), (550, 860)], color=BLUE[1])
     d.label(690, 940, "benchmark\n0..1", 21)
     d.uml(
@@ -574,7 +598,7 @@ def domain():
     d.label(1460, 1282, "risk_free_rate  0..1", 20, center=True)
     d.footer(
         "Rombo hueco: agregación compartida. Discontinua: dependencia de uso. «frozen» no implica inmutabilidad profunda.\n"
-        "RebalanceRule (comisiones, banda, coste máximo por orden) está en el módulo transversal commissions."
+        "RebalanceRule vive en el módulo transversal commissions. vix, brent, gold y bund_etf: asociaciones 0..1 listadas como atributos."
     )
     return d
 
@@ -582,8 +606,8 @@ def domain():
 def providers():
     d = Diagram(
         "03-proveedores",
-        2040,
-        1740,
+        2580,
+        1520,
         "03",
         "Contratos y proveedores",
         "UML · realización estructural del protocolo y objetos creados por los adaptadores",
@@ -640,7 +664,29 @@ def providers():
     d.uml([(1090, 345), (1500, 345)], "dependency", TEAL[1])
     d.label(1295, 308, "retorna", 21, center=True)
     d.label(640, 502, "conformidad estructural · sin herencia nominal", 21, BLUE[1])
-    d.card(1480, 475, 480, 76, "FRED y BCE: otro contrato", "", SLATE)
+    d.card(1480, 475, 1020, 76, "FRED y BCE: otro contrato (EconomicIndicator)", "", SLATE)
+    ecb = d.cls(
+        2060,
+        610,
+        440,
+        "EcbAPI",
+        "session; cache_dir; cache_ttl",
+        "+ get_series(): EconomicIndicator",
+        BLUE,
+        "adaptador económico",
+    )
+    d.card(
+        2060,
+        1060,
+        440,
+        185,
+        "curl_cffi.requests",
+        "Descarga SDMX del BCE\nCaché propia del adaptador",
+        BLUE,
+        "BIBLIOTECA EXTERNA",
+        22,
+    )
+    d.uml([(2280, ecb["y"] + ecb["height"]), (2280, 1060)], "dependency", BLUE[1])
     d.card(
         80,
         1060,
@@ -683,21 +729,11 @@ def providers():
     d.label(1260, 922, "client  1", 20)
     d.uml([(1740, fred["y"] + fred["height"]), (1740, 1060)], "compose", BLUE[1])
     d.label(1760, 956, "client  1", 20)
-    d.cls(
-        1350,
-        1340,
-        610,
-        "EcbAPI",
-        "session: curl_cffi (inyectable)\ncache_dir; cache_ttl",
-        "+ get_series(): EconomicIndicator",
-        BLUE,
-        "adaptador económico · sin clave",
-    )
     d.text(
         82,
-        1370,
-        "ApiClient usa callbacks genéricos; Alpha conecta\nreserve() y handle_rejection().\n\n"
-        "Yahoo y el BCE no utilizan ApiClient: descargan\ncon su biblioteca y comparten las funciones de caché.",
+        1345,
+        "ApiClient usa callbacks genéricos; Alpha conecta reserve() y handle_rejection().\n"
+        "Yahoo y el BCE no utilizan ApiClient: descargan con su biblioteca y comparten las funciones de caché.",
         23,
         MUTED,
     )
@@ -711,7 +747,7 @@ def simulation():
     d = Diagram(
         "04-simulacion",
         1920,
-        1480,
+        1520,
         "04",
         "Una abstracción común para simular",
         "UML de contratos · Asset y Portfolio adaptan su estado al mismo motor funcional",
@@ -743,18 +779,18 @@ def simulation():
         260,
         500,
         "SimulationSettings",
-        "steps?; simulations; seed\nconfidence\nexpected_returns?; volatilities?\n"
-        "equity_premium; risk_free_rate?",
+        "steps? (por defecto, un año)\nsimulations; seed; confidence\n"
+        "expected_returns?; volatilities?\nequity_premium; risk_free_rate?",
         "validación en construcción",
         VIOLET,
     )
-    d.cls(
+    mc = d.cls(
         700,
         850,
         490,
         "monte_carlo",
         "σ y correlaciones de prices\nμ: tipo libre + prima o supuesto\ntrayectorias GBM + rebalanceo",
-        "+ simulate(inputs, settings,\n    periods_per_year)",
+        "+ simulate(inputs, settings,\n    periods_per_year=None)",
         VIOLET,
         "módulo · función",
     )
@@ -763,12 +799,25 @@ def simulation():
         850,
         500,
         "SimulationResult",
-        "paths; assumptions; correlation\ncurrency; confidence; commissions\n"
-        "estimation_start / end",
-        "+ summary()\n+ plot()",
+        "paths; assumptions; correlation\ncurrency; confidence\n"
+        "rebalance_rule?; commissions?\nestimation_start / end",
+        "+ summary() / plot()\n+ mean_commissions",
         VIOLET,
         "dataclass",
     )
+    d.card(
+        700,
+        1175,
+        490,
+        150,
+        "commissions",
+        "rebalance_step(): reajuste + comisión\nla misma regla que el backtest",
+        SLATE,
+        "MÓDULO COMPARTIDO",
+        21,
+    )
+    d.uml([(945, mc["y"] + mc["height"]), (945, 1175)], "dependency", SLATE[1])
+    d.label(965, 1135, "aplica en cada reajuste", 20)
     d.uml([(530, 370), (700, 370)], "dependency", TEAL[1])
     d.label(615, 331, "crea", 20, center=True)
     d.uml([(530, 720), (615, 720), (615, 560), (700, 560)], "dependency", TEAL[1])
@@ -801,12 +850,14 @@ def simulation():
         22,
     )
     d.text(
-        704,
-        1215,
-        "estimation_prices: σ y correlaciones de otro período (5 años en la consola);\n"
-        "valor inicial, pesos objetivo y RebalanceRule siguen siendo los de la cartera.\n"
-        "Rebalanceo con commissions.rebalance_step(); 252 o 365 períodos con frequency.\n"
-        "SimulationResult.plot() delega en reporting mediante un import diferido.",
+        1344,
+        1175,
+        "estimation_prices: σ y correlaciones de otro\n"
+        "período (5 años en la consola); valor inicial,\n"
+        "pesos y RebalanceRule son los de la cartera.\n"
+        "Las comisiones pagadas ya están descontadas\n"
+        "de paths. 252 o 365 períodos con frequency.\n"
+        "plot() delega en reporting mediante un\nimport diferido.",
         22,
         MUTED,
     )
@@ -923,9 +974,10 @@ def activity():
         640,
         500,
         520,
-        160,
+        185,
         "Cargar y mostrar cartera",
-        "Pesos o número de acciones\nproveedor → activos → FX → Portfolio\nImprimir composición",
+        "Pesos o número de acciones\nproveedor → activos → FX → Portfolio\n"
+        "Imprimir composición\nComisiones del rebalanceo, si hay tarifa",
         BLUE,
         size=22,
     )
@@ -934,9 +986,9 @@ def activity():
         1300,
         290,
         510,
-        140,
+        185,
         "Argumentos inválidos",
-        "argparse → salida 2",
+        "Opción inválida o incompatible\n(comisiones sin --rebalance monthly)\nargparse → salida 2",
         RED,
         "ERROR DE ENTRADA",
         22,
@@ -954,14 +1006,15 @@ def activity():
         22,
     )
     d.decision(cx, 765, "¿simular?", 220, 110)
-    d.line([(cx, 660), (cx, 710)])
+    d.line([(cx, 685), (cx, 710)])
     d.card(
         80,
-        690,
+        675,
         430,
-        180,
+        205,
         "Monte Carlo",
-        "Precios de estimación (5 años)\n→ simulate() → resumen\nAviso si hay menos de 3 años",
+        "Tipo libre de riesgo (FRED / BCE)\nPrecios de estimación (5 años)\n"
+        "→ simulate() → resumen\nAviso si hay menos de 3 años",
         VIOLET,
         size=22,
     )
@@ -969,7 +1022,7 @@ def activity():
     d.label(640, 725, "sí", 21, center=True)
     d.line([(cx, 820), (cx, 895)], arrow=False)
     d.label(920, 846, "no", 21)
-    d.line([(295, 870), (295, 895), (cx, 895)], arrow=False, color=VIOLET[1])
+    d.line([(295, 880), (295, 895), (cx, 895)], arrow=False, color=VIOLET[1])
     d.decision(cx, 895, "", 32, 32)
     d.card(
         1300,
@@ -1149,8 +1202,9 @@ def source_inventory():
         "src/providers/base.py": {"PriceProvider", "ApiClient"},
         "src/simulation/monte_carlo.py": {"SimulationInputs", "simulate"},
         "src/providers/ecb.py": {"EcbAPI"},
-        "src/commissions.py": {"RebalanceRule", "rebalance_step"},
         "src/frequency.py": {"periods_per_year"},
+        "src/commissions.py": {"CommissionSchedule", "RebalanceRule", "rebalance_step"},
+        "src/models/backtest.py": {"BacktestResult", "backtest_with_costs"},
     }
     for path, names in required.items():
         assert names <= set(symbols[path]), (path, names)
