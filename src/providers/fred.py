@@ -10,9 +10,10 @@ import math
 
 import pandas as pd
 
+from ..errors import ProviderError
 from ..models.economic_indicator import EconomicIndicator
 from ..validation import date_range
-from .base import ApiClient, ProviderError
+from .base import ApiClient
 
 URL = "https://api.stlouisfed.org/fred"
 API_KEY_ENV = "FRED_API_KEY"

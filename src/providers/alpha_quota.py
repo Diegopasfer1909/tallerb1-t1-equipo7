@@ -8,7 +8,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .base import ProviderError
+from ..errors import ProviderError
 
 DAILY_LIMIT = 25
 WINDOW_SECONDS = 24 * 60 * 60

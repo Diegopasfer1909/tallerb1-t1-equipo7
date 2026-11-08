@@ -2,7 +2,7 @@
 
 Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`. [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
+**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01, 03 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -37,9 +37,9 @@ Las flechas se interpretan según la vista: **responsabilidad/interacción** en 
 
 Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las importaciones. `main` compone la ejecución; los cargadores obtienen y transforman datos, incluidos los precios de 5 años con los que Monte Carlo estima la volatilidad y las correlaciones; los adaptadores encapsulan los servicios externos (Yahoo, Alpha Vantage, FRED y BCE). Los módulos transversales `commissions` y `frequency` aplican la misma regla de rebalanceo y el mismo calendario (252 o 365) en el histórico y en la simulación. Los modelos y los cálculos trabajan con contratos normalizados. `reporting` presenta resultados y escribe Markdown e imágenes, por lo que sí realiza E/S local.
 
-El límite `PriceProvider` aplica inversión de dependencias en la carga de precios. La selección concreta sigue siendo responsabilidad de la composición de la aplicación: la CLI y los cargadores también conocen adaptadores. Esta separación se inspira en puertos y adaptadores; no presupone una arquitectura hexagonal estricta en todo el repositorio.
+La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el núcleo los contratos `PriceProvider`, `IndicatorProvider` (FRED y BCE) y `ReferenceSources`, y `errors` el `ProviderError` común. Los cargadores solo reciben esos puertos; `main` es el único módulo que elige y crea adaptadores (registro `PROVIDERS` y `reference_sources()`). El resto no es una hexagonal estricta: `Portfolio.report()`, `.plots_report()` y `SimulationResult.plot()` son fachadas que el enunciado pide en el dominio y que llegan a `reporting` ([decisión 74](Decisiones.MD)).
 
-**Fuentes:** [main.py](src/main.py), [portfolio_loader.py](src/portfolio_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
+**Fuentes:** [main.py](src/main.py), [ports.py](src/ports.py), [portfolio_loader.py](src/portfolio_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
 
 ## 02 · Modelos de dominio
 
@@ -61,13 +61,13 @@ El límite `PriceProvider` aplica inversión de dependencias en la carga de prec
 
 [PNG](diagramas/03-proveedores.png) · [Editar en Excalidraw](diagramas/03-proveedores.excalidraw) · [Fuente Mermaid](diagramas/03-proveedores.mmd)
 
-Yahoo y Alpha satisfacen estructuralmente `PriceProvider.get_prices()`: no heredan nominalmente del protocolo y `get_info()` no forma parte de ese contrato. FRED y el BCE (`EcbAPI`, que no necesita clave) devuelven `EconomicIndicator`, por lo que se representan fuera de esa realización. Los adaptadores traducen formatos externos al dominio común: ese es el patrón **Adapter** que justifica intercambiarlos.
+Yahoo y Alpha satisfacen estructuralmente `PriceProvider.get_prices()`: no heredan nominalmente del protocolo y `get_info()` no forma parte de ese contrato. FRED y el BCE (`EcbAPI`, que no necesita clave) cumplen otro puerto, `IndicatorProvider.get_series()`, que devuelve `EconomicIndicator`. Ambos protocolos viven en `src/ports.py`, en el núcleo: los adaptadores dependen de ellos y no al revés. Los adaptadores traducen formatos externos al dominio común: ese es el patrón **Adapter** que justifica intercambiarlos.
 
 Alpha y FRED crean su propio `ApiClient`; Yahoo utiliza `yfinance` y `EcbAPI` utiliza `curl_cffi`: ambos comparten utilidades de caché, pero no ese cliente HTTP. Alpha crea además `AlphaVantageQuota` e inyecta sus métodos como callbacks genéricos del cliente. `requests.Session` puede suministrarse desde fuera, así que su relación es asociación, no composición exclusiva. La cuota persistente y la caché tienen cometidos distintos.
 
 Cada adaptador puede declarar con el atributo opcional `max_download_workers` cuántas descargas simultáneas admite; no forma parte de `PriceProvider`. Yahoo declara 4: cada entrada de caché tiene un bloqueo propio dentro del proceso que cubre leer, ampliar el intervalo, descargar y escribir, los temporales son únicos por escritura y los filtros de avisos se configuran una sola vez desde la CLI. Alpha declara 1 y conserva su cuota, sus pausas y su `ApiClient` sin cambios; un proveedor que no declara nada también descarga de uno en uno.
 
-**Fuentes:** [providers/base.py](src/providers/base.py), [yahoo.py](src/providers/yahoo.py), [alpha_vantage.py](src/providers/alpha_vantage.py), [fred.py](src/providers/fred.py), [ecb.py](src/providers/ecb.py), [alpha_quota.py](src/providers/alpha_quota.py).
+**Fuentes:** [ports.py](src/ports.py), [providers/base.py](src/providers/base.py), [yahoo.py](src/providers/yahoo.py), [alpha_vantage.py](src/providers/alpha_vantage.py), [fred.py](src/providers/fred.py), [ecb.py](src/providers/ecb.py), [alpha_quota.py](src/providers/alpha_quota.py).
 
 ## 04 · Contrato de simulación
 
@@ -91,7 +91,7 @@ El módulo transversal `commissions` contiene `CommissionSchedule`, las tarifas 
 
 [PNG](diagramas/05-dependencias.png) · [Editar en Excalidraw](diagramas/05-dependencias.excalidraw) · [Fuente Mermaid](diagramas/05-dependencias.mmd)
 
-Una flecha va del **importador al importado**. La lámina selecciona las importaciones principales entre paquetes y cuatro aristas internas diferidas; omite las relaciones dentro de cada paquete, las bibliotecas externas y las dependencias transversales recogidas abajo. `reporting` importa al cargarse funciones de `analysis` (`annualized_growth`, `evaluate_simulation`) y de `simulation` (`MODEL_RETURN`, `SimulationSettings`), además de la etiqueta `AAA_3M_YIELD` de `providers.ecb`; ninguna de ellas crea un ciclo, porque las importaciones inversas son diferidas. No es el grafo completo de carga de Python ni una afirmación de ausencia total de ciclos.
+Una flecha va del **importador al importado**. La lámina selecciona las importaciones principales entre paquetes y cuatro aristas internas diferidas; omite las relaciones dentro de cada paquete, las bibliotecas externas y las dependencias transversales recogidas abajo. `reporting` importa al cargarse funciones de `analysis` (`annualized_growth`, `evaluate_simulation`) y de `simulation` (`MODEL_RETURN`, `SimulationSettings`); ninguna de ellas crea un ciclo, porque las importaciones inversas son diferidas. No es el grafo completo de carga de Python ni una afirmación de ausencia total de ciclos.
 
 | Arista diferida | Lugar y propósito |
 | --- | --- |
@@ -109,6 +109,7 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | `validation` | `main`, `portfolio_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `commissions`. |
 | `commissions` | `main`, `portfolio_loader`, `models`, `simulation`, `analysis`, `reporting`. |
 | `frequency` | `simulation`, `analysis`. |
+| `ports` | `main`, `portfolio_loader`, `market_loader`, `providers`. |
 
 | Importaciones bajo `TYPE_CHECKING` entre paquetes | Tipos utilizados |
 | --- | --- |
@@ -117,7 +118,7 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | `reporting → analysis` | `PortfolioAnalysis` en `export`, `plots` y `report`. |
 | `reporting → simulation` | `SimulationResult` en `export`, `plots` y `report`. |
 
-Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. Además, `reporting` importa al cargar `analysis` (métricas y avisos), `simulation` (supuestos de Monte Carlo) y `providers` (identificador de la serie del BCE); la lámina 05 los dibuja como líneas continuas ámbar. El grafo de imports de módulo sigue siendo acíclico. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
+Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. Además, `reporting` importa al cargar `analysis` (métricas y avisos) y `simulation` (supuestos de Monte Carlo); la lámina 05 los dibuja como líneas continuas ámbar. Solo `main` importa `providers`: los cargadores importan `ports`. El grafo de imports de módulo sigue siendo acíclico. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
 
 **Fuentes:** [portfolio.py](src/models/portfolio.py), [analysis/result.py](src/analysis/result.py), [analysis/portfolio_analysis.py](src/analysis/portfolio_analysis.py), [simulation/result.py](src/simulation/result.py), [reporting](src/reporting), [main.py](src/main.py).
 

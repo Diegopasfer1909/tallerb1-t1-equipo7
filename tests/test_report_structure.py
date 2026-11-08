@@ -16,10 +16,10 @@ from fixtures import history, indicator
 from src.analysis import WarningThresholds
 from src.analysis.metrics import annualized_growth, jensen_alpha
 from src.analysis.warnings import evaluate_simulation
-from src.errors import ConfigurationError
 from src.main import main, parse_arguments
 from src.market_loader import load_market_references, load_references, load_risk_free_rate
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences, Portfolio
+from src.ports import ReferenceSources
 from src.providers import AAA_3M_YIELD, EcbAPI, ProviderError, YahooFinanceAPI, is_ecb_series
 from src.reporting.formatting import format_number
 from src.reporting.plots import CHARTS, plot_report
@@ -500,8 +500,9 @@ class RiskFreeRateTests(unittest.TestCase):
         dates = pd.DatetimeIndex(["2026-10-28", "2026-10-29", "2026-10-30"])
         fred.get_series.return_value = indicator([4.0, 4.2, np.nan], dates, name="DGS3MO")
         ecb.get_series.return_value = indicator([2.5, 2.6, 2.56], dates, name=AAA_3M_YIELD)
-        usd = load_risk_free_rate("USD", "2026-10-31", fred_provider=fred, ecb_provider=ecb)
-        eur = load_risk_free_rate("EUR", "2026-10-31", fred_provider=fred, ecb_provider=ecb)
+        sources = ReferenceSources(Mock(), fred=fred, ecb=ecb)
+        usd = load_risk_free_rate("USD", "2026-10-31", sources)
+        eur = load_risk_free_rate("EUR", "2026-10-31", sources)
         self.assertAlmostEqual(usd, 0.042)
         self.assertAlmostEqual(eur, 0.0256)
         self.assertEqual(ecb.get_series.call_args.args[0], AAA_3M_YIELD)
@@ -509,10 +510,11 @@ class RiskFreeRateTests(unittest.TestCase):
     def test_no_series_or_a_failure_mean_no_rate(self):
         fred = Mock()
         fred.get_series.side_effect = ProviderError("sin red")
-        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", fred_provider=fred))
-        self.assertIsNone(load_risk_free_rate("GBP", "2026-10-31"))
-        with patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Falta")):
-            self.assertIsNone(load_risk_free_rate("USD", "2026-10-31"))
+        failing = ReferenceSources(Mock(), fred=fred)
+        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", failing))
+        self.assertIsNone(load_risk_free_rate("GBP", "2026-10-31", failing))
+        # Sin clave de FRED, main no crea su adaptador.
+        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", ReferenceSources(Mock())))
 
     def test_report_from_python_takes_the_rate_from_the_references(self):
         item = portfolio()
@@ -630,8 +632,7 @@ class EcbTests(unittest.TestCase):
         references = load_market_references(
             "2026-01-05",
             "2026-02-01",
-            fred_provider=fred,
-            ecb_provider=ecb,
+            ReferenceSources(Mock(), fred=fred, ecb=ecb),
             risk_free_series=AAA_3M_YIELD,
         )
         self.assertIs(references.risk_free_rate, rate)
@@ -640,14 +641,13 @@ class EcbTests(unittest.TestCase):
 
 class MarketLoaderTests(unittest.TestCase):
     def test_failed_context_downloads_are_notices_not_errors(self):
-        with (
-            patch("src.market_loader.load_market_references", return_value=MarketReferences()),
-            patch("src.market_loader.FredAPI") as fred,
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-        ):
-            fred.return_value.get_series.side_effect = ProviderError("sin red")
-            yahoo.return_value.get_prices.side_effect = ProviderError("sin red")
-            references = load_references("EUR", "2026-01-01", "2026-02-01")
+        fred, yahoo = Mock(), Mock()
+        fred.get_series.side_effect = ProviderError("sin red")
+        yahoo.get_prices.side_effect = ProviderError("sin red")
+        with patch("src.market_loader.load_market_references", return_value=MarketReferences()):
+            references = load_references(
+                "EUR", "2026-01-01", "2026-02-01", ReferenceSources(yahoo, fred=fred)
+            )
         self.assertIsNone(references.vix)
         messages = " ".join(notice.message for notice in references.notices)
         for name in ("VIX", "Brent", "Oro", "ETF de Bunds"):
@@ -656,14 +656,13 @@ class MarketLoaderTests(unittest.TestCase):
     def test_without_a_fred_key_the_ecb_and_yahoo_series_are_still_loaded(self):
         ecb_rate = indicator([2.5], pd.DatetimeIndex(["2026-01-05"]), name=AAA_3M_YIELD)
         gold = history("GC=F", [100, 101, 102], "USD", dates=DATES[:3])
-        with (
-            patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Falta")),
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-            patch("src.market_loader.EcbAPI") as ecb,
-        ):
-            yahoo.return_value.get_prices.return_value = gold
-            ecb.return_value.get_series.return_value = ecb_rate
-            references = load_references("EUR", "2026-01-01", "2026-02-01")
+        yahoo, ecb = Mock(), Mock()
+        yahoo.get_prices.return_value = gold
+        ecb.get_series.return_value = ecb_rate
+        # Sin clave, main no crea el adaptador de FRED: fred queda en None.
+        references = load_references(
+            "EUR", "2026-01-01", "2026-02-01", ReferenceSources(yahoo, ecb=ecb)
+        )
         self.assertIs(references.risk_free_rate, ecb_rate)
         self.assertIsNotNone(references.gold)
         self.assertIsNone(references.vix)

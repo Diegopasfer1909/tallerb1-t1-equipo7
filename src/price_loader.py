@@ -10,9 +10,9 @@ from collections.abc import Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from itertools import islice
 
-from .errors import PortfolioError
+from .errors import PortfolioError, ProviderError
 from .models import PriceHistory
-from .providers import PriceProvider, ProviderError
+from .ports import PriceProvider
 from .validation import date_range, validate_symbols
 
 # Límite de descargas simultáneas por lote en esta versión.
