@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-08T18:15:12.786774+00:00",
-  "head": "78bf826102c7bfcb59f766d624b5896716cff133",
+  "generated_at": "2026-11-08T19:23:46.277816+00:00",
+  "head": "427fbf3b28d892ff7d1864ffecdfe72ae01ccf52",
   "basis": "HEAD; src matches the commit",
   "source_sha256": {
     "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
@@ -11,11 +11,11 @@
     "src/analysis/result.py": "1b3e1e024246fd33ddb180af24f607a1cc7557e9d55735a6ec6e5724c4a6427d",
     "src/analysis/warnings.py": "c1fc66dcf0f2c3f91df7c38a8a99f4e3e69c2d3dcbdff82873a82e34af9f9454",
     "src/commissions.py": "12e6ae3edb94d631a8afcbf037766b0fd80deed8e80647be2c5f13a3c4c7338e",
-    "src/constants.py": "4ec7babb66ee60db2f16629e01a5722a41634f368b6a8f4bd215c26faeeef82d",
-    "src/errors.py": "95a70c46d61c39d6bf0e19ab525259cfa9ae891f534a46f208a664262ffdaefa",
+    "src/constants.py": "0f6e7e00e6ba44623fd351f1a1fc750450f6f95e4002ad241931b8da0a069991",
+    "src/errors.py": "f89b8e2403dd5c55332e460108f967c8f931630edc9ec84c2e566e5dd3c6001e",
     "src/frequency.py": "7d301b4882ce7188d8f48f7a7332909b5903bb80a365dd034924e599d1e09330",
-    "src/main.py": "febe9a1180b6800e9bcc5f3c9563d1472b035b69c53b20ee78627f0655564b21",
-    "src/market_loader.py": "3e3c3b8145471981073d36edeb685d3c5658d799d4db3e83637237600a735c5d",
+    "src/main.py": "445c4cebe692ad44b9cc997f7c50820cc66067142e406556cc4e265ac9b23d82",
+    "src/market_loader.py": "2c7b4720ec04f52bc6605623c32a586b4d7ff46faf9c8a4855d51cf5d4baffdb",
     "src/models/__init__.py": "5048416cf8506225147ad352ad9a9d143421066a2de0e418f4c7581ef8d6166d",
     "src/models/asset.py": "318101b73e758929e3b25f2c75acb72a522b7394a794ecc59d8e11870307db31",
     "src/models/asset_profile.py": "e9ff9219ac87ede6ceb7d778f8e1ddec0466351735b0e43b31dbf6027af8774e",
@@ -27,18 +27,19 @@
     "src/models/price_history.py": "84515f9ed3bc9b6c14ddb34a6d35bb24a6a139049f1f69bbae7cf57707d938ef",
     "src/models/references.py": "b263fcb0069cb93cbb23bbf7d449d2c81b46554f880a9bdcc39e90b0c3d187cc",
     "src/models/snapshot.py": "0289d6d21bd8b12c9b0704ad807dfd52486c58ffda7874a2b40e89df4057f97c",
-    "src/portfolio_loader.py": "b4f3b8074f60e99723e22aeb7ed715d4f16154458af8206b98dae425f0d980e5",
-    "src/providers/__init__.py": "b87c95c789c967052f2c5ab6cb9957b8ec04240e4c7a7c8a7fac7e07e149fdd3",
-    "src/providers/alpha_quota.py": "9396eefa0494ad015af7fb5254f459c0aef94df9be71d280b1be65917924247f",
-    "src/providers/alpha_vantage.py": "38a42809b90b72dea7739b27c9af7b8befef3fc212674c47d500b40fcc7788a0",
-    "src/providers/base.py": "a97b6e1c9e764f50448ffd114eb98cd939e980c2a99aaf1971f7f3ed2c1f6f40",
-    "src/providers/ecb.py": "e0d61f1e0806b989991b917f5e6dd66f64e9dd0610ccbd3717220e2408b8971a",
-    "src/providers/fred.py": "bacf7b8637f79735d20f315c073444b13d59ea6d2be80bdf50714a254e6d3e0b",
-    "src/providers/yahoo.py": "c43f66f7b04675888655ebc8eaa1e90d79efbee8d82a72c6aaaef4a7aafd4ab0",
+    "src/portfolio_loader.py": "8ef6b1b9c703ee9de8d32c14b8bb514c5780959863e3e9b583cc2c179819e46a",
+    "src/ports.py": "47cdb3eb98363e4d09cf8a37a1dcdb8e98e49b1852a993b6f6845e7f8f98dc09",
+    "src/providers/__init__.py": "03c26c835eac68fa22cf3e401058f009fd282b8c4f2f6516961c3f8852d72110",
+    "src/providers/alpha_quota.py": "4d54ab99750f743aa05163d70b8db83eda4d27fdad3ecfacb79dc5b947fa3d8b",
+    "src/providers/alpha_vantage.py": "da51a6775285fe6057f0f2672421a631846273816df0d52f2234e323d18fd058",
+    "src/providers/base.py": "43fb1e178c48bfce3f34e666b39f18af434756a66390179c1951f47a98720134",
+    "src/providers/ecb.py": "b749ecaf4b78e35e5207dde91884c26bc64cd161f6ab5795e0a8a633ecefde47",
+    "src/providers/fred.py": "bdc07d681778647f771bac5857dbd012e41ed3f9f619a6778571bad267589bb2",
+    "src/providers/yahoo.py": "5b3cf8bc7f4a9b669f24ced3205c06330bf6083da3f750c281d66bd462a8feb2",
     "src/reporting/__init__.py": "c088b21cd6984c139589fc42150ac5854c290be3ce399908e380af96a44fa339",
     "src/reporting/export.py": "53789f04ecac4a6842affc1afb0d2007866a19675840d82111bb2b8e6fca0b1e",
     "src/reporting/formatting.py": "58f9056a23d1959ceb9ecf478351c10a0297c79d95e24f45dde7c9749f1409b8",
-    "src/reporting/labels.py": "7ec4b1bc0be19a1a1f488130a0e7e9ec24da81cd7bff1779d41fe20588152c30",
+    "src/reporting/labels.py": "27168115d24f6b36e284cf41ccb377210c6445f834751eaf1503cfbe18eacdac",
     "src/reporting/plots.py": "c209d0badc45279239a5e015c0fc953b59b0222cdf459a61388d8089da34d0f7",
     "src/reporting/report.py": "b5fb29a8bcaceac6d4992286b93b7dcce62ccee3c67a4e469be87dfa5ed1bc7d",
     "src/reporting/sections.py": "9b2420f656d27708b495ca296c26f48664ade2d11569dfbb26bf81936bfcb206",
@@ -115,7 +116,9 @@
     "src/constants.py": [],
     "src/errors.py": [
       "PortfolioError",
-      "ConfigurationError"
+      "ConfigurationError",
+      "ProviderError",
+      "DataCoverageError"
     ],
     "src/frequency.py": [
       "periods_per_year"
@@ -138,6 +141,7 @@
       "_rebalance_rule",
       "_rebalance",
       "_simulation_options",
+      "reference_sources",
       "check_api_keys",
       "run",
       "run_simulation",
@@ -154,7 +158,7 @@
       "load_fx_rates",
       "_fx_rates",
       "load_fred_fx_rates",
-      "_fred_or_notice",
+      "_source_or_notice",
       "load_market_references",
       "load_risk_free_rate",
       "load_market_context",
@@ -204,6 +208,12 @@
       "load_portfolio_from_shares",
       "_load_assets"
     ],
+    "src/ports.py": [
+      "PriceProvider",
+      "IndicatorProvider",
+      "is_ecb_series",
+      "ReferenceSources"
+    ],
     "src/providers/__init__.py": [],
     "src/providers/alpha_quota.py": [
       "rejection_cooldown",
@@ -214,9 +224,6 @@
       "AlphaVantageAPI"
     ],
     "src/providers/base.py": [
-      "ProviderError",
-      "DataCoverageError",
-      "PriceProvider",
       "build_profile",
       "_equity_share",
       "_number",
@@ -230,7 +237,6 @@
       "ApiClient"
     ],
     "src/providers/ecb.py": [
-      "is_ecb_series",
       "EcbAPI",
       "_series"
     ],
@@ -418,7 +424,7 @@
     },
     {
       "name": "05-dependencias",
-      "elements": 92,
+      "elements": 89,
       "size": [
         2040,
         1540

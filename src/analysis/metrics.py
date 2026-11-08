@@ -24,6 +24,11 @@ def annualized_growth(values: pd.Series) -> float:
     return float((values.iloc[-1] / values.iloc[0]) ** (DAYS_PER_YEAR / days) - 1)
 
 
+def total_growth(values: pd.Series) -> float:
+    """Rentabilidad entre la primera y la última fecha, sin anualizar."""
+    return float(values.iloc[-1] / values.iloc[0] - 1)
+
+
 def annualized_return(returns: pd.Series, periods_per_year: int) -> float:
     """Compone rentabilidades por período, como las de un tipo de interés, a una tasa anual."""
     return float((1 + returns).prod() ** (periods_per_year / len(returns)) - 1)
@@ -114,7 +119,7 @@ def performance(values: pd.Series, periods_per_year: int) -> pd.Series:
     threshold = returns.quantile(0.05)
     return pd.Series(
         {
-            "total_return": values.iloc[-1] / values.iloc[0] - 1,
+            "total_return": total_growth(values),
             "annualized_return": annualized_growth(values),
             "annualized_volatility": returns.std() * np.sqrt(periods_per_year),
             "max_drawdown": drawdown.min(),
@@ -155,9 +160,13 @@ def jensen_alpha(
     return float(alpha * periods_per_year)
 
 
-def currency_effect(local: pd.Series, converted: pd.Series) -> float:
-    """Rentabilidad anualizada en la divisa de la cartera menos la de la divisa original."""
-    return annualized_growth(converted) - annualized_growth(local)
+def currency_effect(local: pd.Series, converted: pd.Series, annualize: bool = True) -> float:
+    """Rentabilidad en la divisa de la cartera menos la de la divisa original.
+
+    Anualizada por defecto; con annualize=False, la del período completo.
+    """
+    growth = annualized_growth if annualize else total_growth
+    return growth(converted) - growth(local)
 
 
 def price_jumps(prices: pd.DataFrame, limit: float = 0.5) -> pd.Series:
@@ -180,6 +189,8 @@ class MarketContext:
     bund_rolling_correlation: pd.Series | None = None
     bund_etf_prices: pd.Series | None = None
     fx_effect: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))
+    # Efecto divisa del período completo, sin anualizar.
+    fx_period_effect: pd.Series = field(default_factory=lambda: pd.Series(dtype=float))
 
 
 def market_context(
@@ -189,6 +200,7 @@ def market_context(
     gold: pd.Series | None,
     bund_etf: pd.Series | None,
     fx_effect: pd.Series,
+    fx_period_effect: pd.Series | None = None,
 ) -> MarketContext:
     """Los precios y el VIX deben estar en las fechas de la cartera, con el último dato conocido."""
 
@@ -215,6 +227,9 @@ def market_context(
         bund_rolling_correlation=rolling,
         bund_etf_prices=bund_etf,
         fx_effect=fx_effect,
+        fx_period_effect=fx_period_effect
+        if fx_period_effect is not None
+        else pd.Series(dtype=float),
     )
 
 

@@ -78,6 +78,7 @@ Estas opciones valen para cualquier salida:
 | `--currency EUR` | Divisa a la que convertir la cartera | La de los activos |
 | `--capital 10000` | Capital inicial hipotético; no se usa con `--shares` | `10000` |
 | `--rebalance monthly\|none` | Rebalanceo mensual o sin reajustes ([comisiones](#es-rebalanceo)) | `monthly` con `--assets`; `none` con `--shares` |
+| `--download-workers N` | Activos que se descargan a la vez, de 1 a 4 ([descargas](#es-descargas)) | `1` |
 
 Solo se usan las fechas con precio de todos los activos; los huecos no se rellenan.
 
@@ -327,6 +328,19 @@ Sharpe, Sortino ni alfa. Alpha Vantage gratuito ofrece unas 100 sesiones y 25 pe
 día, y no admite `--shares`. Las respuestas se guardan un día en `.cache/market-data`;
 borra esa carpeta para forzar nuevas descargas.
 
+<a id="es-descargas"></a>
+**Descargas simultáneas:** `--download-workers N` (de 1 a 4; 1 por defecto) descarga hasta
+N activos a la vez para solapar las esperas de red, tanto en la cartera (por pesos o por
+acciones) como en los precios de estimación de Monte Carlo; el límite es por lote, no
+global entre ejecuciones. Solo Yahoo descarga en paralelo: Alpha Vantage usa siempre una
+descarga por su cuota y la consola avisa una vez si pides más. Tipos de cambio, índice de
+referencia, FRED y BCE siguen en secuencia. Los resultados son los mismos con cualquier
+valor; si falla un activo, se detiene la carga y el error indica cuál.
+
+```bash
+python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+```
+
 <a id="es-problemas"></a>
 
 ### 6. Problemas frecuentes
@@ -364,6 +378,11 @@ path = analysis.report(simulation, sections=["summary", "risk", "simulation"])
 Desde Python no se descargan referencias ni 5 años de estimación automáticamente: usa
 `load_references()` de `src.market_loader` y `monte_carlo(estimation_prices=...)` si los
 necesitas. Tampoco hay comisiones por defecto: se configuran con `RebalanceRule`.
+`load_portfolio()` y `load_portfolio_from_shares()` aceptan `max_workers=1..4` con la misma
+política que `--download-workers`; el proveedor declara su límite con `max_download_workers`
+(Yahoo 4, Alpha Vantage 1; sin atributo, 1). La consola oculta una vez los avisos de
+obsolescencia de yfinance con `quiet_yfinance_warnings()` de `src.providers.yahoo`; desde
+Python puedes llamarla tú o dejar que se vean.
 
 Para contribuir, instala las herramientas y ejecuta las comprobaciones sin red:
 
@@ -457,6 +476,7 @@ These options apply to every output:
 | `--currency EUR` | Currency to convert the portfolio into | The assets' currency |
 | `--capital 10000` | Hypothetical initial capital; not used with `--shares` | `10000` |
 | `--rebalance monthly\|none` | Monthly rebalancing or none ([commissions](#en-rebalancing)) | `monthly` with `--assets`; `none` with `--shares` |
+| `--download-workers N` | Assets downloaded at once, from 1 to 4 ([downloads](#en-downloads)) | `1` |
 
 Only dates with prices for every asset are used; gaps are not filled.
 
@@ -671,6 +691,19 @@ USD without Sharpe, Sortino, or alpha. Free Alpha Vantage offers about 100 sessi
 requests per day, and does not support `--shares`. Responses are cached for one day in
 `.cache/market-data`; delete that folder to force new downloads.
 
+<a id="en-downloads"></a>
+**Concurrent downloads:** `--download-workers N` (1 to 4; 1 by default) downloads up to N
+assets at once to overlap network waits, both for the portfolio (weights or shares) and for
+the Monte Carlo estimation prices; the limit is per batch, not global across runs. Only
+Yahoo downloads in parallel: Alpha Vantage always uses one download because of its quota,
+and the CLI warns once if you ask for more. Exchange rates, the benchmark, FRED, and the ECB
+remain sequential. Results are identical for any value; if one asset fails, loading stops
+and the error names it.
+
+```bash
+python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+```
+
 <a id="en-troubleshooting"></a>
 
 ### 6. Troubleshooting
@@ -693,7 +726,11 @@ See the [Spanish section](#es-desarrollo) for a Python example that loads a port
 analyzes it, simulates it, and saves the report. Python usage downloads no references or
 5-year estimation prices automatically: use `load_references()` from `src.market_loader` and
 `monte_carlo(estimation_prices=...)` if you need them. It has no commissions by default;
-configure them with `RebalanceRule`.
+configure them with `RebalanceRule`. `load_portfolio()` and `load_portfolio_from_shares()`
+accept `max_workers=1..4` with the same policy as `--download-workers`; providers declare
+their limit with `max_download_workers` (Yahoo 4, Alpha Vantage 1; none declared, 1). The
+CLI hides yfinance deprecation noise once with `quiet_yfinance_warnings()` from
+`src.providers.yahoo`; from Python you may call it yourself or leave those warnings visible.
 
 To contribute, install the development tools and run the offline checks:
 

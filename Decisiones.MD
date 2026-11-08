@@ -1,6 +1,6 @@
 # Registro de decisiones
 
-Este documento recoge las decisiones técnicas del proyecto en cinco partes:
+Este documento recoge las decisiones técnicas del proyecto en seis partes:
 
 - **Parte I (decisiones 1 a 32):** las tomadas en las sesiones de revisión y desarrollo entre
   el 30 de octubre y el 6 de noviembre de 2026.
@@ -17,6 +17,8 @@ Este documento recoge las decisiones técnicas del proyecto en cinco partes:
 - **Parte V (decisión 73):** la sesión del 7 y 8 de noviembre de 2026 sobre Monte Carlo
   (PR #26). Las alternativas que se descartaron en ella se añaden a sus entradas originales
   (27, 40, 47, 50 y 67).
+- **Parte VI (decisión 74):** la revisión de la arquitectura del 8 de noviembre de 2026:
+  puertos de la entrada de datos en el núcleo y por qué no se adopta una hexagonal estricta.
 
 Cada entrada explica qué se decidió, por qué y qué alternativas se descartaron, con un
 ejemplo sencillo para entenderla.
@@ -39,13 +41,13 @@ noviembre de 2026. Se amplían las entradas existentes sin duplicarlas.
 | Historial y ramas | 1 |
 | Cuota, persistencia y bloqueos de Alpha Vantage | [25](#cuota-alpha-vantage) |
 | Comisiones y simplificaciones de costes | 26–30 |
-| Proveedores y datos macroeconómicos | 18, 39, 65, 70 |
+| Proveedores y datos macroeconómicos | 18, 39, 65, 70, 74 |
 | Validación, fechas comunes y datos sin rellenar | 12–14, 36–38, 66–67 |
 | Calendarios, anualización y datos inmutables | [40](#contrato-temporal), 41–42 |
 | Precios ajustados y referencias por divisa | 43–46 |
 | Modelo y supuestos de Monte Carlo | [47](#modelo-monte-carlo), 59, 62, 64, 73 |
 | Caché, informe y controles de calidad | 15, 19–24, 51–55, 68, 71–72 |
-| Diagramas y documentación de arquitectura | 56, 69 |
+| Diagramas y documentación de arquitectura | 10, 56, 69, 74 |
 
 ## Fuentes y alcance de la revisión
 
@@ -185,6 +187,12 @@ o el usuario la eligió, y las propuestas descartadas se indican como tales.
 | # | Tema | Decisión | Estado |
 | --- | --- | --- | --- |
 | 73 | Simulación | Estimar volatilidad y correlaciones con 5 años, aparte del período del informe | Vigente |
+
+**Parte VI · Arquitectura de la entrada de datos (8 de noviembre)**
+
+| # | Tema | Decisión | Estado |
+| --- | --- | --- | --- |
+| 74 | Arquitectura | Puertos en el núcleo y adaptadores creados solo en `main` | Vigente |
 
 ---
 
@@ -364,7 +372,7 @@ código aplica de verdad:
 - `build_report()` no aplica el patrón *Builder* por llamarse así.
 - Los proveedores no son un *Repository* de entidades.
 - La arquitectura no es hexagonal estricta: `Portfolio` conoce la simulación y sus fachadas
-  llegan al informe.
+  llegan al informe. La entrada de datos sí separa puertos y adaptadores (ver 74).
 
 **Ejemplo.** Si en la presentación se pregunta dónde está la *Abstract Factory*, el código no
 tiene respuesta. Decir «un diccionario que asocia cada nombre de proveedor con su
@@ -1672,8 +1680,8 @@ función `simulate()` (decisión 4).
 
 ### 65. Contrato común para los proveedores, con las opciones en el constructor
 
-**Origen.** S1 (29 de octubre); `PriceProvider` en
-[`src/providers/base.py`](src/providers/base.py).
+**Origen.** S1 (29 de octubre); `PriceProvider`, hoy en [`src/ports.py`](src/ports.py)
+(ver 74).
 
 **Contexto.** `portfolio_loader.py` comprobaba si el proveedor era `AlphaVantageAPI` para
 llamarlo con otros argumentos. Además, el análisis leía
@@ -1944,3 +1952,58 @@ es que el resultado ya no depende de eso. Con un año más tranquilo, la volatil
 año habría salido claramente por debajo.
 
 **Estado.** Vigente.
+
+# Parte VI · Arquitectura de la entrada de datos (8 de noviembre)
+
+### 74. Puertos en el núcleo y adaptadores creados solo en `main`
+
+**Origen.** Revisión de la arquitectura del 8 de noviembre de 2026, rama
+`refactor/puertos-nucleo`; [`src/ports.py`](src/ports.py),
+[`src/market_loader.py`](src/market_loader.py) y `reference_sources()` en
+[`src/main.py`](src/main.py).
+
+**Contexto.** Se valoró convertir el proyecto en una arquitectura hexagonal estricta. La
+entrada de datos ya se parecía a ella (decisión 65), pero tenía tres fugas:
+- El contrato `PriceProvider` y `ProviderError` vivían en `providers`, el paquete de los
+  adaptadores. Para usar su propio puerto, el núcleo tenía que importar los adaptadores.
+- `market_loader` creaba `YahooFinanceAPI`, `FredAPI` y `EcbAPI` cuando no recibía una
+  fuente. Elegir y configurar la caché o las claves no era tarea solo de `main`.
+- `reporting/labels.py` importaba `AAA_3M_YIELD` de `providers.ecb`: la presentación
+  dependía de un adaptador para poner nombre a una serie.
+
+**Decisión.**
+- `src/ports.py` reúne los puertos del núcleo: `PriceProvider`, el nuevo
+  `IndicatorProvider` (FRED y BCE, `get_series()`), `ReferenceSources`, que agrupa las
+  fuentes de las referencias, e `is_ecb_series()`, que decide qué fuente publica cada serie.
+- `ProviderError` y `DataCoverageError` pasan a `errors`: forman parte del contrato y la
+  carga los trata sin saber qué adaptador los lanzó.
+- `market_loader` y `portfolio_loader` solo reciben puertos. `main.reference_sources()` es el
+  único lugar que crea los adaptadores de las referencias; sin clave de FRED deja esa fuente
+  en `None` y el informe lo explica, como antes.
+- Sin `fx_provider`, `load_fx_rates()` ya no descarga en Yahoo por su cuenta: si hay que
+  convertir divisas, lanza `ConfigurationError`.
+- `AAA_3M_YIELD` pasa a `constants`. `providers` reexporta todo lo anterior, así que el código
+  que importaba desde ahí sigue funcionando.
+
+**Por qué no una hexagonal estricta.** El enunciado pide que la cartera tenga `.report()`,
+`.plots_report()` y Monte Carlo como métodos, y un método que muestre la simulación. En una
+hexagonal estricta el dominio no puede escribir Markdown, guardar archivos ni dibujar: habría
+que inyectar un «renderizador» en `Portfolio.report()`, lo que complica la interfaz que se
+evalúa. Y si se le pone uno por defecto, el acoplamiento vuelve. Se aplica, por tanto, en la
+frontera donde aporta: la entrada de datos, que es la que el enunciado pide desacoplar («añadir
+nuevas fuentes sin alterar el núcleo»). Las fachadas de presentación de `Portfolio`,
+`PortfolioAnalysis` y `SimulationResult` se mantienen como desviación consciente (ver 10).
+
+**Alternativas descartadas.**
+- **Hexagonal estricta en todo el repositorio.** Exigía un puerto de presentación, mover la
+  E/S de `reporting` detrás de él y rehacer las siete láminas a cuatro días de la entrega,
+  sin cambiar ningún resultado.
+- **Dejar los adaptadores por defecto en los cargadores.** Era cómodo desde Python, pero
+  ocultaba qué fuente se usaba y obligaba a los tests a parchear `market_loader`.
+
+**Ejemplo.** Para sacar el índice de otra fuente basta con pasar otro adaptador:
+`load_references("EUR", inicio, fin, ReferenceSources(MiFuente()))`. `market_loader` no
+cambia ni importa nada nuevo. En los tests, las fuentes son `Mock()` pasados como argumento:
+ya no hace falta `patch("src.market_loader.FredAPI")`.
+
+**Estado.** Vigente. Las fachadas de presentación siguen en el dominio (ver 10).

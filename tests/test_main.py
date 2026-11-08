@@ -33,6 +33,7 @@ from src.models import (
     MarketReferences,
     PriceHistory,
 )
+from src.ports import ReferenceSources
 from src.providers import AlphaVantageAPI, ProviderError, YahooFinanceAPI
 
 
@@ -375,6 +376,27 @@ class MainTests(unittest.TestCase):
         self.assertIn("Resumen de la simulación", output.getvalue())
         write_file.assert_not_called()
 
+    def test_too_short_a_history_fails_before_simulating(self):
+        short = PriceHistory(
+            "IBM",
+            "yahoo",
+            pd.DataFrame({"Close": [100, 102]}, index=self.dates[:2]),
+            profile=AssetProfile(currency="USD"),
+        )
+        with (
+            patch("src.main.load_dotenv"),
+            patch("src.main.YahooFinanceAPI") as yahoo,
+            patch("src.main.load_references", return_value=MarketReferences()),
+            patch("src.main.run_simulation") as simulate,
+            redirect_stdout(io.StringIO()) as output,
+            redirect_stderr(io.StringIO()) as errors,
+        ):
+            yahoo.return_value.get_prices.return_value = short
+            self.assertEqual(main(["--assets", "IBM:1", "--report", "--simulate"]), 1)
+        simulate.assert_not_called()
+        self.assertNotIn("Resumen de la simulación", output.getvalue())
+        self.assertIn("al menos tres fechas", errors.getvalue())
+
     def test_provider_failure_returns_error_status_on_stderr(self):
         with (
             patch("src.main.load_dotenv"),
@@ -527,6 +549,12 @@ class MainTests(unittest.TestCase):
                             patch("src.providers.base.time.sleep"),
                             patch.dict(os.environ, {"ALPHA_VANTAGE_API_KEY": "test-key"}),
                             patch("src.main.load_references", return_value=MarketReferences()),
+                            # Las referencias tienen sus propios adaptadores; aquí solo se
+                            # comprueba qué proveedor descarga los activos.
+                            patch(
+                                "src.main.reference_sources",
+                                return_value=ReferenceSources(Mock()),
+                            ),
                             patch("matplotlib.pyplot.show") as show,
                             redirect_stdout(io.StringIO()) as output,
                         ):
@@ -597,13 +625,15 @@ class MainTests(unittest.TestCase):
                 patch.dict(os.environ, {}, clear=True),
                 patch("src.main.load_dotenv"),
                 patch("src.main.YahooFinanceAPI") as yahoo,
-                patch("src.market_loader.YahooFinanceAPI") as index_provider,
                 patch("src.providers.fred.FredAPI._query") as fred_requests,
                 redirect_stdout(io.StringIO()),
                 redirect_stderr(io.StringIO()) as errors,
             ):
-                yahoo.return_value.get_prices.return_value = self.history
-                index_provider.return_value.get_prices.return_value = benchmark
+                # main crea con YahooFinanceAPI tanto el proveedor de la cartera como el
+                # de las referencias.
+                yahoo.return_value.get_prices.side_effect = lambda symbol, *args, **kwargs: (
+                    benchmark if symbol == "^GSPC" else self.history
+                )
                 arguments = ["--assets", "IBM:1", "--report", "--report-sections", "summary"]
                 self.assertEqual(main([*arguments, "data", "--output-dir", str(reports)]), 0)
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")

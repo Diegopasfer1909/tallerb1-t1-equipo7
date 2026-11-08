@@ -16,19 +16,26 @@ from fixtures import history, indicator
 from src.analysis import WarningThresholds
 from src.analysis.metrics import annualized_growth, jensen_alpha
 from src.analysis.warnings import evaluate_simulation
-from src.errors import ConfigurationError
 from src.main import main, parse_arguments
 from src.market_loader import load_market_references, load_references, load_risk_free_rate
 from src.models import Asset, ExchangeRate, FxRates, MarketReferences, Portfolio
+from src.ports import ReferenceSources
 from src.providers import AAA_3M_YIELD, EcbAPI, ProviderError, YahooFinanceAPI, is_ecb_series
 from src.reporting.formatting import format_number
 from src.reporting.plots import CHARTS, plot_report
 from src.reporting.sections import SECTION_QUESTIONS, SECTION_TITLES
-from src.reporting.texts import COSTS_NOTE, SIMULATION_LIMITATIONS, SIMULATION_NOT_CONFIGURED
+from src.reporting.texts import (
+    COSTS_NOTE,
+    SHORT_HISTORY_RETURNS,
+    SIMULATION_LIMITATIONS,
+    SIMULATION_NOT_CONFIGURED,
+)
 from src.simulation import MODEL_RETURN, SimulationSettings
 
 DATES = pd.bdate_range("2025-01-01", periods=120)
 RANDOM = np.random.default_rng(7)
+# DATES cubre menos de un año: con este umbral, el informe anualiza igualmente.
+ANNUALIZED = WarningThresholds(short_history=1)
 
 
 def walk(start=100.0, scale=0.01):
@@ -80,8 +87,12 @@ class StructureTests(unittest.TestCase):
 
     def test_returns_section_details_each_asset_and_year(self):
         text = self.analysis.markdown(sections=["returns"])
+        # Menos de un año: la rentabilidad total ya es la del período y no hay columna CAGR.
+        self.assertIn("| Ticker | Rentabilidad total | Volatilidad | Caída máxima | Beta |", text)
+        annual = self.portfolio.analyze(market_references(), warning_thresholds=ANNUALIZED)
         self.assertIn(
-            "| Ticker | Rentabilidad total | CAGR | Volatilidad | Caída máxima | Beta |", text
+            "| Ticker | Rentabilidad total | CAGR | Volatilidad | Caída máxima | Beta |",
+            annual.markdown(sections=["returns"]),
         )
         row = self.analysis.asset_details.loc["A"]
         total = format_number(row["total_return"], True, signed=True)
@@ -130,12 +141,13 @@ class StructureTests(unittest.TestCase):
         self.assertTrue(np.isfinite(metrics["alpha"]))
         text = self.analysis.markdown(sections=["risk_adjusted"])
         self.assertIn("Alfa de Jensen", text)
-        self.assertIn("medio del periodo", text)
+        self.assertIn("acumulado en el período", text)
         euro = portfolio("EUR").analyze(
             replace(
                 market_references(),
                 risk_free_rate=indicator([2.0] * len(DATES), DATES, "Percent", AAA_3M_YIELD),
-            )
+            ),
+            warning_thresholds=ANNUALIZED,
         )
         self.assertIn(
             "Tipo libre de riesgo (deuda AAA de la zona euro a 3 meses), medio del periodo",
@@ -178,9 +190,16 @@ class StructureTests(unittest.TestCase):
             analysis.metrics["difference_from_bund_etf"],
             analysis.metrics["annualized_return"] - expected,
         )
+        self.assertAlmostEqual(analysis.metrics["bund_etf_total_return"], -0.03)
+        self.assertAlmostEqual(analysis.metrics["total_difference_from_bund_etf"], 0.15 + 0.03)
         text = analysis.markdown(sections=["risk_adjusted"])
-        self.assertIn("Diferencia frente a deuda alemana", text)
-        self.assertIn("más que la deuda alemana (CAGR del ETF de Bunds:", text)
+        self.assertIn("| Diferencia frente a deuda alemana en el período | +18,00 p. p. |", text)
+        self.assertIn("(rentabilidad del ETF de Bunds en el período: -3,00 %)", text)
+        annual = Portfolio(assets, {"A": 1}).analyze(references, warning_thresholds=ANNUALIZED)
+        self.assertIn(
+            "más que la deuda alemana (CAGR del ETF de Bunds:",
+            annual.markdown(sections=["risk_adjusted"]),
+        )
 
     def test_german_debt_is_compared_on_common_dates(self):
         dates = DATES[:5]
@@ -211,8 +230,64 @@ class StructureTests(unittest.TestCase):
         ).analyze()
         self.assertEqual(list(mixed.market.fx_effect.index), ["A"])
         self.assertGreater(mixed.market.fx_effect["A"], 0)
-        self.assertIn("Efecto divisa", mixed.markdown(sections=["market"]))
+        # Menos de un año: el efecto que se muestra es el del período, menor que el anualizado.
+        self.assertGreater(mixed.market.fx_period_effect["A"], 0)
+        self.assertLess(mixed.market.fx_period_effect["A"], mixed.market.fx_effect["A"])
+        text = mixed.markdown(sections=["market"])
+        self.assertIn("**Efecto divisa** (rentabilidad del período en EUR", text)
+        self.assertNotIn("/año", text)
         self.assertIn("currency_risk", {warning.code for warning in mixed.risk_warnings})
+
+
+class ShortHistoryReportTests(unittest.TestCase):
+    """Con menos de un año, el informe da las rentabilidades del período, sin anualizar."""
+
+    def setUp(self):
+        self.references = market_references()
+        self.analysis = portfolio().analyze(self.references)
+        self.addCleanup(plt.close, "all")
+
+    def test_period_returns_are_the_growth_of_each_series(self):
+        metrics = self.analysis.metrics
+        index = self.references.benchmark.closing_prices()
+        self.assertAlmostEqual(
+            metrics["benchmark_total_return"], index.iloc[-1] / index.iloc[0] - 1
+        )
+        self.assertAlmostEqual(
+            metrics["total_difference_from_benchmark"],
+            metrics["total_return"] - metrics["benchmark_total_return"],
+        )
+        # Un tipo constante del 2 % anual durante 119 sesiones de 252 al año.
+        reference = 1.02 ** (119 / 252) - 1
+        self.assertAlmostEqual(metrics["reference_total_return"], reference)
+        self.assertAlmostEqual(metrics["excess_total_return"], metrics["total_return"] - reference)
+        # El índice de precios sube de 100 a 101,19.
+        self.assertAlmostEqual(metrics["total_inflation"], 0.0119)
+        self.assertAlmostEqual(
+            metrics["real_total_return"], (1 + metrics["total_return"]) / 1.0119 - 1
+        )
+
+    def test_report_shows_period_returns_and_explains_why(self):
+        text = self.analysis.markdown(sections=["summary", "returns", "risk_adjusted"])
+        self.assertIn("en total, sin anualizar", text)
+        self.assertIn("Diferencia frente a la referencia en el período (IDX)", text)
+        self.assertIn("Rentabilidad de Índice de prueba en el período", text)
+        self.assertIn(SHORT_HISTORY_RETURNS, text)
+        for annualized in ("al año", "/año", "CAGR", "Inflación media anual"):
+            self.assertNotIn(annualized, text)
+        # Las medidas de dispersión siguen siendo anuales.
+        self.assertIn("Alfa de Jensen (anual)", text)
+
+    def test_a_year_of_history_is_annualized_without_the_note(self):
+        dates = pd.bdate_range("2024-01-01", periods=300)
+        assets = [Asset(history("A", np.linspace(100, 130, 300), dates=dates))]
+        benchmark = history("IDX", np.linspace(100, 120, 300), dates=dates)
+        analysis = Portfolio(assets, {"A": 1}).analyze(MarketReferences(benchmark=benchmark))
+        text = analysis.markdown(sections=["summary", "returns"])
+        self.assertIn("al año", text)
+        self.assertIn("Diferencia anual frente a la referencia (IDX)", text)
+        self.assertIn("Rentabilidad anualizada (CAGR)", text)
+        self.assertNotIn(SHORT_HISTORY_RETURNS, text)
 
 
 class WarningRulesTests(unittest.TestCase):
@@ -425,8 +500,9 @@ class RiskFreeRateTests(unittest.TestCase):
         dates = pd.DatetimeIndex(["2026-10-28", "2026-10-29", "2026-10-30"])
         fred.get_series.return_value = indicator([4.0, 4.2, np.nan], dates, name="DGS3MO")
         ecb.get_series.return_value = indicator([2.5, 2.6, 2.56], dates, name=AAA_3M_YIELD)
-        usd = load_risk_free_rate("USD", "2026-10-31", fred_provider=fred, ecb_provider=ecb)
-        eur = load_risk_free_rate("EUR", "2026-10-31", fred_provider=fred, ecb_provider=ecb)
+        sources = ReferenceSources(Mock(), fred=fred, ecb=ecb)
+        usd = load_risk_free_rate("USD", "2026-10-31", sources)
+        eur = load_risk_free_rate("EUR", "2026-10-31", sources)
         self.assertAlmostEqual(usd, 0.042)
         self.assertAlmostEqual(eur, 0.0256)
         self.assertEqual(ecb.get_series.call_args.args[0], AAA_3M_YIELD)
@@ -434,10 +510,11 @@ class RiskFreeRateTests(unittest.TestCase):
     def test_no_series_or_a_failure_mean_no_rate(self):
         fred = Mock()
         fred.get_series.side_effect = ProviderError("sin red")
-        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", fred_provider=fred))
-        self.assertIsNone(load_risk_free_rate("GBP", "2026-10-31"))
-        with patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Falta")):
-            self.assertIsNone(load_risk_free_rate("USD", "2026-10-31"))
+        failing = ReferenceSources(Mock(), fred=fred)
+        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", failing))
+        self.assertIsNone(load_risk_free_rate("GBP", "2026-10-31", failing))
+        # Sin clave de FRED, main no crea su adaptador.
+        self.assertIsNone(load_risk_free_rate("USD", "2026-10-31", ReferenceSources(Mock())))
 
     def test_report_from_python_takes_the_rate_from_the_references(self):
         item = portfolio()
@@ -555,8 +632,7 @@ class EcbTests(unittest.TestCase):
         references = load_market_references(
             "2026-01-05",
             "2026-02-01",
-            fred_provider=fred,
-            ecb_provider=ecb,
+            ReferenceSources(Mock(), fred=fred, ecb=ecb),
             risk_free_series=AAA_3M_YIELD,
         )
         self.assertIs(references.risk_free_rate, rate)
@@ -565,14 +641,13 @@ class EcbTests(unittest.TestCase):
 
 class MarketLoaderTests(unittest.TestCase):
     def test_failed_context_downloads_are_notices_not_errors(self):
-        with (
-            patch("src.market_loader.load_market_references", return_value=MarketReferences()),
-            patch("src.market_loader.FredAPI") as fred,
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-        ):
-            fred.return_value.get_series.side_effect = ProviderError("sin red")
-            yahoo.return_value.get_prices.side_effect = ProviderError("sin red")
-            references = load_references("EUR", "2026-01-01", "2026-02-01")
+        fred, yahoo = Mock(), Mock()
+        fred.get_series.side_effect = ProviderError("sin red")
+        yahoo.get_prices.side_effect = ProviderError("sin red")
+        with patch("src.market_loader.load_market_references", return_value=MarketReferences()):
+            references = load_references(
+                "EUR", "2026-01-01", "2026-02-01", ReferenceSources(yahoo, fred=fred)
+            )
         self.assertIsNone(references.vix)
         messages = " ".join(notice.message for notice in references.notices)
         for name in ("VIX", "Brent", "Oro", "ETF de Bunds"):
@@ -581,14 +656,13 @@ class MarketLoaderTests(unittest.TestCase):
     def test_without_a_fred_key_the_ecb_and_yahoo_series_are_still_loaded(self):
         ecb_rate = indicator([2.5], pd.DatetimeIndex(["2026-01-05"]), name=AAA_3M_YIELD)
         gold = history("GC=F", [100, 101, 102], "USD", dates=DATES[:3])
-        with (
-            patch("src.market_loader.FredAPI", side_effect=ConfigurationError("Falta")),
-            patch("src.market_loader.YahooFinanceAPI") as yahoo,
-            patch("src.market_loader.EcbAPI") as ecb,
-        ):
-            yahoo.return_value.get_prices.return_value = gold
-            ecb.return_value.get_series.return_value = ecb_rate
-            references = load_references("EUR", "2026-01-01", "2026-02-01")
+        yahoo, ecb = Mock(), Mock()
+        yahoo.get_prices.return_value = gold
+        ecb.get_series.return_value = ecb_rate
+        # Sin clave, main no crea el adaptador de FRED: fred queda en None.
+        references = load_references(
+            "EUR", "2026-01-01", "2026-02-01", ReferenceSources(yahoo, ecb=ecb)
+        )
         self.assertIs(references.risk_free_rate, ecb_rate)
         self.assertIsNotNone(references.gold)
         self.assertIsNone(references.vix)

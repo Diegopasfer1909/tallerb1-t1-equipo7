@@ -2,15 +2,13 @@
 
 import pandas as pd
 
-from ..errors import PortfolioError
+from ..errors import DataCoverageError, PortfolioError, ProviderError
 from ..models.asset_profile import AssetProfile
 from ..models.price_history import PriceHistory
 from ..validation import date_range
 from .alpha_quota import AlphaVantageQuota, AlphaVantageQuotaError
 from .base import (
     ApiClient,
-    DataCoverageError,
-    ProviderError,
     build_profile,
     drop_missing_closes,
 )
@@ -51,7 +49,11 @@ class AlphaVantageAPI:
     include_info consulta además la ficha OVERVIEW, que consume otra petición.
     La cuota de 25 peticiones en 24 horas se conserva aunque se desactive la caché.
     usage_db permite compartir el registro persistente entre ejecuciones.
+    Los activos se descargan de uno en uno: la cuota, las pausas entre peticiones y el
+    cliente HTTP no están preparados para consultas simultáneas.
     """
+
+    max_download_workers = 1
 
     def __init__(
         self,

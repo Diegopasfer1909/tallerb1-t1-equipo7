@@ -61,19 +61,23 @@ BENCHMARK_COVERAGE_NOTE = (
 )
 BENCHMARK_COMPARISON = (
     "Comparación con {symbol} basada en {dates} fechas comunes, en la misma divisa y con precios "
-    "ajustados por dividendos en los dos lados. Ambas rentabilidades se anualizan por los días "
-    "naturales entre las mismas fechas extremas."
+    "ajustados por dividendos en los dos lados. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
 )
 BENCHMARK_COMPARISON_INDEX = (
     "Comparación con {symbol} basada en {dates} fechas comunes y en la misma divisa. {symbol} es "
     "un índice: si es de precios, como la mayoría, no incluye dividendos y la ventaja de la "
     "cartera, que sí los incluye, queda sobrestimada. Para comparar en igualdad de condiciones, "
-    "elige un ETF con `--benchmark`."
+    "elige un ETF con `--benchmark`. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
 )
 BENCHMARK_COMPARISON_CLOSE = (
     "Comparación con {symbol} basada en {dates} fechas comunes y en la misma divisa, sin "
-    "dividendos en ninguno de los dos lados. Ambas rentabilidades se anualizan por los días "
-    "naturales entre las mismas fechas extremas."
+    "dividendos en ninguno de los dos lados. "
+    "Ambas rentabilidades se miden entre las mismas fechas extremas y, con un año o más de "
+    "historia, se anualizan por los días naturales transcurridos."
 )
 MARKET_PRICES_STALE = (
     "{reference} ({symbol}): faltan cierres de menos de {days} días para algunas fechas de la "

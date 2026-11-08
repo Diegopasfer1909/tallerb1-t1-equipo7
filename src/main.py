@@ -27,7 +27,7 @@ from src.constants import (
     PriceColumn,
     Rebalance,
 )
-from src.errors import ConfigurationError, PortfolioError
+from src.errors import ConfigurationError, PortfolioError, ProviderError
 from src.market_loader import (
     REPORT_DEFAULTS,
     load_market_references,
@@ -36,15 +36,18 @@ from src.market_loader import (
 )
 from src.models import MarketReferences, Portfolio
 from src.portfolio_loader import load_portfolio, load_portfolio_from_shares
+from src.ports import PriceProvider, ReferenceSources
+from src.price_loader import MAX_DOWNLOAD_WORKERS, download_capacity, validate_download_workers
 from src.providers import (
     ALPHA_VANTAGE_KEY,
     FRED_KEY,
     AlphaVantageAPI,
-    PriceProvider,
-    ProviderError,
+    EcbAPI,
+    FredAPI,
     YahooFinanceAPI,
     has_api_key,
 )
+from src.providers.yahoo import quiet_yfinance_warnings
 from src.reporting.formatting import format_date, format_number
 from src.reporting.labels import PERCENT_RESULTS, SOURCES, simulation_labels
 from src.reporting.report import commission_description, holdings_table
@@ -128,6 +131,8 @@ class RunConfig:
     rebalance_rule: RebalanceRule = RebalanceRule()
     # Inicio de los precios con los que Monte Carlo estima σ y las correlaciones; None usa start.
     estimation_start: str | None = None
+    # Activos que se descargan a la vez en cada lote, si el proveedor lo admite.
+    download_workers: int = 1
 
     def __post_init__(self) -> None:
         if (self.weights is None) == (self.shares is None):
@@ -306,6 +311,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Secciones del informe; por defecto, todas",
     )
     options.add_argument(
+        "--download-workers",
+        type=int,
+        metavar="N",
+        help=f"Activos que se descargan a la vez, de 1 a {MAX_DOWNLOAD_WORKERS} (1 por defecto). "
+        "Solo Yahoo descarga en paralelo; Alpha Vantage usa siempre 1",
+    )
+    options.add_argument(
         "--steps",
         type=int,
         help="Sesiones futuras de Monte Carlo (un año: 252, o 365 si la cartera es solo cripto)",
@@ -443,6 +455,8 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
     if currency:
         validate_currency_code(currency, "La divisa de destino")
     rebalance = _rebalance(args.rebalance, by_shares=shares is not None)
+    download_workers = 1 if args.download_workers is None else args.download_workers
+    validate_download_workers(download_workers)
     return RunConfig(
         provider=args.provider,
         weights=weights,
@@ -461,6 +475,7 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         shares=shares,
         rebalance_rule=_rebalance_rule(args, rebalance),
         estimation_start=_estimation_start(args, provider, start, run_simulation),
+        download_workers=download_workers,
     )
 
 
@@ -541,6 +556,26 @@ def _simulation_options(
     return options
 
 
+def reference_sources() -> ReferenceSources:
+    """Adaptadores de las referencias: índice y precios en Yahoo, series en FRED y el BCE.
+
+    main es el único módulo que elige y crea adaptadores; los cargadores solo reciben puertos.
+    Sin clave de FRED, sus series quedan sin calcular y el informe explica el motivo.
+    """
+    try:
+        fred = FredAPI(cache_dir=CACHE_DIR)
+    except ConfigurationError:
+        fred = None
+    return ReferenceSources(
+        benchmark=YahooFinanceAPI(cache_dir=CACHE_DIR),
+        # De los cambios, el oro y los Bunds solo se usan los precios; la ficha costaría otra
+        # petición.
+        market=YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False),
+        fred=fred,
+        ecb=EcbAPI(cache_dir=CACHE_DIR),
+    )
+
+
 def check_api_keys(config: RunConfig) -> list[str]:
     """Comprueba las claves antes de descargar nada.
 
@@ -574,6 +609,15 @@ def run(config: RunConfig) -> None:
         fx_provider = YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False)
     # Un solo proveedor para el análisis y la estimación de Monte Carlo: comparten caché.
     provider = PROVIDERS[config.provider].create()
+    capacity = download_capacity(provider)
+    if config.download_workers > capacity:
+        name = SOURCES.get(config.provider, config.provider)
+        limit = "de uno en uno" if capacity == 1 else f"como mucho {capacity} a la vez"
+        print(
+            f"Aviso: {name} descarga los activos {limit}; se ignora --download-workers "
+            f"{config.download_workers}.",
+            file=sys.stderr,
+        )
     if config.shares is not None:
         portfolio = load_portfolio_from_shares(
             config.shares,
@@ -584,6 +628,7 @@ def run(config: RunConfig) -> None:
             fx_provider=fx_provider,
             rebalance=config.rebalance,
             rebalance_rule=config.rebalance_rule,
+            max_workers=config.download_workers,
         )
     else:
         portfolio = load_portfolio(
@@ -596,19 +641,23 @@ def run(config: RunConfig) -> None:
             rebalance=config.rebalance,
             fx_provider=fx_provider,
             rebalance_rule=config.rebalance_rule,
+            max_workers=config.download_workers,
         )
     # Con Adj Close las rentabilidades, la simulación y el informe incluyen los dividendos.
     price_column = portfolio.preferred_price_column
     print_portfolio(portfolio, price_column)
+    # El análisis va antes que la simulación: si faltan datos, se avisa sin simular en balde.
+    analysis = None
+    if config.report or config.plots_report:
+        analysis = portfolio.analyze(
+            load_run_references(config, portfolio.currency), price_column=price_column
+        )
     simulation = None
     if config.simulation is not None:
         simulation = run_simulation(config, portfolio, price_column, provider, fx_provider)
         print_simulation(simulation)
-    if not (config.report or config.plots_report):
+    if analysis is None:
         return
-    analysis = portfolio.analyze(
-        load_run_references(config, portfolio.currency), price_column=price_column
-    )
     if config.report:
         path = analysis.report(
             simulation,
@@ -629,7 +678,7 @@ def run_simulation(
     fx_provider: PriceProvider | None = None,
 ) -> SimulationResult:
     """Simula desde el valor actual de la cartera, con σ y correlaciones de la estimación."""
-    rate = load_risk_free_rate(portfolio.currency, config.end, cache_dir=CACHE_DIR)
+    rate = load_risk_free_rate(portfolio.currency, config.end, reference_sources())
     if rate is None:
         print(
             f"Aviso: no hay tipo libre de riesgo para {portfolio.currency}; la simulación usa "
@@ -676,6 +725,7 @@ def load_estimation_prices(
         reporting_currency=config.currency,
         rebalance=None,
         fx_provider=fx_provider,
+        max_workers=config.download_workers,
     )
     return estimation.close_prices(price_column).loc[: portfolio.valuation_date]
 
@@ -687,16 +737,16 @@ def load_run_references(config: RunConfig, currency: str) -> MarketReferences | 
             currency,
             config.start,
             config.end,
+            reference_sources(),
             benchmark_symbol=config.benchmark,
-            cache_dir=CACHE_DIR,
         )
     if not config.benchmark:
         return None
     references = load_market_references(
         config.start,
         config.end,
+        reference_sources(),
         benchmark_symbol=config.benchmark,
-        cache_dir=CACHE_DIR,
         currency=currency,
     )
     # Sin informe no hay otro lugar donde explicar por qué falta la comparación.
@@ -778,6 +828,8 @@ def print_simulation(result: SimulationResult) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     load_dotenv(find_dotenv(usecwd=True), override=False)
     config = parse_arguments(argv)
+    # Una sola vez y antes de cualquier descarga: los hilos no cambian filtros de avisos.
+    quiet_yfinance_warnings()
     try:
         run(config)
     except (PortfolioError, ProviderError, OSError) as error:
