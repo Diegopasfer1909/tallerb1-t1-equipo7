@@ -474,6 +474,7 @@ class CommandLineTests(unittest.TestCase):
                 redirect_stderr(io.StringIO()) as errors,
             ):
                 yahoo.return_value.get_prices.return_value = data
+                simulate.return_value.estimation_years = 5.0
                 self.assertEqual(main(["--assets", "IBM:1", "--simulate"]), 0)
             settings = simulate.call_args.args[0]
             self.assertEqual(settings.risk_free_rate, rate)

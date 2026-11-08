@@ -257,10 +257,21 @@ class Portfolio:
     def returns(self, log: bool = False, price_column: PriceColumn = CLOSE) -> pd.DataFrame:
         return period_returns(self._prices(price_column), log)
 
-    def simulation_inputs(self, price_column: PriceColumn = CLOSE) -> SimulationInputs:
-        """Parte de las posiciones actuales con los mismos pesos objetivo y rebalanceo."""
+    def simulation_inputs(
+        self, price_column: PriceColumn = CLOSE, estimation_prices: pd.DataFrame | None = None
+    ) -> SimulationInputs:
+        """Parte de las posiciones actuales con los mismos pesos objetivo y rebalanceo.
+
+        estimation_prices sustituye a los precios de la cartera solo para estimar la volatilidad
+        y las correlaciones, por ejemplo con más años que el análisis. Debe tener una columna por
+        activo, en la divisa de la cartera, y terminar en su fecha de valoración: la simulación
+        sigue partiendo del valor actual de las posiciones.
+        """
+        prices = self.close_prices(price_column)
+        if estimation_prices is not None:
+            prices = self._estimation_prices(estimation_prices)
         return SimulationInputs(
-            prices=self.close_prices(price_column),
+            prices=prices,
             starting_values=self.holdings(price_column)["value"],
             currency=self.currency,
             price_column=price_column,
@@ -277,14 +288,35 @@ class Portfolio:
         *,
         periods_per_year: int | None = None,
         price_column: PriceColumn = CLOSE,
+        estimation_prices: pd.DataFrame | None = None,
         **options,
     ) -> SimulationResult:
-        """Simula la cartera desde su valor final; options admite los campos de SimulationSettings."""
+        """Simula la cartera desde su valor final; options admite los campos de SimulationSettings.
+
+        Con estimation_prices, la volatilidad y las correlaciones se estiman con esos precios
+        (véase simulation_inputs()); sin ellos, con los del análisis.
+        """
         return simulate(
-            self.simulation_inputs(price_column),
+            self.simulation_inputs(price_column, estimation_prices),
             SimulationSettings.from_options(settings, **options),
             periods_per_year,
         )
+
+    def _estimation_prices(self, prices: pd.DataFrame) -> pd.DataFrame:
+        """Comprueba que los precios de estimación correspondan a esta cartera y su fecha."""
+        symbols = [asset.symbol for asset in self.assets]
+        if not isinstance(prices, pd.DataFrame) or set(prices.columns) != set(symbols):
+            raise PortfolioError(
+                "Los precios de estimación deben ser una tabla con una columna por cada activo "
+                "de la cartera."
+            )
+        prices = prices.sort_index()
+        if len(prices) == 0 or prices.index[-1] != self.valuation_date:
+            raise PortfolioError(
+                "Los precios de estimación deben terminar en la fecha de valoración de la "
+                f"cartera ({self.valuation_date:%d/%m/%Y})."
+            )
+        return prices[symbols].copy()
 
     def analyze(
         self,

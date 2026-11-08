@@ -78,7 +78,8 @@ SIMULATION_CUSTOM_CRITERIA = (
 )
 SIMULATION_COMMAND = (
     "python src/main.py {option} {assets} --simulate --simulations 50000 --steps 126 "
-    "--equity-premium 0.04 --volatility 0.2 --confidence 0.99 --seed 7 --report"
+    "--estimation-start 2015-01-01 --equity-premium 0.04 --volatility 0.2 --confidence 0.99 "
+    "--seed 7 --report"
 )
 SIMULATION_START_NOTE = (
     "La simulación parte del valor de la cartera en la última fecha del historial, no del "
@@ -115,7 +116,20 @@ HISTORICAL_RETURN_NOTE = (
 NOMINAL_SIMULATION_NOTE = (
     "Importes nominales en {currency}: incluyen dividendos y no descuentan la inflación."
 )
-SIMULATED_REBALANCE = "Mensual, a los pesos objetivo cada {interval} sesiones simuladas"
+SIMULATED_REBALANCE = (
+    "Revisión cada {interval} sesiones simuladas; se vuelve a los pesos objetivo{condition}"
+)
+ESTIMATION_WINDOW_NOTE = (
+    "**Volatilidad y correlaciones:** se estiman con los precios diarios del {start} al {end} "
+    "(~{years} años), no con el período del análisis, para que no dependan de que ese período "
+    "haya sido tranquilo o agitado. Por eso la volatilidad de la simulación puede no coincidir "
+    "con la de las secciones anteriores. El inicio se cambia con `--estimation-start`."
+)
+SHORT_ESTIMATION_NOTE = (
+    "> ⚠️ **Pocos datos para estimar.** La volatilidad y las correlaciones se han estimado con "
+    "menos de {years} años de precios: pueden no ser representativas. Amplía el período con "
+    "`--estimation-start` o indica la volatilidad con `--volatility`."
+)
 SIMULATED_BUY_AND_HOLD = "Sin rebalanceo"
 
 # Calidad de los datos

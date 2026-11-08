@@ -17,7 +17,16 @@ from src.commissions import (
     DEFAULT_REBALANCE_BAND,
     RebalanceRule,
 )
-from src.constants import CLOSE, DEFAULT_CAPITAL, MONTHLY, PriceColumn, Rebalance
+from src.constants import (
+    CLOSE,
+    DAYS_PER_YEAR,
+    DEFAULT_CAPITAL,
+    DEFAULT_ESTIMATION_YEARS,
+    MIN_ESTIMATION_YEARS,
+    MONTHLY,
+    PriceColumn,
+    Rebalance,
+)
 from src.errors import ConfigurationError, PortfolioError
 from src.market_loader import (
     REPORT_DEFAULTS,
@@ -72,10 +81,17 @@ class ProviderOption:
     default_history_days: int
     api_key_env: str | None = None
     split_adjusted: bool = True
+    # Días hasta --end con los que Monte Carlo estima σ y las correlaciones; None usa el
+    # período del análisis porque el proveedor no ofrece más historia gratis.
+    default_estimation_days: int | None = None
 
 
 PROVIDERS = {
-    "yahoo": ProviderOption(lambda: YahooFinanceAPI(cache_dir=CACHE_DIR), 365),
+    "yahoo": ProviderOption(
+        lambda: YahooFinanceAPI(cache_dir=CACHE_DIR),
+        365,
+        default_estimation_days=round(DEFAULT_ESTIMATION_YEARS * DAYS_PER_YEAR),
+    ),
     # El modo compact de Alpha Vantage ofrece unas 100 sesiones.
     "alpha_vantage": ProviderOption(
         lambda: AlphaVantageAPI(cache_dir=CACHE_DIR, include_info=True),
@@ -110,6 +126,8 @@ class RunConfig:
     shares: dict[str, float] | None = None
     # Comisiones y criterio de reajuste; sin rebalanceo mensual no se usa.
     rebalance_rule: RebalanceRule = RebalanceRule()
+    # Inicio de los precios con los que Monte Carlo estima σ y las correlaciones; None usa start.
+    estimation_start: str | None = None
 
     def __post_init__(self) -> None:
         if (self.weights is None) == (self.shares is None):
@@ -233,6 +251,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="AAAA-MM-DD",
         default=date.today().isoformat(),
         help="Fecha de fin, excluida (AAAA-MM-DD). Por defecto: hoy",
+    )
+    options.add_argument(
+        "--estimation-start",
+        metavar="AAAA-MM-DD",
+        help="Inicio de los precios con los que Monte Carlo estima la volatilidad y las "
+        f"correlaciones, hasta --end. Por defecto: {DEFAULT_ESTIMATION_YEARS} años antes de "
+        "--end con Yahoo, o --start si es anterior; con Alpha Vantage, --start",
     )
     options.add_argument(
         "--simulate",
@@ -435,7 +460,29 @@ def _build_config(args: argparse.Namespace) -> RunConfig:
         benchmark=benchmark,
         shares=shares,
         rebalance_rule=_rebalance_rule(args, rebalance),
+        estimation_start=_estimation_start(args, provider, start, run_simulation),
     )
+
+
+def _estimation_start(
+    args: argparse.Namespace, provider: ProviderOption, start: str, enabled: bool
+) -> str | None:
+    """Inicio de la estimación de Monte Carlo; None si coincide con el del análisis.
+
+    Por defecto, los años de DEFAULT_ESTIMATION_YEARS antes de --end o --start si es anterior,
+    para no estimar nunca con menos datos de los que analiza el informe.
+    """
+    if args.estimation_start is not None:
+        if not enabled:
+            raise PortfolioError(
+                "--estimation-start requiere --simulate o la sección simulation de --report."
+            )
+        date_range(args.estimation_start, args.end)
+        return args.estimation_start
+    if not enabled or provider.default_estimation_days is None:
+        return None
+    default = date.fromisoformat(args.end) - timedelta(days=provider.default_estimation_days)
+    return default.isoformat() if default < date.fromisoformat(start) else None
 
 
 COMMISSION_OPTIONS = {
@@ -525,10 +572,12 @@ def run(config: RunConfig) -> None:
     fx_provider = None
     if config.currency:
         fx_provider = YahooFinanceAPI(cache_dir=CACHE_DIR, include_info=False)
+    # Un solo proveedor para el análisis y la estimación de Monte Carlo: comparten caché.
+    provider = PROVIDERS[config.provider].create()
     if config.shares is not None:
         portfolio = load_portfolio_from_shares(
             config.shares,
-            PROVIDERS[config.provider].create(),
+            provider,
             config.start,
             config.end,
             reporting_currency=config.currency,
@@ -539,7 +588,7 @@ def run(config: RunConfig) -> None:
     else:
         portfolio = load_portfolio(
             config.weights,
-            PROVIDERS[config.provider].create(),
+            provider,
             config.start,
             config.end,
             reporting_currency=config.currency,
@@ -553,16 +602,7 @@ def run(config: RunConfig) -> None:
     print_portfolio(portfolio, price_column)
     simulation = None
     if config.simulation is not None:
-        rate = load_risk_free_rate(portfolio.currency, config.end, cache_dir=CACHE_DIR)
-        if rate is None:
-            print(
-                f"Aviso: no hay tipo libre de riesgo para {portfolio.currency}; la simulación usa "
-                "el retorno histórico, que suele ser optimista. Puedes indicarlo con --return.",
-                file=sys.stderr,
-            )
-        settings = replace(config.simulation, risk_free_rate=rate)
-        # El informe muestra el horizonte, los escenarios, la semilla y los supuestos utilizados.
-        simulation = portfolio.monte_carlo(settings, price_column=price_column)
+        simulation = run_simulation(config, portfolio, price_column, provider, fx_provider)
         print_simulation(simulation)
     if not (config.report or config.plots_report):
         return
@@ -579,6 +619,65 @@ def run(config: RunConfig) -> None:
         print(f"Informe generado: {path.resolve()}")
     if config.plots_report:
         show_plots(analysis, simulation)
+
+
+def run_simulation(
+    config: RunConfig,
+    portfolio: Portfolio,
+    price_column: PriceColumn,
+    provider: PriceProvider,
+    fx_provider: PriceProvider | None = None,
+) -> SimulationResult:
+    """Simula desde el valor actual de la cartera, con σ y correlaciones de la estimación."""
+    rate = load_risk_free_rate(portfolio.currency, config.end, cache_dir=CACHE_DIR)
+    if rate is None:
+        print(
+            f"Aviso: no hay tipo libre de riesgo para {portfolio.currency}; la simulación usa "
+            "el retorno histórico, que suele ser optimista. Puedes indicarlo con --return.",
+            file=sys.stderr,
+        )
+    settings = replace(config.simulation, risk_free_rate=rate)
+    estimation_prices = load_estimation_prices(
+        config, portfolio, price_column, provider, fx_provider
+    )
+    # El informe muestra el horizonte, los escenarios, la semilla y los supuestos utilizados.
+    simulation = portfolio.monte_carlo(
+        settings, price_column=price_column, estimation_prices=estimation_prices
+    )
+    if simulation.estimation_years < MIN_ESTIMATION_YEARS:
+        print(
+            f"Aviso: la volatilidad y las correlaciones de la simulación se han estimado con "
+            f"menos de {MIN_ESTIMATION_YEARS} años de datos; pueden no ser representativas. "
+            "Amplía el período con --estimation-start o indica la volatilidad con --volatility.",
+            file=sys.stderr,
+        )
+    return simulation
+
+
+def load_estimation_prices(
+    config: RunConfig,
+    portfolio: Portfolio,
+    price_column: PriceColumn,
+    provider: PriceProvider,
+    fx_provider: PriceProvider | None = None,
+):
+    """Precios del período de estimación, en la divisa de la cartera; None si es el del análisis.
+
+    Solo se necesitan los precios: los valores de partida, los pesos objetivo del rebalanceo y
+    las comisiones siguen siendo los de la cartera analizada.
+    """
+    if config.estimation_start is None or config.estimation_start == config.start:
+        return None
+    estimation = load_portfolio(
+        dict(portfolio.target_weights),
+        provider,
+        config.estimation_start,
+        config.end,
+        reporting_currency=config.currency,
+        rebalance=None,
+        fx_provider=fx_provider,
+    )
+    return estimation.close_prices(price_column).loc[: portfolio.valuation_date]
 
 
 def load_run_references(config: RunConfig, currency: str) -> MarketReferences | None:

@@ -16,6 +16,10 @@ DEFAULT_SEED = 42
 DEFAULT_EQUITY_PREMIUM = 0.045
 # Retornos con los que se contrasta una simulación sin tipo libre de riesgo disponible.
 SENSITIVITY_RETURNS = (0.08, 0.0)
+# Años de datos con los que Monte Carlo estima la volatilidad y las correlaciones por defecto,
+# aunque el análisis cubra menos, y mínimo por debajo del cual el informe avisa.
+DEFAULT_ESTIMATION_YEARS = 5
+MIN_ESTIMATION_YEARS = 3
 
 CLOSE = "Close"
 ADJ_CLOSE = "Adj Close"

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from ..commissions import RebalanceRule
-from ..constants import Rebalance
+from ..constants import DAYS_PER_YEAR, Rebalance
 
 
 @dataclass
@@ -35,6 +35,18 @@ class SimulationResult:
     # comisiones pagadas en cada escenario; ya están descontadas de paths.
     rebalance_rule: RebalanceRule | None = None
     commissions: pd.Series | None = None
+    # Primera y última fecha de los precios con los que se estimaron σ y las correlaciones, y
+    # número de rentabilidades utilizadas.
+    estimation_start: pd.Timestamp | None = None
+    estimation_end: pd.Timestamp | None = None
+    estimation_returns: int | None = None
+
+    @property
+    def estimation_years(self) -> float:
+        """Años naturales entre la primera y la última fecha de la estimación; NaN si no consta."""
+        if self.estimation_start is None or self.estimation_end is None:
+            return float("nan")
+        return (self.estimation_end - self.estimation_start).days / DAYS_PER_YEAR
 
     @property
     def mean_commissions(self) -> float:

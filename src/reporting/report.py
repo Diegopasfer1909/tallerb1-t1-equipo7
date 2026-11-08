@@ -11,7 +11,7 @@ import pandas as pd
 
 from ..analysis.warnings import evaluate_simulation
 from ..commissions import CommissionSchedule, RebalanceRule
-from ..constants import ADJ_CLOSE, EUR, MONTHLY
+from ..constants import ADJ_CLOSE, EUR, MIN_ESTIMATION_YEARS, MONTHLY
 from ..simulation.monte_carlo import MODEL_RETURN
 from ..simulation.settings import SimulationSettings
 from . import texts
@@ -127,13 +127,22 @@ def _read_sign(value, positive: str, negative: str):
 
 
 def _strategy(analysis: PortfolioAnalysis) -> str:
+    costs = analysis.rebalance_costs
+    band = band_condition(costs.rule) if costs is not None else ""
     if analysis.units is not None and analysis.rebalance == MONTHLY:
-        return "rebalanceo mensual a los pesos iniciales de las acciones"
+        return f"rebalanceo mensual a los pesos iniciales de las acciones{band}"
     if analysis.units is not None:
         return "número de acciones fijo, sin rebalanceo"
     if analysis.rebalance == MONTHLY:
-        return "rebalanceo mensual"
+        return f"rebalanceo mensual{band}"
     return "sin rebalanceo (comprar y mantener)"
+
+
+def band_condition(rule: RebalanceRule | None) -> str:
+    """Condición para reajustar, con espacio inicial; vacía si se reajusta en cada revisión."""
+    if rule is None or not rule.band:
+        return ""
+    return f" si algún peso se desvía más de {format_points(rule.band)} de su objetivo"
 
 
 def _risk_free_label(analysis: PortfolioAnalysis) -> str:
@@ -329,17 +338,19 @@ def _tariff_terms(schedule: CommissionSchedule, currency: str) -> str:
 
 def rule_description(rule: RebalanceRule) -> str:
     """Cuándo se reajusta: banda de desviación y órdenes descartadas por caras."""
-    when = (
-        f"si algún peso se desvía más de {format_points(rule.band)} de su objetivo"
-        if rule.band
-        else "siempre que los pesos se hayan desviado"
+    when = band_condition(rule).lstrip() or "siempre que los pesos se hayan desviado"
+    discarded = discarded_orders(rule)
+    return f"{when}; {discarded}" if discarded else when
+
+
+def discarded_orders(rule: RebalanceRule) -> str:
+    """Qué órdenes no se ejecutan por su comisión; vacío si no hay límite."""
+    if rule.max_order_cost is None:
+        return ""
+    return (
+        "se descartan las órdenes cuya comisión supere el "
+        f"{format_number(rule.max_order_cost, True)} de su importe"
     )
-    if rule.max_order_cost is not None:
-        when += (
-            "; se descartan las órdenes cuya comisión supere el "
-            f"{format_number(rule.max_order_cost, True)} de su importe"
-        )
-    return when
 
 
 def _costs_note(analysis: PortfolioAnalysis) -> str:
@@ -809,6 +820,36 @@ def _return_note(simulation: SimulationResult) -> str:
     return note
 
 
+def _estimation_window(simulation: SimulationResult) -> str:
+    """Fechas, sesiones y años con los que se estimaron σ y las correlaciones."""
+    if simulation.estimation_start is None or simulation.estimation_end is None:
+        return UNAVAILABLE
+    sessions = f"{simulation.estimation_returns:,}".replace(",", ".")
+    return (
+        f"{format_date(simulation.estimation_start)} – {format_date(simulation.estimation_end)} "
+        f"({sessions} sesiones, ~{format_number(simulation.estimation_years)} años)"
+    )
+
+
+def _estimation_notes(simulation: SimulationResult, analysis: PortfolioAnalysis) -> list[str]:
+    """Explica un período de estimación distinto del análisis y avisa si es corto."""
+    if simulation.estimation_start is None:
+        return []
+    notes = []
+    dates = analysis.values.index
+    if simulation.estimation_start != dates[0]:
+        notes.append(
+            texts.ESTIMATION_WINDOW_NOTE.format(
+                start=format_date(simulation.estimation_start),
+                end=format_date(simulation.estimation_end),
+                years=format_number(simulation.estimation_years),
+            )
+        )
+    if simulation.estimation_years < MIN_ESTIMATION_YEARS:
+        notes.append(texts.SHORT_ESTIMATION_NOTE.format(years=MIN_ESTIMATION_YEARS))
+    return notes
+
+
 def _simulation(report: ReportContext) -> str:
     simulation = report.simulation
     if simulation is None:
@@ -830,9 +871,11 @@ def _simulation(report: ReportContext) -> str:
         for symbol, value in assumptions["annual_volatility"].items()
     )
     historical_volatility = (assumptions["volatility_source"] == "histórica").all()
-    dates = analysis.values.index
+    rule = simulation.rebalance_rule
     rebalance = (
-        texts.SIMULATED_REBALANCE.format(interval=simulation.rebalance_interval)
+        texts.SIMULATED_REBALANCE.format(
+            interval=simulation.rebalance_interval, condition=band_condition(rule)
+        )
         if simulation.rebalance_interval
         else texts.SIMULATED_BUY_AND_HOLD
     )
@@ -850,7 +893,7 @@ def _simulation(report: ReportContext) -> str:
             f"Volatilidad anual ({'histórica' if historical_volatility else 'supuesta'})",
             volatilities,
         ],
-        ["Historia usada para estimar", f"{format_date(dates[0])} – {format_date(dates[-1])}"],
+        ["Datos para estimar volatilidad y correlaciones", _estimation_window(simulation)],
         ["Nivel de confianza", level],
         ["Semilla", simulation.seed if simulation.seed is not None else "aleatoria"],
     ]
@@ -864,16 +907,17 @@ def _simulation(report: ReportContext) -> str:
             ["Prima de riesgo", format_number(simulation.equity_premium, True)],
             ["Parte en renta variable", shares],
         ]
-    rule = simulation.rebalance_rule
     if rule is not None and not rule.is_free:
         position = next(i for i, row in enumerate(parameters) if row[0] == "Rebalanceo") + 1
+        # La banda ya figura en la fila del rebalanceo; aquí, solo la tarifa y su efecto.
+        discarded = discarded_orders(rule)
         parameters.insert(
             position,
             [
                 "Comisiones de rebalanceo",
-                f"{tariff_label(rule.commissions, currency)}, "
-                f"{rule_description(rule)}; media pagada por escenario "
-                f"{_money(simulation.mean_commissions, currency)}",
+                f"{tariff_label(rule.commissions, currency)}"
+                + (f", {discarded}" if discarded else "")
+                + f"; media pagada por escenario {_money(simulation.mean_commissions, currency)}",
             ],
         )
     var = results["value_at_risk"]
@@ -916,6 +960,7 @@ def _simulation(report: ReportContext) -> str:
             _simulation_criteria(simulation, analysis),
             "**Parámetros**",
             _table(["Parámetro", "Valor"], parameters),
+            *_estimation_notes(simulation, analysis),
             texts.SIMULATION_START_NOTE,
             "**Resultados**",
             outcome,
