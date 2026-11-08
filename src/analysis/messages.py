@@ -61,8 +61,9 @@ BENCHMARK_COVERAGE_NOTE = (
 )
 BENCHMARK_COMPARISON = (
     "Comparación con el índice {symbol} basada en {dates} fechas comunes, con la misma divisa y "
-    "el mismo tipo de precio. Ambas rentabilidades se anualizan por los días naturales entre las "
-    "mismas fechas extremas. Revisa si el índice incorpora dividendos."
+    "el mismo tipo de precio. Ambas rentabilidades se miden entre las mismas fechas extremas y, "
+    "con un año o más de historia, se anualizan por los días naturales transcurridos. Revisa si "
+    "el índice incorpora dividendos."
 )
 MARKET_PRICES_STALE = (
     "{reference} ({symbol}): faltan cierres de menos de {days} días para algunas fechas de la "

@@ -156,6 +156,20 @@ def _annual_points(value: float) -> str:
     return UNAVAILABLE if pd.isna(value) else f"{format_points(value, signed=True)}/año"
 
 
+def _period_points(value: float) -> str:
+    """Diferencia de rentabilidades del período completo, con signo y sin anualizar."""
+    return UNAVAILABLE if pd.isna(value) else format_points(value, signed=True)
+
+
+def _short_history(analysis: PortfolioAnalysis) -> bool:
+    """Con menos de un año, las rentabilidades se muestran sin anualizar.
+
+    Anualizar unas semanas o meses multiplica el resultado: +3 % en una semana equivale a
+    más de un 300 % anual. Se usa el mismo umbral que el aviso de historia corta.
+    """
+    return analysis.metrics["history_days"] < analysis.warning_thresholds.short_history
+
+
 def _read_gap(value: float, reference: str) -> str:
     """Cuántos puntos por encima o por debajo de una referencia quedó la cartera."""
     if pd.isna(value):
@@ -177,28 +191,38 @@ def _summary(report: ReportContext) -> str:
         f"{format_date(dates[0])} – {format_date(dates[-1])} · {len(dates) - 1} sesiones · "
         f"referencia: {analysis.benchmark_name or 'sin índice'} · {_strategy(analysis)}"
     )
-    difference = metrics["difference_from_benchmark"]
+    short = _short_history(analysis)
     drawdown = metrics["max_drawdown"]
     symbol = analysis.benchmark_symbol
-    benchmark_label = "Diferencia anual frente al índice"
+    total = format_number(metrics["total_return"], True, signed=True)
+    if short:
+        difference = metrics["total_difference_from_benchmark"]
+        premium = metrics["excess_total_return"]
+        points, period = _period_points, " en el período"
+        benchmark_label = "Diferencia frente al índice en el período"
+        growth = f"{total} en total, sin anualizar"
+    else:
+        difference = metrics["difference_from_benchmark"]
+        premium = metrics["excess_annualized_return"]
+        points, period = _annual_points, ""
+        benchmark_label = "Diferencia anual frente al índice"
+        growth = f"{total} en total, {format_number(metrics['annualized_return'], True)} al año"
     if symbol:
         benchmark_label += f" ({symbol})"
-    premium = metrics["excess_annualized_return"]
     rows = [
         [
             f"Valor final de {_money(analysis.initial_capital, currency)}",
             f"**{_money(analysis.values.iloc[-1], currency)}**",
-            f"{format_number(metrics['total_return'], True, signed=True)} en total, "
-            f"{format_number(metrics['annualized_return'], True)} al año",
+            growth,
         ],
         [
             benchmark_label,
-            f"**{_annual_points(difference)}**",
+            f"**{points(difference)}**",
             _read_sign(difference, "batió al índice", "habría sido mejor comprar el índice"),
         ],
         [
-            f"Diferencia frente al {_risk_free_label(analysis)}",
-            f"**{_annual_points(premium)}**",
+            f"Diferencia frente al {_risk_free_label(analysis)}{period}",
+            f"**{points(premium)}**",
             _read_gap(premium, "el tipo libre de riesgo"),
         ],
         [
@@ -213,6 +237,8 @@ def _summary(report: ReportContext) -> str:
         ],
     ]
     parts = [header, _table(["Cifra", "Valor", "Lectura"], rows)]
+    if short:
+        parts.append(texts.SHORT_HISTORY_RETURNS)
     comparison = analysis.benchmark_comparison
     if not comparison.empty:
         parts.append(
@@ -439,56 +465,85 @@ def _annual_results(analysis: PortfolioAnalysis) -> str:
 
 
 def _asset_results(analysis: PortfolioAnalysis) -> str:
-    """Resultado de cada activo en la divisa de la cartera, en las mismas fechas que esta."""
-    return _table(
-        ["Ticker", "Rentabilidad total", "CAGR", "Volatilidad", "Caída máxima", "Beta"],
-        [
-            [
-                symbol,
-                format_number(row["total_return"], True, signed=True),
-                format_number(row["annualized_return"], True),
-                format_number(row["annualized_volatility"], True),
-                format_number(row["max_drawdown"], True),
-                format_number(row["calculated_beta"]),
-            ]
-            for symbol, row in analysis.asset_details.iterrows()
-        ],
-    )
+    """Resultado de cada activo en la divisa de la cartera, en las mismas fechas que esta.
+
+    Con menos de un año no hay columna CAGR: la rentabilidad total ya es la del período.
+    """
+    short = _short_history(analysis)
+    headers = ["Ticker", "Rentabilidad total", "CAGR", "Volatilidad", "Caída máxima", "Beta"]
+    if short:
+        headers.remove("CAGR")
+    rows = []
+    for symbol, row in analysis.asset_details.iterrows():
+        cells = [
+            symbol,
+            format_number(row["total_return"], True, signed=True),
+            format_number(row["annualized_return"], True),
+            format_number(row["annualized_volatility"], True),
+            format_number(row["max_drawdown"], True),
+            format_number(row["calculated_beta"]),
+        ]
+        if short:
+            del cells[2]
+        rows.append(cells)
+    return _table(headers, rows)
 
 
 def _returns(report: ReportContext) -> str:
     analysis = report.analysis
     metrics = analysis.metrics
-    difference = metrics["difference_from_benchmark"]
-    real = metrics["real_annualized_return"]
+    benchmark = analysis.benchmark_name or "el índice"
     rows = [
         [
             "Rentabilidad acumulada",
             format_number(metrics["total_return"], True, signed=True),
             "de principio a fin",
         ],
-        [
-            "Rentabilidad anualizada (CAGR)",
-            format_number(metrics["annualized_return"], True),
-            "en renta variable, 6–9 % anual es lo habitual",
-        ],
-        [
-            f"CAGR de {analysis.benchmark_name or 'el índice'}",
-            format_number(metrics["benchmark_annualized_return"], True),
-            "",
-        ],
-        [
-            "Diferencia frente al índice",
-            _annual_points(difference),
-            _read_sign(difference, "la cartera batió al índice", "el índice rindió más"),
-        ],
-        ["Inflación media anual", format_number(metrics["annualized_inflation"], True), ""],
+    ]
+    if _short_history(analysis):
+        difference = metrics["total_difference_from_benchmark"]
+        real = metrics["real_total_return"]
+        rows += [
+            [
+                f"Rentabilidad de {benchmark} en el período",
+                format_number(metrics["benchmark_total_return"], True, signed=True),
+                "",
+            ],
+            [
+                "Diferencia frente al índice",
+                _period_points(difference),
+                _read_sign(difference, "la cartera batió al índice", "el índice rindió más"),
+            ],
+            ["Inflación del período", format_number(metrics["total_inflation"], True), ""],
+        ]
+    else:
+        difference = metrics["difference_from_benchmark"]
+        real = metrics["real_annualized_return"]
+        rows += [
+            [
+                "Rentabilidad anualizada (CAGR)",
+                format_number(metrics["annualized_return"], True),
+                "en renta variable, 6–9 % anual es lo habitual",
+            ],
+            [
+                f"CAGR de {benchmark}",
+                format_number(metrics["benchmark_annualized_return"], True),
+                "",
+            ],
+            [
+                "Diferencia frente al índice",
+                _annual_points(difference),
+                _read_sign(difference, "la cartera batió al índice", "el índice rindió más"),
+            ],
+            ["Inflación media anual", format_number(metrics["annualized_inflation"], True), ""],
+        ]
+    rows.append(
         [
             "Rentabilidad real",
             format_number(real, True),
             _read_sign(real, "ganó poder de compra", "perdió frente a la inflación"),
-        ],
-    ]
+        ]
+    )
     monthly = analysis.monthly_returns
     complete = monthly.loc[~monthly["partial"], "return"].dropna()
     for label, month in (
@@ -562,15 +617,33 @@ def _risk_adjusted(report: ReportContext) -> str:
             if sortino > 1.5 * sharpe and sharpe > 0
             else "similar al Sharpe"
         )
-    premium = metrics["excess_annualized_return"]
-    premium_read = ""
-    if pd.notna(premium):
-        premium_read = (
-            "poca compensación para el riesgo de la bolsa"
-            if premium < analysis.warning_thresholds.premium
-            else "compensó"
-        )
+    short = _short_history(analysis)
     label = _risk_free_label(analysis)
+    if short:
+        # El umbral de la prima es anual: no se compara con la diferencia de unos meses.
+        premium = metrics["excess_total_return"]
+        premium_read = _read_gap(premium, "el tipo libre de riesgo")
+        points, period = _period_points, " en el período"
+        rate_row = [
+            f"{label[0].upper()}{label[1:]}, acumulado en el período",
+            format_number(metrics["reference_total_return"], True),
+            "referencia de Sharpe, Sortino y alfa, sin anualizar",
+        ]
+    else:
+        premium = metrics["excess_annualized_return"]
+        premium_read = ""
+        if pd.notna(premium):
+            premium_read = (
+                "poca compensación para el riesgo de la bolsa"
+                if premium < analysis.warning_thresholds.premium
+                else "compensó"
+            )
+        points, period = _annual_points, ""
+        rate_row = [
+            f"{label[0].upper()}{label[1:]}, medio del periodo",
+            format_number(metrics["reference_annualized_return"], True),
+            "referencia de Sharpe, Sortino y alfa",
+        ]
     rows = [
         ["Ratio de Sharpe", format_number(sharpe), _read_sharpe(sharpe)],
         ["Ratio de Sortino", format_number(sortino), sortino_read],
@@ -583,25 +656,28 @@ def _risk_adjusted(report: ReportContext) -> str:
                 "habría sido mejor comprar el índice",
             ),
         ],
-        [f"Prima frente al {label}", _annual_points(premium), premium_read],
-        [
-            f"{label[0].upper()}{label[1:]}, medio del periodo",
-            format_number(metrics["reference_annualized_return"], True),
-            "referencia de Sharpe, Sortino y alfa",
-        ],
+        [f"Prima frente al {label}{period}", points(premium), premium_read],
+        rate_row,
     ]
     if analysis.currency == EUR:
-        difference = metrics["difference_from_bund_etf"]
-        bund_etf = format_number(metrics["bund_etf_annualized_return"], True)
+        if short:
+            difference = metrics["total_difference_from_bund_etf"]
+            bund_etf = format_number(metrics["bund_etf_total_return"], True, signed=True)
+            source = f"rentabilidad del ETF de Bunds en el período: {bund_etf}"
+        else:
+            difference = metrics["difference_from_bund_etf"]
+            bund_etf = format_number(metrics["bund_etf_annualized_return"], True)
+            source = f"CAGR del ETF de Bunds: {bund_etf}"
         read = _read_gap(difference, "la deuda alemana")
         rows.append(
             [
-                "Diferencia frente a deuda alemana",
-                _annual_points(difference),
-                f"{read} (CAGR del ETF de Bunds: {bund_etf})" if read else "",
+                f"Diferencia frente a deuda alemana{period}",
+                points(difference),
+                f"{read} ({source})" if read else "",
             ]
         )
-    return "\n\n".join([_table(["Métrica", "Valor", "Lectura"], rows), texts.RETURN_MEASURES_NOTE])
+    note = texts.SHORT_RETURN_MEASURES_NOTE if short else texts.RETURN_MEASURES_NOTE
+    return "\n\n".join([_table(["Métrica", "Valor", "Lectura"], rows), note])
 
 
 def _diversification(report: ReportContext) -> str:
@@ -690,18 +766,27 @@ def _market(report: ReportContext) -> str:
     parts = [_table(["Métrica", "Valor", "Lectura"], rows)]
     if not market.fx_effect.empty:
         details = analysis.asset_details
+        if _short_history(analysis):
+            effects, points = market.fx_period_effect, _period_points
+            measure = (
+                f"rentabilidad del período en {analysis.currency} − rentabilidad del período "
+                "en la divisa original"
+            )
+        else:
+            effects, points = market.fx_effect, _annual_points
+            measure = f"CAGR en {analysis.currency} − CAGR en la divisa original"
         parts.append(
-            f"**Efecto divisa** (CAGR en {analysis.currency} − CAGR en la divisa original):\n\n"
+            f"**Efecto divisa** ({measure}):\n\n"
             + _table(
                 ["Ticker", "Divisa", "Efecto"],
                 [
                     [
                         symbol,
                         details.loc[symbol, "quote_currency"],
-                        f"{_annual_points(effect)} · "
+                        f"{points(effect)} · "
                         + _read_sign(effect, "el tipo de cambio sumó", "el tipo de cambio restó"),
                     ]
-                    for symbol, effect in market.fx_effect.items()
+                    for symbol, effect in effects.items()
                 ],
             )
         )
@@ -982,8 +1067,7 @@ def _data(report: ReportContext) -> str:
         f"**Historia común:** {sessions} sesiones "
         f"({format_date(dates[0])} – {format_date(dates[-1])})"
     )
-    days = analysis.metrics["history_days"]
-    history += texts.SHORT_HISTORY_NOTE if days < analysis.warning_thresholds.short_history else "."
+    history += texts.SHORT_HISTORY_NOTE if _short_history(analysis) else "."
     limit = analysis.warning_thresholds.excluded_dates
     excluded_rows = []
     for symbol, row in quality.iterrows():

@@ -376,6 +376,27 @@ class MainTests(unittest.TestCase):
         self.assertIn("Resumen de la simulación", output.getvalue())
         write_file.assert_not_called()
 
+    def test_too_short_a_history_fails_before_simulating(self):
+        short = PriceHistory(
+            "IBM",
+            "yahoo",
+            pd.DataFrame({"Close": [100, 102]}, index=self.dates[:2]),
+            profile=AssetProfile(currency="USD"),
+        )
+        with (
+            patch("src.main.load_dotenv"),
+            patch("src.main.YahooFinanceAPI") as yahoo,
+            patch("src.main.load_references", return_value=MarketReferences()),
+            patch("src.main.run_simulation") as simulate,
+            redirect_stdout(io.StringIO()) as output,
+            redirect_stderr(io.StringIO()) as errors,
+        ):
+            yahoo.return_value.get_prices.return_value = short
+            self.assertEqual(main(["--assets", "IBM:1", "--report", "--simulate"]), 1)
+        simulate.assert_not_called()
+        self.assertNotIn("Resumen de la simulación", output.getvalue())
+        self.assertIn("al menos tres fechas", errors.getvalue())
+
     def test_provider_failure_returns_error_status_on_stderr(self):
         with (
             patch("src.main.load_dotenv"),

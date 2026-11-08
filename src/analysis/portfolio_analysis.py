@@ -41,6 +41,7 @@ from .metrics import (
     performance,
     risk_adjusted,
     risk_contributions,
+    total_growth,
 )
 from .result import PortfolioAnalysis, RebalanceCosts
 from .warnings import WarningThresholds, evaluate_risk
@@ -48,15 +49,37 @@ from .warnings import WarningThresholds, evaluate_risk
 if TYPE_CHECKING:
     from ..models import Portfolio
 
-RATE_METRICS = ("sharpe", "sortino", "reference_annualized_return", "excess_annualized_return")
+# Cada rentabilidad anualizada tiene su equivalente del período (*_total_*), sin anualizar: con
+# menos de un año de historia, el informe muestra este último.
+RATE_METRICS = (
+    "sharpe",
+    "sortino",
+    "reference_annualized_return",
+    "excess_annualized_return",
+    "reference_total_return",
+    "excess_total_return",
+)
 BENCHMARK_METRICS = (
     "comparison_portfolio_annualized_return",
     "benchmark_annualized_return",
     "difference_from_benchmark",
+    "benchmark_total_return",
+    "total_difference_from_benchmark",
     "beta",
 )
-INFLATION_METRICS = ("annualized_inflation", "real_annualized_return", "latest_inflation")
-BUND_ETF_METRICS = ("bund_etf_annualized_return", "difference_from_bund_etf")
+INFLATION_METRICS = (
+    "annualized_inflation",
+    "real_annualized_return",
+    "total_inflation",
+    "real_total_return",
+    "latest_inflation",
+)
+BUND_ETF_METRICS = (
+    "bund_etf_annualized_return",
+    "difference_from_bund_etf",
+    "bund_etf_total_return",
+    "total_difference_from_bund_etf",
+)
 # Base de precios del análisis cuando se usa Adj Close en lugar de Close.
 ADJUSTED_GROWTH = "adjusted_growth"
 # Fracción mínima de las observaciones esperadas para escalar la dispersión con
@@ -91,6 +114,7 @@ def _reference_rate(
     returns: pd.Series,
     periods_per_year: int,
     annualized: float,
+    total: float,
 ) -> _Measures:
     if indicator is None:
         return _Measures.missing(
@@ -105,6 +129,8 @@ def _reference_rate(
     values = risk_adjusted(returns, reference, periods_per_year)
     values["reference_annualized_return"] = annualized_return(reference, periods_per_year)
     values["excess_annualized_return"] = annualized - values["reference_annualized_return"]
+    values["reference_total_return"] = float((1 + reference).prod() - 1)
+    values["excess_total_return"] = total - values["reference_total_return"]
     notes = {}
     if np.isnan(values["sharpe"]):
         notes["sharpe"] = messages.SHARPE_UNDEFINED
@@ -117,6 +143,7 @@ def _inflation(
     indicator: EconomicIndicator | None,
     dates: pd.DatetimeIndex,
     annualized: float,
+    total: float,
 ) -> _Measures:
     if indicator is None:
         return _Measures.missing(INFLATION_METRICS, messages.NO_INFLATION_NOTE)
@@ -130,10 +157,13 @@ def _inflation(
             INFLATION_METRICS, messages.INFLATION_STALE_NOTE, messages.INFLATION_STALE
         )
     inflation = annualized_growth(levels)
+    total_inflation = total_growth(levels)
     return _Measures(
         {
             "annualized_inflation": inflation,
             "real_annualized_return": (1 + annualized) / (1 + inflation) - 1,
+            "total_inflation": total_inflation,
+            "real_total_return": (1 + total) / (1 + total_inflation) - 1,
             "latest_inflation": _latest_inflation(indicator),
         }
     )
@@ -166,10 +196,14 @@ def _bund_etf(
         return _Measures(notes=dict.fromkeys(BUND_ETF_METRICS, messages.BUND_ETF_STALE_NOTE))
     bund_etf = annualized_growth(prices)
     portfolio = annualized_growth(values.reindex(prices.index))
+    bund_etf_total = total_growth(prices)
     return _Measures(
         {
             "bund_etf_annualized_return": bund_etf,
             "difference_from_bund_etf": portfolio - bund_etf,
+            "bund_etf_total_return": bund_etf_total,
+            "total_difference_from_bund_etf": total_growth(values.reindex(prices.index))
+            - bund_etf_total,
         }
     )
 
@@ -243,11 +277,14 @@ def _market(
 ) -> MarketContext:
     """gold y bund_etf son los cierres ya comprobados por _market_prices()."""
     dates = prices.index
-    effects = {}
+    effects, period_effects = {}, {}
     for asset in portfolio.assets:
         if asset.currency != portfolio.currency:
             local = _on_dates(asset.history, dates, price_column)
             effects[asset.symbol] = currency_effect(local, prices[asset.symbol])
+            period_effects[asset.symbol] = currency_effect(
+                local, prices[asset.symbol], annualize=False
+            )
     vix = references.vix
     brent = references.brent
     return market_context(
@@ -257,6 +294,7 @@ def _market(
         gold,
         bund_etf,
         pd.Series(effects, dtype=float),
+        pd.Series(period_effects, dtype=float),
     )
 
 
@@ -293,10 +331,13 @@ def _benchmark(
     portfolio = values.reindex(prices.index)
     portfolio_return = annualized_growth(portfolio)
     benchmark_return = annualized_growth(prices)
+    benchmark_total = total_growth(prices)
     measured = {
         "comparison_portfolio_annualized_return": portfolio_return,
         "benchmark_annualized_return": benchmark_return,
         "difference_from_benchmark": portfolio_return - benchmark_return,
+        "benchmark_total_return": benchmark_total,
+        "total_difference_from_benchmark": total_growth(portfolio) - benchmark_total,
         "beta": beta(period_returns(portfolio), period_returns(prices)),
     }
     notes = {"beta": messages.BETA_UNDEFINED} if np.isnan(measured["beta"]) else {}
@@ -494,20 +535,20 @@ def analyze_portfolio(
     weights = holdings["weight"]
 
     metrics = performance(values, periods_per_year)
-    annualized = metrics["annualized_return"]
+    annualized, total = metrics["annualized_return"], metrics["total_return"]
     # Un índice en otra divisa puede traer en las referencias el tipo de cambio que necesita.
     fx_rates = portfolio.fx_rates.combine(references.fx_rates)
     benchmark, benchmark_prices = _benchmark(
         references.benchmark, values, portfolio.currency, fx_rates, price_column
     )
-    rate = _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized)
+    rate = _reference_rate(references.risk_free_rate, returns, periods_per_year, annualized, total)
     gold, gold_notices = _market_prices("Oro", references.gold, prices.index, price_column)
     bund_etf, bund_etf_notices = _market_prices(
         "ETF de Bunds", references.bund_etf, prices.index, price_column
     )
     measures = [
         rate,
-        _inflation(references.inflation, prices.index, annualized),
+        _inflation(references.inflation, prices.index, annualized, total),
         benchmark,
         _bund_etf(references.bund_etf, bund_etf, values, portfolio.currency),
     ]

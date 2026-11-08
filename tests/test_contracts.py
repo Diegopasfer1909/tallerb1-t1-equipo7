@@ -312,7 +312,8 @@ class ReportTextTests(unittest.TestCase):
         benchmark = history("^IXIC", [100, 101, 103])
         portfolio = buy_and_hold([asset("A", [100, 102, 104])], [1])
         report = build_report(portfolio.analyze(MarketReferences(benchmark=benchmark)))
-        self.assertIn("Diferencia anual frente al índice (^IXIC)", report)
+        # Dos días de historia: la diferencia es la del período, sin anualizar.
+        self.assertIn("Diferencia frente al índice en el período (^IXIC)", report)
         self.assertIn("Comparación con el índice ^IXIC:", report)
 
 
