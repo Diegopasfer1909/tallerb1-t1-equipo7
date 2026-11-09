@@ -234,22 +234,23 @@ datos que faltan son otra cosa: salen en la consola y en la sección `data`.
 ### 3. Rebalanceo y comisiones
 
 Con rebalanceo mensual, a fin de mes se comprueba si algún peso se ha desviado de su
-objetivo y, si compensa, se vuelve a él pagando las comisiones del bróker. Monte Carlo
-aplica la misma regla. Estas opciones solo se aceptan con rebalanceo mensual.
+objetivo y, si compensa, se vuelve a él pagando las comisiones del bróker. Como ejemplo se
+usa siempre la tarifa de Interactive Brokers (IBKR): 0,05 % por orden con un mínimo de 3. No se
+elige bróker; solo se pueden cambiar los valores de esa tarifa. Monte Carlo aplica la misma
+regla. Estas opciones solo se aceptan con rebalanceo mensual.
 
 | Parámetro | Para qué sirve | Por defecto |
 | --- | --- | --- |
-| `--broker` | Tarifa: `ibkr` (0,05 % por orden, mínimo 3), `degiro` (2 por orden), `trade_republic` (1 por orden), `xtb` o `none` (sin comisiones) | `ibkr` |
-| `--commission-rate 0.0005` | Comisión proporcional por orden | La del bróker |
-| `--commission-fixed 2` | Comisión fija por orden | La del bróker |
-| `--commission-min 3` | Comisión mínima por orden | La del bróker |
-| `--commission-max 50` | Comisión máxima por orden | La del bróker |
+| `--commission-rate 0.001` | Comisión proporcional por orden | `0.0005` (0,05 %, IBKR) |
+| `--commission-fixed 1` | Comisión fija por orden | `0` (IBKR) |
+| `--commission-min 5` | Comisión mínima por orden | `3` (IBKR) |
+| `--commission-max 50` | Comisión máxima por orden | Sin máximo (IBKR) |
 | `--rebalance-band 0.05` | Solo se reajusta si algún peso se desvía más que esto; `0` reajusta cada mes | `0.05` (5 puntos) |
 | `--max-order-cost 0.01` | Descarta las órdenes cuya comisión supere esta fracción de su importe | `0.01` (1 %) |
 
 Por ejemplo, con objetivo 60/40, un reparto 63/37 no supera la banda de 5 puntos; 66/34 sí.
 Los importes fijos se expresan en la divisa de la cartera. Para reajustar cada mes sin
-comisiones: `--broker none --rebalance-band 0`.
+comisiones: `--commission-rate 0 --commission-min 0 --rebalance-band 0`.
 
 <a id="es-ejemplo"></a>
 
@@ -632,22 +633,23 @@ data are separate: they appear in the terminal and in the `data` section.
 ### 3. Rebalancing and commissions
 
 With monthly rebalancing, at each month end the program checks whether any weight has
-drifted from its target and, if worthwhile, restores it paying the broker's commissions.
+drifted from its target and, if worthwhile, restores it paying the broker's commissions. The
+Interactive Brokers (IBKR) schedule is always used as the example: 0.05% per order with a
+minimum of 3. There is no broker choice; only the values of that schedule can be changed.
 Monte Carlo applies the same rule. These options require monthly rebalancing.
 
 | Parameter | Purpose | Default |
 | --- | --- | --- |
-| `--broker` | Schedule: `ibkr` (0.05% per order, minimum 3), `degiro` (2 per order), `trade_republic` (1 per order), `xtb` or `none` (no commissions) | `ibkr` |
-| `--commission-rate 0.0005` | Proportional commission per order | The broker's |
-| `--commission-fixed 2` | Fixed commission per order | The broker's |
-| `--commission-min 3` | Minimum commission per order | The broker's |
-| `--commission-max 50` | Maximum commission per order | The broker's |
+| `--commission-rate 0.001` | Proportional commission per order | `0.0005` (0.05%, IBKR) |
+| `--commission-fixed 1` | Fixed commission per order | `0` (IBKR) |
+| `--commission-min 5` | Minimum commission per order | `3` (IBKR) |
+| `--commission-max 50` | Maximum commission per order | No maximum (IBKR) |
 | `--rebalance-band 0.05` | Rebalances only if a weight drifts more than this; `0` rebalances every month | `0.05` (5 points) |
 | `--max-order-cost 0.01` | Skips orders whose commission exceeds this fraction of their amount | `0.01` (1%) |
 
 For a 60/40 target, 63/37 stays inside the 5-point band; 66/34 exceeds it. Fixed amounts are
 expressed in the portfolio currency. To rebalance every month without commissions:
-`--broker none --rebalance-band 0`.
+`--commission-rate 0 --commission-min 0 --rebalance-band 0`.
 
 <a id="en-example"></a>
 

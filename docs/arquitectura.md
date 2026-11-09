@@ -9,7 +9,7 @@ El usuario trabaja con la consola (`src/main.py`) o con `Portfolio`. La capa de 
 ```mermaid
 flowchart TB
     usuario(["Usuario"])
-    main["main.py · --assets o --shares --rebalance --broker --report --simulate..."]
+    main["main.py · --assets o --shares --rebalance --commission-* --report --simulate..."]
     loaders["portfolio_loader · price_loader · market_loader"]
 
     subgraph providers["providers · se conectan a las APIs"]
@@ -276,7 +276,7 @@ sequenceDiagram
     participant A as analysis y simulation
     participant R as reporting
 
-    U->>M: --assets --currency --rebalance --broker --capital --benchmark --report
+    U->>M: --assets --currency --rebalance --commission-* --capital --benchmark --report
     M->>M: validar opciones y crear la RebalanceRule antes de descargar
     M->>L: load_portfolio(pesos, proveedor, fechas, rebalance_rule, max_workers)
     L->>Y: precios y fichas en lote (hasta 4 a la vez con Yahoo; 1 con Alpha Vantage)

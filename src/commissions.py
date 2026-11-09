@@ -1,8 +1,8 @@
-"""Comisiones de los brókers y regla que decide si un rebalanceo compensa sus costes.
+"""Comisiones del bróker y regla que decide si un rebalanceo compensa sus costes.
 
-Las tarifas de BROKER_PRESETS se consultaron en noviembre de 2026 en las webs de los brókers y
-en comparadores españoles; cambian con frecuencia, así que conviene comprobar la tarifa vigente
-y ajustarla con las opciones --commission-* si es necesario.
+Como ejemplo se toma la tarifa de Interactive Brokers (IBKR_COMMISSIONS), consultada en
+noviembre de 2026 en su web. Las tarifas cambian con frecuencia: sus valores pueden ajustarse con
+las opciones --commission-*, pero el bróker de referencia es siempre el mismo.
 """
 
 from dataclasses import dataclass, field
@@ -57,19 +57,9 @@ class CommissionSchedule:
         return np.where(size > 0, fee, 0.0)
 
 
-# Tarifas por orden de acciones y ETF para un inversor en España (noviembre de 2026).
-BROKER_PRESETS: dict[str, CommissionSchedule] = {
-    # Plan fijo en bolsas europeas: 0,05 % del importe, mínimo 3 €.
-    "ibkr": CommissionSchedule(rate=0.0005, minimum=3.0, name="Interactive Brokers"),
-    # 1 € de comisión más 1 € de costes de tramitación por orden.
-    "degiro": CommissionSchedule(fixed=2.0, name="DEGIRO"),
-    # 1 € de costes externos por orden.
-    "trade_republic": CommissionSchedule(fixed=1.0, name="Trade Republic"),
-    # Sin comisión hasta 100.000 € de volumen mensual.
-    "xtb": CommissionSchedule(name="XTB"),
-    "none": CommissionSchedule(),
-}
-DEFAULT_BROKER = "ibkr"
+# Bróker de ejemplo: Interactive Brokers, plan fijo en bolsas europeas (noviembre de 2026),
+# 0,05 % del importe de cada orden con un mínimo de 3 €.
+IBKR_COMMISSIONS = CommissionSchedule(rate=0.0005, minimum=3.0, name="Interactive Brokers")
 # Valores por defecto de la consola: reajustar solo si un peso se desvía más de 5 puntos y no
 # enviar órdenes cuya comisión supere el 1 % de su importe.
 DEFAULT_REBALANCE_BAND = 0.05
