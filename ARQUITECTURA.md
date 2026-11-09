@@ -2,7 +2,7 @@
 
 Cuatro vistas explican la estructura del toolkit, sus contratos y su ejecución. Además de la vista general (01), cubren lo que pide el enunciado en su apartado 4.6: la jerarquía de clases (02), las dependencias (05) y el flujo del sistema (06). Los nombres de clases y métodos coinciden con el código. Cada lámina es un archivo Mermaid (`.mmd`) con su exportación en PNG, ambos en [`diagramas/`](diagramas/README.md).
 
-**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). Al cambiar el código, hay que revisar qué láminas quedan afectadas.
+**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01 y 05 incluyen además los puertos de `src/ports.py`. Al cambiar el código, hay que revisar qué láminas quedan afectadas.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ Las flechas se interpretan según la vista: **responsabilidad/interacción** en 
 
 Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las importaciones. `main` compone la ejecución; los cargadores obtienen y transforman datos, incluidos los precios de 5 años con los que Monte Carlo estima la volatilidad y las correlaciones; los adaptadores encapsulan los servicios externos (Yahoo, Alpha Vantage, FRED y BCE). Los módulos transversales `commissions` y `frequency` aplican la misma regla de rebalanceo y el mismo calendario (252 o 365) en el histórico y en la simulación. Los modelos y los cálculos trabajan con contratos normalizados. `reporting` presenta resultados y escribe Markdown e imágenes, por lo que sí realiza E/S local.
 
-La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el núcleo los contratos `PriceProvider`, `IndicatorProvider` (FRED y BCE) y `ReferenceSources`, y `errors` el `ProviderError` común. Los cargadores solo reciben esos puertos; `main` es el único módulo que elige y crea adaptadores (registro `PROVIDERS` y `reference_sources()`). El resto no es una hexagonal estricta: `Portfolio.report()`, `.plots_report()` y `SimulationResult.plot()` son fachadas que el enunciado pide en el dominio y que llegan a `reporting` ([decisión 74](Decisiones.MD)).
+La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el núcleo los contratos `PriceProvider`, `IndicatorProvider` (FRED y BCE) y `ReferenceSources`, y `errors` el `ProviderError` común. Los cargadores solo reciben esos puertos; `main` es el único módulo que elige y crea adaptadores (registro `PROVIDERS` y `reference_sources()`). El resto no es una hexagonal estricta: `Portfolio.report()`, `.plots_report()` y `SimulationResult.plot()` son fachadas que el enunciado pide en el dominio y que llegan a `reporting`.
 
 Yahoo y Alpha Vantage cumplen `PriceProvider.get_prices()` por estructura, sin heredar del protocolo; FRED y el BCE cumplen `IndicatorProvider.get_series()` y devuelven `EconomicIndicator`. Cada adaptador traduce su formato externo al dominio común (patrón **Adapter**). Alpha y FRED usan `ApiClient`, y Alpha añade el control de cuota persistente `AlphaVantageQuota`. Con el atributo opcional `max_download_workers`, Yahoo admite 4 descargas simultáneas y Alpha 1.
 
