@@ -621,7 +621,49 @@ class EcbTests(unittest.TestCase):
         failing.get.side_effect = ConnectionError("sin red")
         for session in (failing, self.session("a,b\n1,2\n")):
             with self.assertRaises(ProviderError):
-                EcbAPI(session=session).get_series(AAA_3M_YIELD, "2026-10-28", "2026-10-31")
+                EcbAPI(session=session, retry_wait=0).get_series(
+                    AAA_3M_YIELD, "2026-10-28", "2026-10-31"
+                )
+
+    def response(self, status, text=""):
+        response = Mock(status_code=status, text=text)
+        if status >= 400:
+            response.raise_for_status.side_effect = RuntimeError(f"HTTP {status}")
+        return response
+
+    def test_transient_failures_are_retried_until_the_series_arrives(self):
+        for first in (ConnectionError("sin red"), self.response(503)):
+            with self.subTest(first=first):
+                session = Mock()
+                session.get.side_effect = [first, self.response(200, self.CSV)]
+                result = EcbAPI(session=session, retry_wait=0).get_series(
+                    AAA_3M_YIELD, "2026-10-28", "2026-10-31"
+                )
+                self.assertEqual(session.get.call_count, 2)
+                self.assertAlmostEqual(result.mean, 2.55)
+
+    def test_client_errors_are_not_retried(self):
+        session = Mock()
+        session.get.return_value = self.response(404)
+        with self.assertRaises(ProviderError):
+            EcbAPI(session=session, retry_wait=0).get_series(
+                AAA_3M_YIELD, "2026-10-28", "2026-10-31"
+            )
+        self.assertEqual(session.get.call_count, 1)
+
+    def test_persistent_failures_stop_after_two_retries_with_growing_waits(self):
+        for failure in (ConnectionError("sin red"), self.response(503)):
+            with self.subTest(failure=failure):
+                session = Mock()
+                session.get.side_effect = [failure] * 3
+                with (
+                    patch("src.providers.ecb.time.sleep") as sleep,
+                    self.assertRaises(ProviderError) as raised,
+                ):
+                    EcbAPI(session=session).get_series(AAA_3M_YIELD, "2026-10-28", "2026-10-31")
+                self.assertEqual(session.get.call_count, 3)
+                self.assertEqual([call.args[0] for call in sleep.call_args_list], [1.0, 2.0])
+                self.assertIn(AAA_3M_YIELD, str(raised.exception))
 
     def test_identifiers_choose_the_source(self):
         self.assertTrue(is_ecb_series(AAA_3M_YIELD))
