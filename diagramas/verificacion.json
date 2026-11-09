@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-09T19:16:30.567751+00:00",
-  "head": "648658e43c7023b9cca20d7e8b4994dc0ace29f2",
+  "generated_at": "2026-11-09T22:44:10.332341+00:00",
+  "head": "2de837fc8ee06080528dcbf77d5e15362415e148",
   "basis": "HEAD; src matches the commit",
   "source_sha256": {
     "src/__init__.py": "6833cbc9f780cd996447c9500f18482f34e203433a89f901383f769ecf0cbac5",
@@ -34,7 +34,7 @@
     "src/providers/alpha_quota.py": "4d54ab99750f743aa05163d70b8db83eda4d27fdad3ecfacb79dc5b947fa3d8b",
     "src/providers/alpha_vantage.py": "5481e73113dfe25181b773dddc928d4b80772a270da8c410854205d0da0e35d0",
     "src/providers/base.py": "03c78afd0b784bd965232bb09a2212f01e5e8e7704fb1f4134a1dca5ab3f6522",
-    "src/providers/ecb.py": "b749ecaf4b78e35e5207dde91884c26bc64cd161f6ab5795e0a8a633ecefde47",
+    "src/providers/ecb.py": "c179969f61ff98f7696e533917707510b7c99e36ca2d0d15a944f74cb067fc59",
     "src/providers/fred.py": "bdc07d681778647f771bac5857dbd012e41ed3f9f619a6778571bad267589bb2",
     "src/providers/yahoo.py": "e8e85502d3e0740fd8f1fab734cc9505032d402409ff1239e276dc751089495d",
     "src/reporting/__init__.py": "c088b21cd6984c139589fc42150ac5854c290be3ce399908e380af96a44fa339",
@@ -42,7 +42,7 @@
     "src/reporting/formatting.py": "58f9056a23d1959ceb9ecf478351c10a0297c79d95e24f45dde7c9749f1409b8",
     "src/reporting/labels.py": "e86c67666f00fb0578d2866d049ef4ba3137a3a2589e471237ba6b22430e826f",
     "src/reporting/plots.py": "c209d0badc45279239a5e015c0fc953b59b0222cdf459a61388d8089da34d0f7",
-    "src/reporting/report.py": "3e260b64802d5360d2933ad50a6e4b0e8a7a7be499d8b8f0a816759a05273a7a",
+    "src/reporting/report.py": "bbdf9e75e5b84c7176d593310b40852412fc9472dd496ba692388e795b34aab7",
     "src/reporting/sections.py": "9b2420f656d27708b495ca296c26f48664ade2d11569dfbb26bf81936bfcb206",
     "src/reporting/texts.py": "120ca2826de620742d9f97d9e19c218c2f2c98e7930c88339041c190df37c67f",
     "src/simulation/__init__.py": "098b95e4f40b0f05bd1a65f2592e998f916b75413d8f5a1fd91ae2e0de196005",
@@ -315,12 +315,17 @@
       "holdings_table",
       "_band",
       "_read_sharpe",
+      "_read_premium",
       "_read_volatility",
       "_read_drawdown",
       "_read_beta",
       "_read_mean_correlation",
+      "_read_pair",
       "_read_diversifier",
       "_read_oil",
+      "_read_total",
+      "_read_cagr",
+      "_read_benchmark",
       "_read_alpha",
       "_read_sortino",
       "_read_loss_probability",
@@ -428,22 +433,6 @@
       ]
     },
     {
-      "name": "03-proveedores",
-      "elements": 108,
-      "size": [
-        2580,
-        1520
-      ]
-    },
-    {
-      "name": "04-simulacion",
-      "elements": 87,
-      "size": [
-        1920,
-        1520
-      ]
-    },
-    {
       "name": "05-dependencias",
       "elements": 95,
       "size": [
@@ -457,14 +446,6 @@
       "size": [
         1900,
         2340
-      ]
-    },
-    {
-      "name": "07-secuencia-alpha",
-      "elements": 102,
-      "size": [
-        2160,
-        2200
       ]
     }
   ],

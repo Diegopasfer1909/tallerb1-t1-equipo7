@@ -1465,7 +1465,7 @@ versión sale de un único sitio.
 
 **Origen.** `ARQUITECTURA.md` y `diagramas/README.md`.
 
-**Decisión.** Las siete láminas de arquitectura las genera `diagramas/generar_diagramas.py`
+**Decisión.** Las láminas de arquitectura las genera `diagramas/generar_diagramas.py`
 en cuatro formatos:
 
 | Formato | Uso |
@@ -1481,6 +1481,12 @@ commit al generarlos.
 **Ejemplo.** Si se cambia una clase del dominio, se regenera la lámina con el script en lugar
 de editar a mano cuatro archivos. El manifiesto permite saber si un diagrama corresponde al
 código actual o a uno anterior.
+
+**Revisión (9 de noviembre de 2026).** De las siete láminas quedan cuatro: arquitectura (01),
+dominio (02), dependencias (05) y flujo de la consola (06), que cubren lo que pide el apartado 4.6
+(jerarquía de clases, dependencias y flujo). Proveedores (03), simulación (04) y la secuencia de
+Alpha Vantage (07) repetían detalles ya visibles en 01 y 02; lo esencial de su texto pasó a esas
+secciones de `ARQUITECTURA.md`.
 
 ---
 
@@ -1828,7 +1834,7 @@ ninguno, y el apartado 4.6 del enunciado se evalúa.
   última línea y fallaba por menos de un píxel, así que nunca había llegado a producir las
   imágenes.
 - Los `.mmd` no fijan colores: usan el tema de quien los abre.
-- Hay dos documentos con funciones distintas: `ARQUITECTURA.md`, con las siete láminas
+- Hay dos documentos con funciones distintas: `ARQUITECTURA.md`, con las láminas
   formales, y `docs/arquitectura.md`, un resumen en Mermaid para orientarse.
 
 **Por qué no fijar colores.** Los `.mmd` imponían texto azul marino pensado para fondo claro.

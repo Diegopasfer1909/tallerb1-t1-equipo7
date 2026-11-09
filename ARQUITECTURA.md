@@ -1,18 +1,15 @@
 # Arquitectura · B1–T1 / Equipo 7
 
-Siete vistas complementarias explican la estructura del toolkit, sus contratos y su ejecución. Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
+Cuatro vistas explican la estructura del toolkit, sus contratos y su ejecución. Además de la vista general (01), cubren lo que pide el enunciado en su apartado 4.6: la jerarquía de clases (02), las dependencias (05) y el flujo del sistema (06). Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
 
-**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01, 03 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las siete láminas en una sola imagen.
+**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las cuatro láminas en una sola imagen.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
 | [01 · Arquitectura](#01--arquitectura-del-sistema) | Componentes y responsabilidades | ¿Qué hace cada parte y dónde ocurre la E/S? |
 | [02 · Modelos de dominio](#02--modelos-de-dominio) | Clases UML | ¿Qué objetos forman una cartera y qué referencias comparten? |
-| [03 · Proveedores](#03--contratos-y-proveedores) | Clases e interfaces UML | ¿Cómo se intercambia la fuente y se controla el acceso externo? |
-| [04 · Simulación](#04--contrato-de-simulación) | Contratos y dependencias UML | ¿Cómo comparten motor un activo y una cartera? |
 | [05 · Dependencias](#05--dependencias-entre-paquetes) | Dependencias de paquetes | ¿Qué módulos dependen de cuáles y cuándo se importan? |
 | [06 · Flujo CLI](#06--flujo-de-la-aplicación) | Actividad UML | ¿Qué pasos y decisiones sigue una ejecución? |
-| [07 · Consulta Alpha](#07--secuencia-de-una-consulta-alpha-vantage) | Secuencia UML | ¿Cómo interactúan caché, cuota, HTTP y errores? |
 
 ## Cómo leer las láminas
 
@@ -27,7 +24,7 @@ Siete vistas complementarias explican la estructura del toolkit, sus contratos y
 | `«module»` / `«function»` | Funciones reales del código; no son clases añadidas para el diagrama. |
 | `frozen=True` | Impide reasignar atributos; no garantiza inmutabilidad profunda ni validación automática del contenido. |
 
-Las flechas se interpretan según la vista: **responsabilidad/interacción** en 01, **importación** en 05 y **orden de ejecución** en 06–07. Las multiplicidades describen referencias, no cantidades de peticiones ni escenarios.
+Las flechas se interpretan según la vista: **responsabilidad/interacción** en 01, **importación** en 05 y **orden de ejecución** en 06. Las multiplicidades describen referencias, no cantidades de peticiones ni escenarios.
 
 ## 01 · Arquitectura del sistema
 
@@ -39,7 +36,9 @@ Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las i
 
 La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el núcleo los contratos `PriceProvider`, `IndicatorProvider` (FRED y BCE) y `ReferenceSources`, y `errors` el `ProviderError` común. Los cargadores solo reciben esos puertos; `main` es el único módulo que elige y crea adaptadores (registro `PROVIDERS` y `reference_sources()`). El resto no es una hexagonal estricta: `Portfolio.report()`, `.plots_report()` y `SimulationResult.plot()` son fachadas que el enunciado pide en el dominio y que llegan a `reporting` ([decisión 74](Decisiones.MD)).
 
-**Fuentes:** [main.py](src/main.py), [ports.py](src/ports.py), [portfolio_loader.py](src/portfolio_loader.py), [price_loader.py](src/price_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
+Yahoo y Alpha Vantage cumplen `PriceProvider.get_prices()` por estructura, sin heredar del protocolo; FRED y el BCE cumplen `IndicatorProvider.get_series()` y devuelven `EconomicIndicator`. Cada adaptador traduce su formato externo al dominio común (patrón **Adapter**). Alpha y FRED usan `ApiClient`, y Alpha añade el control de cuota persistente `AlphaVantageQuota`. Con el atributo opcional `max_download_workers`, Yahoo admite 4 descargas simultáneas y Alpha 1.
+
+**Fuentes:** [main.py](src/main.py), [ports.py](src/ports.py), [providers/base.py](src/providers/base.py), [portfolio_loader.py](src/portfolio_loader.py), [price_loader.py](src/price_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
 
 ## 02 · Modelos de dominio
 
@@ -53,37 +52,9 @@ La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el
 
 `PriceHistory` guarda copias defensivas y calcula al construirse la media y la desviación típica de los niveles de precio (`mean`, `std`) y de las rentabilidades de `Close` y `Adj Close` (`returns_mean`, `returns_std`); los pesos y los indicadores protegen su almacenamiento numérico. Esto no convierte todos los contenedores y resultados del sistema en profundamente inmutables. La alineación de activos conserva fechas comunes sin rellenar huecos; no implementa un calendario bursátil explícito.
 
-**Fuentes:** [models/portfolio.py](src/models/portfolio.py), [asset.py](src/models/asset.py), [price_history.py](src/models/price_history.py), [currency.py](src/models/currency.py), [references.py](src/models/references.py), [snapshot.py](src/models/snapshot.py), [backtest.py](src/models/backtest.py), [commissions.py](src/commissions.py).
+`Asset` y `Portfolio` construyen `SimulationInputs` y delegan en la misma función `simulate()`: no hay superclase común de simulación, sino **composición y un contrato de datos**. `SimulationSettings` reúne la configuración (escenarios, pasos, semilla, supuestos) y `SimulationResult` guarda las trayectorias, la `RebalanceRule` aplicada y las comisiones de cada escenario. El backtest histórico y Monte Carlo aplican la misma regla con `rebalance_step()`, del módulo `commissions`.
 
-## 03 · Contratos y proveedores
-
-![Contrato PriceProvider, adaptadores y colaboradores HTTP y cuota](diagramas/03-proveedores.svg)
-
-[PNG](diagramas/03-proveedores.png) · [Editar en Excalidraw](diagramas/03-proveedores.excalidraw) · [Fuente Mermaid](diagramas/03-proveedores.mmd)
-
-Yahoo y Alpha satisfacen estructuralmente `PriceProvider.get_prices()`: no heredan nominalmente del protocolo y `get_info()` no forma parte de ese contrato. FRED y el BCE (`EcbAPI`, que no necesita clave) cumplen otro puerto, `IndicatorProvider.get_series()`, que devuelve `EconomicIndicator`. Ambos protocolos viven en `src/ports.py`, en el núcleo: los adaptadores dependen de ellos y no al revés. Los adaptadores traducen formatos externos al dominio común: ese es el patrón **Adapter** que justifica intercambiarlos.
-
-Alpha y FRED crean su propio `ApiClient`; Yahoo utiliza `yfinance` y `EcbAPI` utiliza `curl_cffi`: ambos comparten utilidades de caché, pero no ese cliente HTTP. Alpha crea además `AlphaVantageQuota` e inyecta sus métodos como callbacks genéricos del cliente. `requests.Session` puede suministrarse desde fuera, así que su relación es asociación, no composición exclusiva. La cuota persistente y la caché tienen cometidos distintos.
-
-Cada adaptador puede declarar con el atributo opcional `max_download_workers` cuántas descargas simultáneas admite; no forma parte de `PriceProvider`. Yahoo declara 4: cada entrada de caché tiene un bloqueo propio dentro del proceso que cubre leer, ampliar el intervalo, descargar y escribir, los temporales son únicos por escritura y los filtros de avisos se configuran una sola vez desde la CLI. Alpha declara 1 y conserva su cuota, sus pausas y su `ApiClient` sin cambios; un proveedor que no declara nada también descarga de uno en uno.
-
-**Fuentes:** [ports.py](src/ports.py), [providers/base.py](src/providers/base.py), [yahoo.py](src/providers/yahoo.py), [alpha_vantage.py](src/providers/alpha_vantage.py), [fred.py](src/providers/fred.py), [ecb.py](src/providers/ecb.py), [alpha_quota.py](src/providers/alpha_quota.py).
-
-## 04 · Contrato de simulación
-
-![Contratos comunes y motor funcional de simulación](diagramas/04-simulacion.svg)
-
-[PNG](diagramas/04-simulacion.png) · [Editar en Excalidraw](diagramas/04-simulacion.excalidraw) · [Fuente Mermaid](diagramas/04-simulacion.mmd)
-
-`Asset` y `Portfolio` construyen `SimulationInputs` y delegan en la misma función `simulate()`. No existe una superclase común de simulación ni un `MonteCarloMixin`. La reutilización se obtiene mediante **composición y un contrato de datos**: precios históricos, valor inicial de posiciones y pesos opcionales de rebalanceo, junto con la `RebalanceRule` que fija comisiones, banda de desviación y coste máximo por orden.
-
-El módulo transversal `commissions` contiene `CommissionSchedule`, la tarifa de ejemplo de Interactive Brokers (`IBKR_COMMISSIONS`), `RebalanceRule` y la función vectorizada `rebalance_step()`. La usan igual el backtest histórico (`backtest_with_costs()`, una fila) y Monte Carlo (una fila por escenario), de modo que ambos recorridos aplican la misma regla y descuentan las mismas comisiones.
-
-`Portfolio.monte_carlo(estimation_prices=...)` permite estimar la volatilidad y las correlaciones con otro período; la consola le pasa 5 años, mientras el valor inicial, los pesos objetivo y la `RebalanceRule` siguen siendo los de la cartera analizada.
-
-`SimulationSettings` separa configuración y supuestos del estado del dominio. Sin `steps` se simula un año: `simulate()` deduce 252 sesiones o 365 días (carteras solo cripto) con `frequency.periods_per_year()`. `SimulationResult` guarda la regla aplicada y las comisiones pagadas en cada escenario, ya descontadas de las trayectorias. El motor valida las entradas, estima parámetros y genera trayectorias correlacionadas; `SimulationResult` conserva resultados y metadatos, ofrece un resumen y delega la presentación. No debe representarse como una dataclass congelada. El módulo `monte_carlo` contiene funciones, no una clase ficticia de motor.
-
-**Fuentes:** [asset.py](src/models/asset.py), [portfolio.py](src/models/portfolio.py), [commissions.py](src/commissions.py), [backtest.py](src/models/backtest.py), [simulation/monte_carlo.py](src/simulation/monte_carlo.py), [settings.py](src/simulation/settings.py), [result.py](src/simulation/result.py).
+**Fuentes:** [models/portfolio.py](src/models/portfolio.py), [asset.py](src/models/asset.py), [price_history.py](src/models/price_history.py), [currency.py](src/models/currency.py), [references.py](src/models/references.py), [snapshot.py](src/models/snapshot.py), [backtest.py](src/models/backtest.py), [commissions.py](src/commissions.py), [simulation/monte_carlo.py](src/simulation/monte_carlo.py).
 
 ## 05 · Dependencias entre paquetes
 
@@ -137,18 +108,6 @@ Las opciones de comisiones (`--commission-*`, `--rebalance-band`, `--max-order-c
 Las referencias opcionales fallidas se explican mediante avisos y medidas ausentes cuando la carga admite degradación; otros errores terminan la ejecución. `main()` devuelve `0` al completar y `1` para `PortfolioError`, `ProviderError` u `OSError`; los errores de argumentos siguen el comportamiento de `argparse`.
 
 **Fuentes:** [main.py](src/main.py), [portfolio_loader.py](src/portfolio_loader.py), [price_loader.py](src/price_loader.py), [market_loader.py](src/market_loader.py), [reporting/export.py](src/reporting/export.py).
-
-## 07 · Secuencia de una consulta Alpha Vantage
-
-![Secuencia UML: caché, reserva de cuota, descarga y normalización](diagramas/07-secuencia-alpha.svg)
-
-[PNG](diagramas/07-secuencia-alpha.png) · [Editar en Excalidraw](diagramas/07-secuencia-alpha.excalidraw) · [Fuente Mermaid](diagramas/07-secuencia-alpha.mmd)
-
-La secuencia sigue una consulta de precios. `ApiClient.get_json()` consulta primero la caché: un acierto evita red y reserva de cuota. Si falta una respuesta válida, respeta el intervalo mínimo, invoca `before_request` y realiza HTTP. La reserva persistente se confirma antes del envío; un rechazo local evita la petición y un intento fallido puede haber consumido una reserva.
-
-Los rechazos remotos pasan por `on_rejection`; el control de cuota puede persistir un bloqueo. Una respuesta HTTP 200 también puede contener un error del proveedor. Solo una respuesta aceptada alcanza la caché y la normalización en `PriceHistory`. No se representa un bucle de reintentos automático. La consulta opcional de ficha (`include_info`) es una operación adicional y puede consumir otra reserva.
-
-**Fuentes:** [alpha_vantage.py](src/providers/alpha_vantage.py), [base.py](src/providers/base.py), [alpha_quota.py](src/providers/alpha_quota.py).
 
 ## Edición, reproducción y alcance
 
