@@ -1,8 +1,8 @@
 # Arquitectura · B1–T1 / Equipo 7
 
-Cuatro vistas explican la estructura del toolkit, sus contratos y su ejecución. Además de la vista general (01), cubren lo que pide el enunciado en su apartado 4.6: la jerarquía de clases (02), las dependencias (05) y el flujo del sistema (06). Los nombres de clases y métodos coinciden con el código; las imágenes se pueden ampliar sin perder calidad y editar en Excalidraw.
+Cuatro vistas explican la estructura del toolkit, sus contratos y su ejecución. Además de la vista general (01), cubren lo que pide el enunciado en su apartado 4.6: la jerarquía de clases (02), las dependencias (05) y el flujo del sistema (06). Los nombres de clases y métodos coinciden con el código. Cada lámina es un archivo Mermaid (`.mmd`) con su exportación en PNG, ambos en [`diagramas/`](diagramas/README.md).
 
-**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). [El manifiesto](diagramas/verificacion.json) identifica las fuentes y los artefactos mediante hashes; al cambiar el código, hay que revisar qué láminas quedan afectadas. [La vista general](diagramas/vista-general.png) reúne las cuatro láminas en una sola imagen.
+**Referencia:** código del commit **`fb2d2ea`** (8 de noviembre de 2026): comisiones del rebalanceo, ventana de estimación de Monte Carlo y `returns_mean` / `returns_std` en `PriceHistory`; las láminas 01 y 05 incluyen además los puertos de `src/ports.py` ([decisión 74](Decisiones.MD)). Al cambiar el código, hay que revisar qué láminas quedan afectadas.
 
 | Lámina | Vista formal | Pregunta que responde |
 | --- | --- | --- |
@@ -15,22 +15,18 @@ Cuatro vistas explican la estructura del toolkit, sus contratos y su ejecución.
 
 | Notación | Significado |
 | --- | --- |
-| Línea continua y triángulo hueco | Generalización: herencia nominal de clase. |
-| Línea discontinua y triángulo hueco | Realización del contrato; en `PriceProvider`, conformidad estructural con un `Protocol`. |
 | Rombo hueco | Agregación compartida: la parte puede existir y reutilizarse fuera del conjunto. |
-| Rombo relleno | Composición de colaboradores creados por el adaptador; expresa el diseño de propiedad, no una restricción del recolector de Python. |
 | Asociación con multiplicidad | Referencia conservada por un objeto; `1`, `0..1`, `1..*` y `0..*` indican cardinalidades. |
 | Dependencia discontinua | Uso de un tipo, función o paquete; no implica guardar una referencia. |
-| `«module»` / `«function»` | Funciones reales del código; no son clases añadidas para el diagrama. |
 | `frozen=True` | Impide reasignar atributos; no garantiza inmutabilidad profunda ni validación automática del contenido. |
 
 Las flechas se interpretan según la vista: **responsabilidad/interacción** en 01, **importación** en 05 y **orden de ejecución** en 06. Las multiplicidades describen referencias, no cantidades de peticiones ni escenarios.
 
 ## 01 · Arquitectura del sistema
 
-![Arquitectura: entrada, carga, proveedores, dominio, cálculo y presentación](diagramas/01-arquitectura.svg)
+![Arquitectura: entrada, carga, proveedores, dominio, cálculo y presentación](diagramas/01-arquitectura.png)
 
-[PNG](diagramas/01-arquitectura.png) · [Editar en Excalidraw](diagramas/01-arquitectura.excalidraw) · [Fuente Mermaid](diagramas/01-arquitectura.mmd)
+[Fuente Mermaid](diagramas/01-arquitectura.mmd)
 
 Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las importaciones. `main` compone la ejecución; los cargadores obtienen y transforman datos, incluidos los precios de 5 años con los que Monte Carlo estima la volatilidad y las correlaciones; los adaptadores encapsulan los servicios externos (Yahoo, Alpha Vantage, FRED y BCE). Los módulos transversales `commissions` y `frequency` aplican la misma regla de rebalanceo y el mismo calendario (252 o 365) en el histórico y en la simulación. Los modelos y los cálculos trabajan con contratos normalizados. `reporting` presenta resultados y escribe Markdown e imágenes, por lo que sí realiza E/S local.
 
@@ -42,9 +38,9 @@ Yahoo y Alpha Vantage cumplen `PriceProvider.get_prices()` por estructura, sin h
 
 ## 02 · Modelos de dominio
 
-![Clases UML del dominio y referencias compartidas](diagramas/02-modelos-dominio.svg)
+![Clases UML del dominio y referencias compartidas](diagramas/02-modelos-dominio.png)
 
-[PNG](diagramas/02-modelos-dominio.png) · [Editar en Excalidraw](diagramas/02-modelos-dominio.excalidraw) · [Fuente Mermaid](diagramas/02-modelos-dominio.mmd)
+[Fuente Mermaid](diagramas/02-modelos-dominio.mmd)
 
 `PriceHistory` conserva precios y procedencia; `AssetProfile`, los metadatos; `Asset`, la identidad y divisa del activo. `Portfolio` reúne activos y asigna pesos, capital y política de rebalanceo; `Portfolio.from_units()` la crea a partir del número de acciones, que conserva en `units`; sin rebalanceo las cantidades no cambian y con `rebalance="monthly"` cada mes se vuelve a los pesos iniciales. `rebalance_rule` (`RebalanceRule`, del módulo `commissions`) fija la tarifa del bróker (`CommissionSchedule`), la banda de desviación y el coste máximo por orden; `Portfolio.backtest()` devuelve un `BacktestResult` con la valoración, las órdenes y las comisiones pagadas. Un activo puede participar en varias carteras: su peso pertenece a cada cartera, no al propio activo. Por eso las relaciones del dominio usan asociación o agregación compartida.
 
@@ -58,9 +54,9 @@ Yahoo y Alpha Vantage cumplen `PriceProvider.get_prices()` por estructura, sin h
 
 ## 05 · Dependencias entre paquetes
 
-![Importaciones principales y cuatro dependencias diferidas entre paquetes](diagramas/05-dependencias.svg)
+![Importaciones principales y cuatro dependencias diferidas entre paquetes](diagramas/05-dependencias.png)
 
-[PNG](diagramas/05-dependencias.png) · [Editar en Excalidraw](diagramas/05-dependencias.excalidraw) · [Fuente Mermaid](diagramas/05-dependencias.mmd)
+[Fuente Mermaid](diagramas/05-dependencias.mmd)
 
 Una flecha va del **importador al importado**. La lámina selecciona las importaciones principales entre paquetes y cuatro aristas internas diferidas; omite las relaciones dentro de cada paquete, las bibliotecas externas y las dependencias transversales recogidas abajo. `reporting` importa al cargarse funciones de `analysis` (`annualized_growth`, `evaluate_simulation`) y de `simulation` (`MODEL_RETURN`, `SimulationSettings`); ninguna de ellas crea un ciclo, porque las importaciones inversas son diferidas. No es el grafo completo de carga de Python ni una afirmación de ausencia total de ciclos.
 
@@ -89,15 +85,15 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | `reporting → analysis` | `PortfolioAnalysis` en `export`, `plots` y `report`. |
 | `reporting → simulation` | `SimulationResult` en `export`, `plots` y `report`. |
 
-Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. Además, `reporting` importa al cargar `analysis` (métricas y avisos) y `simulation` (supuestos de Monte Carlo); la lámina 05 los dibuja como líneas continuas ámbar. Solo `main` importa `providers`: los cargadores importan `ports`. El grafo de imports de módulo sigue siendo acíclico. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
+Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se ejecutan normalmente. Además, `reporting` importa al cargar `analysis` (métricas y avisos) y `simulation` (supuestos de Monte Carlo); la lámina 05 los incluye entre los imports de módulo. Solo `main` importa `providers`: los cargadores importan `ports`. El grafo de imports de módulo sigue siendo acíclico. La tabla agrupa módulos por paquete y no incluye importaciones internas del mismo paquete ni reexportaciones de `__init__.py`.
 
 **Fuentes:** [portfolio.py](src/models/portfolio.py), [analysis/result.py](src/analysis/result.py), [analysis/portfolio_analysis.py](src/analysis/portfolio_analysis.py), [simulation/result.py](src/simulation/result.py), [reporting](src/reporting), [main.py](src/main.py).
 
 ## 06 · Flujo de la aplicación
 
-![Actividad UML de una ejecución CLI](diagramas/06-flujo-cli.svg)
+![Actividad UML de una ejecución CLI](diagramas/06-flujo-cli.png)
 
-[PNG](diagramas/06-flujo-cli.png) · [Editar en Excalidraw](diagramas/06-flujo-cli.excalidraw) · [Fuente Mermaid](diagramas/06-flujo-cli.mmd)
+[Fuente Mermaid](diagramas/06-flujo-cli.mmd)
 
 La CLI carga entorno y argumentos, comprueba la configuración necesaria y crea los colaboradores. El cargador obtiene los históricos y, cuando procede, los tipos de cambio antes de construir la cartera. Parte de la validación necesita los datos y ocurre al construir modelos o ejecutar cálculos: el análisis de argumentos no sustituye esas comprobaciones.
 
@@ -111,8 +107,6 @@ Las referencias opcionales fallidas se explican mediante avisos y medidas ausent
 
 ## Edición, reproducción y alcance
 
-[La guía de diagramas](diagramas/README.md) explica cómo editar y regenerar las láminas. Excalidraw conserva elementos editables; SVG es la vista vectorial y PNG sirve para insertar en diapositivas. Los `.mmd` recogen el modelo semántico en Mermaid; su disposición automática no pretende reproducir exactamente la composición gráfica.
+[La guía de diagramas](diagramas/README.md) explica cómo ver y editar las láminas y cómo volver a exportar los PNG. El `.mmd` es la fuente: se mantiene a mano y debe revisarse junto al código. El PNG es su exportación, para insertarla en diapositivas o documentos.
 
-El generador mantiene **Excalidraw, SVG y PNG**. Mermaid se mantiene manualmente y debe revisarse junto al código.
-
-Los diagramas documentan contratos y decisiones observados. Su generación y comprobación visual no equivalen a ejecutar consultas reales de proveedores ni a certificar todos los comportamientos de la práctica.
+Los diagramas documentan contratos y decisiones observados. Su revisión visual no equivale a ejecutar consultas reales de proveedores ni a certificar todos los comportamientos de la práctica.
