@@ -1,32 +1,31 @@
 # Diagramas de arquitectura
 
-La [galería principal](../ARQUITECTURA.md) reúne cuatro vistas de B1–T1: arquitectura, dominio, dependencias y actividad CLI. Cubren lo que pide el apartado 4.6 del enunciado: jerarquía de clases, dependencias y flujo. [`vista-general.png`](vista-general.png) las muestra juntas.
+[`ARQUITECTURA.md`](../ARQUITECTURA.md) reúne cuatro vistas de B1–T1 con su explicación: arquitectura (01), dominio (02), dependencias (05) y flujo de la consola (06). Cubren lo que pide el apartado 4.6 del enunciado: jerarquía de clases, dependencias y flujo.
+
+Cada vista tiene dos archivos:
 
 | Formato | Uso |
 | --- | --- |
-| `.svg` | Lectura y ampliación vectorial. |
-| `.png` | Inserción en diapositivas y documentos. |
-| `.excalidraw` | Edición visual de cajas, textos y conexiones en Excalidraw. |
-| `.mmd` | Modelo semántico editable como texto Mermaid; disposición automática independiente. Sin colores fijos, para que se lea con el tema claro u oscuro del visor. |
+| `.mmd` | Fuente en Mermaid, editable como texto. Es el original: se cambia a mano cuando cambia el código. No fija colores, para que se lea con el tema claro u oscuro del visor. |
+| `.png` | Exportación del `.mmd`, para `ARQUITECTURA.md`, diapositivas y documentos. |
 
-Desde la raíz del repositorio, con el entorno del proyecto activado:
-
-```powershell
-python -m pip install pillow
-python -B diagramas\generar_diagramas.py
-```
-
-El generador usa la biblioteca estándar de Python y **Pillow como única dependencia gráfica**; no forma parte de las dependencias del paquete. Usa Arial (`C:/Windows/Fonts/arial.ttf`); en otro sistema, indica otra fuente con la variable `DIAGRAM_FONT`. Mantiene las fuentes Excalidraw y sus exportaciones SVG/PNG. Para cambios persistentes de composición, edita `generar_diagramas.py`: una regeneración puede reemplazar los cambios manuales hechos en los archivos generados. Actualiza los `.mmd` manualmente para conservar la equivalencia semántica.
-
-`verificacion.json` identifica fuentes y artefactos con hashes e indica si el código de `src` coincidía con el commit al generar. Comprueba ese manifiesto y revisa las imágenes después de regenerar, especialmente cruces, etiquetas, multiplicidades y cambios del código.
-
-## Ver los diagramas Mermaid en VS Code
+## Ver los diagramas en VS Code
 
 VS Code no dibuja Mermaid por sí solo. Al abrir el proyecto ofrece instalar las dos extensiones recomendadas en `.vscode/extensions.json`:
 
 | Extensión | Para qué sirve |
 | --- | --- |
-| Markdown Preview Mermaid Support (`bierner.markdown-mermaid`) | Dibuja los bloques Mermaid de los `.md`, como [`docs/arquitectura.md`](../docs/arquitectura.md), en la vista previa de Markdown (`Ctrl+Shift+V`, o `Ctrl+K V` para verla al lado). |
-| Mermaid Chart (`MermaidChart.vscode-mermaid-chart`) | Abre con vista previa los archivos `.mmd` de esta carpeta. |
+| Mermaid Chart (`MermaidChart.vscode-mermaid-chart`) | Abre los `.mmd` de esta carpeta con vista previa. |
+| Markdown Preview Mermaid Support (`bierner.markdown-mermaid`) | Dibuja los bloques Mermaid que se escriban dentro de un `.md` en la vista previa de Markdown (`Ctrl+Shift+V`, o `Ctrl+K V` para verla al lado). |
 
-[`ARQUITECTURA.md`](../ARQUITECTURA.md) no necesita ninguna: muestra los `.svg`, que la vista previa normal ya dibuja. GitHub dibuja Mermaid directamente, y <https://mermaid.live> sirve para editar un `.mmd` y exportarlo a imagen.
+`ARQUITECTURA.md` no necesita ninguna: muestra los PNG, que la vista previa normal ya dibuja. GitHub dibuja Mermaid directamente, y <https://mermaid.live> permite editar un `.mmd` en el navegador.
+
+## Volver a exportar un PNG
+
+Después de cambiar un `.mmd`, exporta su PNG con [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (necesita Node.js). Desde la raíz del repositorio:
+
+```bash
+npx -p @mermaid-js/mermaid-cli mmdc -i diagramas/02-modelos-dominio.mmd -o diagramas/02-modelos-dominio.png -b white -s 2
+```
+
+`-b white` pone fondo blanco y `-s 2` duplica la resolución. Revisa la imagen antes de hacer commit, sobre todo los cruces de flechas y las etiquetas. Si no quieres instalar nada, <https://mermaid.live> también exporta a PNG.
