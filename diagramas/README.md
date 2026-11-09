@@ -11,7 +11,7 @@ Cada vista tiene dos archivos:
 
 ## Ver los diagramas en VS Code
 
-VS Code no dibuja Mermaid por sí solo. Al abrir el proyecto ofrece instalar las dos extensiones recomendadas en `.vscode/extensions.json`:
+VS Code no dibuja Mermaid por sí solo. Instala una de estas extensiones desde la vista de extensiones (`Ctrl+Shift+X`):
 
 | Extensión | Para qué sirve |
 | --- | --- |
