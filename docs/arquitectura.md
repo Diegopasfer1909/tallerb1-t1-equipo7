@@ -286,11 +286,7 @@ sequenceDiagram
         M->>P: backtest(price_column)
         P-->>M: reajustes, órdenes y comisiones pagadas
     end
-    M->>L: load_risk_free_rate(divisa, fin)
-    L->>F: último tipo libre de riesgo
-    M->>P: monte_carlo(settings, price_column)
-    P->>A: simulate()
-    A-->>M: SimulationResult
+    Note over M: El análisis va antes que la simulación: si faltan datos, se avisa sin simular en balde.
     M->>L: load_references(divisa, fechas, benchmark)
     L->>Y: índice, oro, ETF de Bunds
     L->>F: inflación, tipo libre de riesgo, VIX, Brent
@@ -298,6 +294,11 @@ sequenceDiagram
     M->>P: analyze(references, price_column)
     P->>A: métricas, contexto de mercado y advertencias
     A-->>M: PortfolioAnalysis
+    M->>L: load_risk_free_rate(divisa, fin)
+    L->>F: último tipo libre de riesgo
+    M->>P: monte_carlo(settings, price_column, estimation_prices)
+    P->>A: simulate()
+    A-->>M: SimulationResult
     M->>R: report(simulation, sections, detail, directory)
     R-->>U: informes/AAAA-MM-DD_HH-MM-SS/ (Markdown y gráficos)
 ```

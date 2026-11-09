@@ -16,7 +16,7 @@ flowchart TD
         WARN["Aviso: faltan referencias FRED<br/>el informe continúa"]
         FX{"¿--currency?"}
         FXP["Crear YahooFinanceAPI auxiliar<br/>para cambios necesarios"]
-        LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios → activos → FX → cartera<br/>RebalanceRule: tarifa, banda y coste máximo"]
+        LOAD["load_portfolio() · --assets<br/>load_portfolio_from_shares() · --shares<br/>precios en lote, hasta --download-workers a la vez<br/>activos → FX → cartera<br/>RebalanceRule: tarifa, banda y coste máximo"]
         PRINT["print_portfolio()<br/>con rebalanceo y tarifa: print_rebalance_costs()"]
         SIMQ{"¿config.simulation<br/>es distinto de None?"}
         SIM["run_simulation(): load_risk_free_rate() FRED / BCE<br/>load_estimation_prices(): 5 años<br/>portfolio.monte_carlo(estimation_prices)<br/>aviso si < 3 años · print_simulation()"]
@@ -24,6 +24,7 @@ flowchart TD
         REFQ{"¿--report?"}
         REFS["load_references()<br/>benchmark · inflación · tipo (FRED o BCE)<br/>fallos opcionales → Notice"]
         ANALYZE["portfolio.analyze(references)<br/>PortfolioAnalysis"]
+        OUT2{"¿hay análisis?<br/>(--report o --plots-report)"}
         REPORTQ{"¿--report?"}
         REPORT["analysis.report(simulation)<br/>carpeta temporal → Markdown + PNG<br/>renombrar al completar"]
         PLOTQ{"¿--plots-report?"}
@@ -35,15 +36,17 @@ flowchart TD
         FX -->|"sí"| FXP
         FX -->|"no"| LOAD
         FXP --> LOAD
-        LOAD --> PRINT --> SIMQ
-        SIMQ -->|"sí"| SIM
-        SIMQ -->|"no"| OUT
-        SIM --> OUT
+        LOAD --> PRINT --> OUT
         OUT -->|"sí"| REFQ
+        OUT -->|"no"| SIMQ
         REFQ -->|"sí"| REFS
-        REFQ -->|"no: references=None"| ANALYZE
+        REFQ -->|"no: solo el índice de --benchmark, si se indica"| ANALYZE
         REFS --> ANALYZE
-        ANALYZE --> REPORTQ
+        ANALYZE --> SIMQ
+        SIMQ -->|"sí"| SIM
+        SIMQ -->|"no"| OUT2
+        SIM --> OUT2
+        OUT2 -->|"sí"| REPORTQ
         REPORTQ -->|"sí"| REPORT
         REPORTQ -->|"no"| PLOTQ
         REPORT --> PLOTQ
@@ -56,12 +59,12 @@ flowchart TD
     KEYS -->|"no: ConfigurationError"| ERR
     RUN -. "PortfolioError · ProviderError · OSError" .-> ERR
     ERR --> EXIT1
-    OUT -->|"no"| OK
+    OUT2 -->|"no"| OK
     PLOTQ -->|"no"| OK
     PLOTS --> OK
     NOTE["Simulación activada por --simulate<br/>o por --report con sección simulation.<br/>El informe por defecto incluye esa sección."]
     NOTE -.- SIMQ
-%% Las descargas de referencias ocurren después de la simulación en la CLI;
-%% el tipo libre de riesgo se consulta antes de simular.
+%% El análisis (con sus referencias) va antes de la simulación: si faltan datos, se avisa
+%% sin simular en balde. El tipo libre de riesgo se consulta justo antes de simular.
 %% Un fallo del proveedor elegido no activa otro proveedor automáticamente.
 %% --help termina mediante argparse con código 0; no entra en run.

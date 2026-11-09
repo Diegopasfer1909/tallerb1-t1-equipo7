@@ -21,8 +21,8 @@
 <text x="664" y="547.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Cargar y mostrar cartera</text>
 <text x="664" y="586.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Pesos o número de acciones</text>
 <text x="664" y="614.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">proveedor → activos → FX → Portfolio</text>
-<text x="664" y="642.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Imprimir composición</text>
-<text x="664" y="670.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Comisiones del rebalanceo, si hay tarifa</text>
+<text x="664" y="642.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">hasta --download-workers a la vez</text>
+<text x="664" y="670.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Imprimir composición y comisiones</text>
 <polyline points="900,420 900,500" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,486.49329346470984 900,500 906.5244830116685,486.49329346470984" fill="none" stroke="#64798B" stroke-width="2"/>
 <rect x="1300" y="290" width="510" height="185" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
@@ -43,89 +43,86 @@
 <text x="1324" y="672.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779"></text>
 <text x="1324" y="700.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">FRED ausente: aviso y continúa.</text>
 <text x="1324" y="728.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Alpha sin clave: se detiene.</text>
-<polygon points="900.0,710.0 1010.0,765.0 900.0,820.0 790.0,765.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
-<text x="852.5" y="770.88" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿simular?</text>
-<polyline points="900,685 900,710" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="893.4755169883315,696.4932934647098 900,710 906.5244830116685,696.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="80" y="675" width="430" height="205" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="81" y="676" width="7" height="203" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<text x="104" y="722.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Monte Carlo</text>
-<text x="104" y="761.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Tipo libre de riesgo (FRED / BCE)</text>
-<text x="104" y="789.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Precios de estimación (5 años)</text>
-<text x="104" y="817.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">→ simulate() → resumen</text>
-<text x="104" y="845.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Aviso si hay menos de 3 años</text>
-<polyline points="790,765 510,765" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="523.5067065352902,758.4755169883315 510,765 523.5067065352902,771.5244830116685" fill="none" stroke="#7052AB" stroke-width="2"/>
+<polygon points="900.0,700.0 1035.0,765.0 900.0,830.0 765.0,765.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<text x="857.5" y="757.44" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿informe</text>
+<text x="847.0" y="784.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">o gráficos?</text>
+<polyline points="900,685 900,700" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="893.4755169883315,686.4932934647098 900,700 906.5244830116685,686.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="80" y="640" width="430" height="240" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="641" width="7" height="238" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="687.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">Referencias y análisis</text>
+<text x="104" y="725.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">--report: load_references()</text>
+<text x="104" y="752.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">benchmark · FX · FRED / BCE</text>
+<text x="104" y="779.08" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">--plots-report: solo --benchmark</text>
+<text x="104" y="805.96" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">portfolio.analyze()</text>
+<text x="104" y="832.84" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">→ PortfolioAnalysis</text>
+<polyline points="765,765 510,765" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="523.5067065352902,758.4755169883315 510,765 523.5067065352902,771.5244830116685" fill="none" stroke="#087D76" stroke-width="2"/>
 <rect x="624.5" y="722" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
 <text x="631.5" y="744.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">sí</text>
-<polyline points="900,820 900,895" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<rect x="914" y="843" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="920" y="865.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
-<polyline points="295,880 295,895 900,895" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<polygon points="900.0,879.0 916.0,895.0 900.0,911.0 884.0,895.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1300" y="815" width="510" height="165" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1301" y="816" width="7" height="163" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
-<text x="1324" y="862.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Condición de simulación</text>
-<text x="1324" y="901.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">--simulate  o  --report con</text>
-<text x="1324" y="929.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">la sección simulation seleccionada.</text>
-<text x="1324" y="957.5600000000001" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">El informe por defecto la incluye.</text>
-<polygon points="900.0,935.0 1035.0,1000.0 900.0,1065.0 765.0,1000.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
-<text x="857.5" y="992.44" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿informe</text>
-<text x="847.0" y="1019.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">o gráficos?</text>
-<polyline points="900,911 900,935" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="893.4755169883315,921.4932934647098 900,935 906.5244830116685,921.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
-<polyline points="1035,1000 1500,1000 1500,1110" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="1493.4755169883315,1096.49329346471 1500,1110 1506.5244830116685,1096.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="1171.0" y="958" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="1178.0" y="980.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
-<ellipse cx="1500.0" cy="1127.0" rx="17.0" ry="17.0" fill="#FFFFFF" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
-<ellipse cx="1500.0" cy="1127.0" rx="10.0" ry="10.0" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
-<text x="1540" y="1134.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">salida 0</text>
-<polygon points="900.0,1140.0 1015.0,1190.0 900.0,1240.0 785.0,1190.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
-<text x="852.5" y="1195.8799999999999" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿--report?</text>
-<polyline points="900,1065 900,1140" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="893.4755169883315,1126.49329346471 900,1140 906.5244830116685,1126.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="914" y="1087" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="920" y="1109.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">sí</text>
-<rect x="80" y="1110" width="430" height="170" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="81" y="1111" width="7" height="168" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<text x="104" y="1157.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">Cargar referencias</text>
-<text x="104" y="1195.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Benchmark + FX + FRED / BCE</text>
-<text x="104" y="1222.2" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Fallo opcional → Notice</text>
-<text x="104" y="1249.08" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">market_loader.load_references()</text>
-<polyline points="785,1190 510,1190" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="523.5067065352902,1183.4755169883315 510,1190 523.5067065352902,1196.5244830116685" fill="none" stroke="#2464AD" stroke-width="2"/>
-<rect x="624.5" y="1146" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="631.5" y="1168.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">sí</text>
-<polyline points="900,1240 900,1340" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<rect x="919" y="1282" width="215.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
-<text x="925" y="1304.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no: references=None</text>
-<polyline points="295,1280 295,1340 900,1340" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<polygon points="900.0,1324.0 916.0,1340.0 900.0,1356.0 884.0,1340.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
-<rect x="640" y="1410" width="520" height="140" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="641" y="1411" width="7" height="138" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
-<text x="664" y="1457.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#087D76">Analizar cartera</text>
-<text x="664" y="1496.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Histórico + referencias + simulación</text>
-<text x="664" y="1524.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">→ PortfolioAnalysis</text>
-<polyline points="900,1356 900,1410" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="893.4755169883315,1396.49329346471 900,1410 906.5244830116685,1396.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
-<rect x="1300" y="1290" width="510" height="210" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1301" y="1291" width="7" height="208" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
-<text x="1324" y="1337.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">Orden deliberado</text>
-<text x="1324" y="1376.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Las referencias se consultan</text>
-<text x="1324" y="1404.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">después de crear la cartera</text>
-<text x="1324" y="1432.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">y de simular.</text>
-<text x="1324" y="1460.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779"></text>
-<text x="1324" y="1488.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">--plots-report solo no las carga.</text>
+<polyline points="900,830 900,920" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<rect x="914" y="857" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="920" y="879.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
+<polyline points="295,880 295,920 900,920" fill="none" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
+<polygon points="900.0,904.0 916.0,920.0 900.0,936.0 884.0,920.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<polygon points="900.0,1005.0 1010.0,1060.0 900.0,1115.0 790.0,1060.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<text x="852.5" y="1065.8799999999999" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿simular?</text>
+<polyline points="900,936 900,1005" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="893.4755169883315,991.4932934647098 900,1005 906.5244830116685,991.4932934647098" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="80" y="960" width="430" height="205" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="81" y="961" width="7" height="203" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="104" y="1007.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Monte Carlo</text>
+<text x="104" y="1046.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Tipo libre de riesgo (FRED / BCE)</text>
+<text x="104" y="1074.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Precios de estimación (5 años)</text>
+<text x="104" y="1102.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">→ simulate() → resumen</text>
+<text x="104" y="1130.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Aviso si hay menos de 3 años</text>
+<polyline points="790,1060 510,1060" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="523.5067065352902,1053.4755169883315 510,1060 523.5067065352902,1066.5244830116685" fill="none" stroke="#7052AB" stroke-width="2"/>
+<rect x="624.5" y="1017" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="631.5" y="1039.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">sí</text>
+<polyline points="900,1115 900,1230" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<rect x="914" y="1147" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="920" y="1169.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
+<polyline points="295,1165 295,1230 900,1230" fill="none" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<polygon points="900.0,1214.0 916.0,1230.0 900.0,1246.0 884.0,1230.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1300" y="980" width="510" height="165" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1301" y="981" width="7" height="163" rx="16" fill="#7052AB" stroke="#7052AB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1324" y="1027.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#7052AB">Condición de simulación</text>
+<text x="1324" y="1066.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">--simulate  o  --report con</text>
+<text x="1324" y="1094.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">la sección simulation seleccionada.</text>
+<text x="1324" y="1122.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">El informe por defecto la incluye.</text>
+<polygon points="900.0,1315.0 1035.0,1380.0 900.0,1445.0 765.0,1380.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
+<text x="857.5" y="1372.4399999999998" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿informe</text>
+<text x="847.0" y="1399.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">o gráficos?</text>
+<polyline points="900,1246 900,1315" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="893.4755169883315,1301.49329346471 900,1315 906.5244830116685,1301.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
+<polyline points="1035,1380 1500,1380 1500,1470" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1493.4755169883315,1456.49329346471 1500,1470 1506.5244830116685,1456.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
+<rect x="1171.0" y="1338" width="38.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="1178.0" y="1360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">no</text>
+<ellipse cx="1500.0" cy="1487.0" rx="17.0" ry="17.0" fill="#FFFFFF" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<ellipse cx="1500.0" cy="1487.0" rx="10.0" ry="10.0" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
+<text x="1540" y="1494.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">salida 0</text>
+<rect x="914" y="1467" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>
+<text x="920" y="1489.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">sí</text>
+<rect x="1300" y="1580" width="510" height="250" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1301" y="1581" width="7" height="248" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
+<text x="1324" y="1627.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">Orden deliberado</text>
+<text x="1324" y="1666.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Se analiza antes de simular:</text>
+<text x="1324" y="1694.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">si faltan datos, se avisa</text>
+<text x="1324" y="1722.56" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">sin simular en balde.</text>
+<text x="1324" y="1750.72" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779"></text>
+<text x="1324" y="1778.88" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Sin --report ni --benchmark,</text>
+<text x="1324" y="1807.04" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">no se cargan referencias.</text>
 <polygon points="900.0,1620.0 1015.0,1670.0 900.0,1720.0 785.0,1670.0" fill="#FFF2D9" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <text x="852.5" y="1675.8799999999999" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#142D43">¿--report?</text>
-<polyline points="900,1550 900,1620" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="900,1445 900,1620" fill="none" stroke="#64798B" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="893.4755169883315,1606.49329346471 900,1620 906.5244830116685,1606.49329346471" fill="none" stroke="#64798B" stroke-width="2"/>
 <rect x="80" y="1610" width="430" height="130" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="1611" width="7" height="128" rx="16" fill="#A66810" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <text x="104" y="1657.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#A66810">Guardar informe</text>
-<text x="104" y="1696.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Markdown + imágenes PNG</text>
-<text x="104" y="1724.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Directorio de salida</text>
+<text x="104" y="1696.24" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">analysis.report(simulation)</text>
+<text x="104" y="1724.4" font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#526779">Markdown + imágenes PNG</text>
 <polyline points="785,1670 510,1670" fill="none" stroke="#A66810" stroke-width="2" stroke-linejoin="round"/>
 <polyline points="523.5067065352902,1663.4755169883315 510,1670 523.5067065352902,1676.5244830116685" fill="none" stroke="#A66810" stroke-width="2"/>
 <rect x="624.5" y="1628" width="31.0" height="34.879999999999995" rx="16" fill="#F6F8FB" stroke="#F6F8FB" stroke-width="2" stroke-linejoin="round"/>

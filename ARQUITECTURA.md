@@ -39,7 +39,7 @@ Esta vista organiza **responsabilidades y llamadas del sistema**, no todas las i
 
 La entrada de datos sigue **puertos y adaptadores**: `src/ports.py` define en el núcleo los contratos `PriceProvider`, `IndicatorProvider` (FRED y BCE) y `ReferenceSources`, y `errors` el `ProviderError` común. Los cargadores solo reciben esos puertos; `main` es el único módulo que elige y crea adaptadores (registro `PROVIDERS` y `reference_sources()`). El resto no es una hexagonal estricta: `Portfolio.report()`, `.plots_report()` y `SimulationResult.plot()` son fachadas que el enunciado pide en el dominio y que llegan a `reporting` ([decisión 74](Decisiones.MD)).
 
-**Fuentes:** [main.py](src/main.py), [ports.py](src/ports.py), [portfolio_loader.py](src/portfolio_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
+**Fuentes:** [main.py](src/main.py), [ports.py](src/ports.py), [portfolio_loader.py](src/portfolio_loader.py), [price_loader.py](src/price_loader.py), [market_loader.py](src/market_loader.py), [providers](src/providers), [reporting/export.py](src/reporting/export.py).
 
 ## 02 · Modelos de dominio
 
@@ -105,11 +105,11 @@ Se difiere la **sentencia concreta**, no necesariamente la primera carga efectiv
 | Dependencia transversal | Consumidores directos de nivel superior dentro de `src/` |
 | --- | --- |
 | `constants` | `main`, `portfolio_loader`, `market_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `validation`, `frequency`. |
-| `errors` | `main`, `portfolio_loader`, `market_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `validation`, `commissions`. |
-| `validation` | `main`, `portfolio_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `commissions`. |
+| `errors` | `main`, `portfolio_loader`, `price_loader`, `market_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `validation`, `commissions`. |
+| `validation` | `main`, `portfolio_loader`, `price_loader`, `models`, `providers`, `simulation`, `analysis`, `reporting`, `commissions`. |
 | `commissions` | `main`, `portfolio_loader`, `models`, `simulation`, `analysis`, `reporting`. |
 | `frequency` | `simulation`, `analysis`. |
-| `ports` | `main`, `portfolio_loader`, `market_loader`, `providers`. |
+| `ports` | `main`, `portfolio_loader`, `price_loader`, `market_loader`, `providers`. |
 
 | Importaciones bajo `TYPE_CHECKING` entre paquetes | Tipos utilizados |
 | --- | --- |
@@ -130,13 +130,13 @@ Estas últimas sirven a anotaciones y comprobadores de tipos; sus bloques no se 
 
 La CLI carga entorno y argumentos, comprueba la configuración necesaria y crea los colaboradores. El cargador obtiene los históricos y, cuando procede, los tipos de cambio antes de construir la cartera. Parte de la validación necesita los datos y ocurre al construir modelos o ejecutar cálculos: el análisis de argumentos no sustituye esas comprobaciones.
 
-Las opciones de comisiones (`--commission-*`, `--rebalance-band`, `--max-order-cost`) solo se admiten con `--rebalance monthly`; en otro caso `argparse` termina con código `2`. Después se muestran las posiciones, con las comisiones del backtest si hay tarifa, y se ejecuta la simulación si la configuración la solicita; antes de simular se consulta el tipo libre de riesgo de la divisa. Con Yahoo, la simulación descarga además los precios de los 5 años anteriores (o desde `--start`, si es anterior; o desde `--estimation-start`) para estimar la volatilidad y las correlaciones, y avisa si cubren menos de 3 años. El análisis se necesita para informe o gráficos; las referencias económicas se descargan solamente con `--report`, por lo que pueden consultarse después de crear la cartera. La selección de secciones del informe también puede activar su simulación al preparar la configuración.
+Las opciones de comisiones (`--commission-*`, `--rebalance-band`, `--max-order-cost`) solo se admiten con `--rebalance monthly`; en otro caso `argparse` termina con código `2`. Después se muestran las posiciones, con las comisiones del backtest si hay tarifa. Si se pide informe o gráficos, la cartera se analiza antes de simular, para avisar de datos insuficientes sin simular en balde: con `--report` se descargan todas las referencias económicas y con `--plots-report` solo el índice de `--benchmark`, si se indica. Luego se ejecuta la simulación si la configuración la solicita; antes de simular se consulta el tipo libre de riesgo de la divisa. Con Yahoo, la simulación descarga además los precios de los 5 años anteriores (o desde `--start`, si es anterior; o desde `--estimation-start`) para estimar la volatilidad y las correlaciones, y avisa si cubren menos de 3 años. El informe recibe el resultado de la simulación al guardarse. La selección de secciones del informe también puede activar su simulación al preparar la configuración.
 
-`price_loader.load_price_histories()` descarga los historiales de cada lote (cartera por pesos, por acciones y precios de estimación) con hasta `--download-workers` descargas simultáneas, limitadas por el proveedor y por el número de activos; con una sola, no crea hilos. Devuelve los historiales en el orden de entrada y los activos y la cartera se crean después, en el hilo principal. Ante el primer fallo deja de enviar descargas, cancela las pendientes y propaga el error con el símbolo. Los tipos de cambio, el índice de referencia, FRED y el BCE siguen en secuencia. Los diagramas de `diagramas/` no representan todavía esta fase.
+`price_loader.load_price_histories()` descarga los historiales de cada lote (cartera por pesos, por acciones y precios de estimación) con hasta `--download-workers` descargas simultáneas, limitadas por el proveedor y por el número de activos; con una sola, no crea hilos. Devuelve los historiales en el orden de entrada y los activos y la cartera se crean después, en el hilo principal. Ante el primer fallo deja de enviar descargas, cancela las pendientes y propaga el error con el símbolo. Los tipos de cambio, el índice de referencia, FRED y el BCE siguen en secuencia. La lámina 05 sitúa `price_loader` entre los cargadores y la 06 indica el límite de `--download-workers` en la carga de la cartera.
 
 Las referencias opcionales fallidas se explican mediante avisos y medidas ausentes cuando la carga admite degradación; otros errores terminan la ejecución. `main()` devuelve `0` al completar y `1` para `PortfolioError`, `ProviderError` u `OSError`; los errores de argumentos siguen el comportamiento de `argparse`.
 
-**Fuentes:** [main.py](src/main.py), [portfolio_loader.py](src/portfolio_loader.py), [market_loader.py](src/market_loader.py), [reporting/export.py](src/reporting/export.py).
+**Fuentes:** [main.py](src/main.py), [portfolio_loader.py](src/portfolio_loader.py), [price_loader.py](src/price_loader.py), [market_loader.py](src/market_loader.py), [reporting/export.py](src/reporting/export.py).
 
 ## 07 · Secuencia de una consulta Alpha Vantage
 

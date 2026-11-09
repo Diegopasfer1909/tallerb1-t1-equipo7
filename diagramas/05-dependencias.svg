@@ -9,29 +9,37 @@
 <rect x="1894" y="38" width="74" height="74" rx="16" fill="#142D43" stroke="#142D43" stroke-width="2" stroke-linejoin="round"/>
 <text x="1913.0" y="86.44" font-family="Arial, Helvetica, sans-serif" font-size="32" fill="#FFFFFF">05</text>
 <text x="82" y="237.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#2464AD">A  /  COORDINACIÓN Y CARGA</text>
-<rect x="80" y="275" width="300" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="80" y="275" width="260" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="276" width="7" height="148" rx="16" fill="#526779" stroke="#526779" stroke-width="2" stroke-linejoin="round"/>
 <text x="104" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#526779">main</text>
 <text x="104" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Selecciona y coordina</text>
-<rect x="520" y="275" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="521" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<text x="544" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">portfolio_loader</text>
-<text x="544" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Construye Portfolio</text>
-<rect x="1060" y="275" width="400" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1061" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<text x="1084" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">market_loader</text>
-<text x="1084" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Carga FX y referencias</text>
-<rect x="1600" y="275" width="360" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
-<rect x="1601" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<text x="1624" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">ports</text>
-<text x="1624" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Contratos del núcleo</text>
-<polyline points="380,350 520,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="506.49329346470984,356.52448301166845 520,350 506.49329346470984,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
-<polyline points="920,350 1060,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="1046.49329346471,356.52448301166845 1060,350 1046.49329346471,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
-<polyline points="1460,350 1600,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
-<polyline points="1586.49329346471,356.52448301166845 1600,350 1586.49329346471,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
-<text x="82" y="489.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Los loaders solo importan los puertos (ports); main importa providers y crea los adaptadores.</text>
+<rect x="430" y="275" width="330" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="431" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="454" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">portfolio_loader</text>
+<text x="454" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Construye Portfolio</text>
+<rect x="850" y="275" width="300" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="851" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="874" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">price_loader</text>
+<text x="874" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Lotes, hasta 4 hilos</text>
+<rect x="1240" y="275" width="330" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1241" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1264" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">market_loader</text>
+<text x="1264" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">FX y referencias</text>
+<rect x="1660" y="275" width="300" height="150" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
+<rect x="1661" y="276" width="7" height="148" rx="16" fill="#2464AD" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<text x="1684" y="322.76" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#2464AD">ports</text>
+<text x="1684" y="360.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#526779">Contratos del núcleo</text>
+<polyline points="340,350 430,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="416.49329346470984,356.52448301166845 430,350 416.49329346470984,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="760,350 850,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="836.4932934647098,356.52448301166845 850,350 836.4932934647098,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="1570,350 1660,350" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1646.49329346471,356.52448301166845 1660,350 1646.49329346471,343.47551698833155" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="1000,275 1000,245 1810,245 1810,275" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1803.4755169883315,261.49329346470984 1810,275 1816.5244830116685,261.49329346470984" fill="none" stroke="#2464AD" stroke-width="2"/>
+<polyline points="595,425 595,448 1405,448 1405,425" fill="none" stroke="#2464AD" stroke-width="2" stroke-linejoin="round"/>
+<polyline points="1411.5244830116685,438.50670653529016 1405,425 1398.4755169883315,438.50670653529016" fill="none" stroke="#2464AD" stroke-width="2"/>
+<text x="82" y="499.16" font-family="Arial, Helvetica, sans-serif" font-size="23" fill="#526779">Los loaders solo importan los puertos (ports); main importa providers y crea los adaptadores.</text>
 <text x="82" y="583.32" font-family="Arial, Helvetica, sans-serif" font-size="21" fill="#087D76">B  /  RELACIONES ENTRE PAQUETES DE LA BIBLIOTECA</text>
 <rect x="80" y="680" width="460" height="190" rx="16" fill="#FFFFFF" stroke="#D5DFE7" stroke-width="2" stroke-linejoin="round"/>
 <rect x="81" y="681" width="7" height="188" rx="16" fill="#087D76" stroke="#087D76" stroke-width="2" stroke-linejoin="round"/>
