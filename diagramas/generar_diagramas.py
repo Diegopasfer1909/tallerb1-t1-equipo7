@@ -877,15 +877,19 @@ def dependencies():
         "Vista seleccionada de imports · la flecha apunta al paquete importado · inventario completo en ARQUITECTURA.md",
     )
     d.text(82, 218, "A  /  COORDINACIÓN Y CARGA", 21, BLUE[1])
-    d.card(80, 275, 300, 150, "main", "Selecciona y coordina", SLATE, size=21)
-    d.card(520, 275, 400, 150, "portfolio_loader", "Construye Portfolio", BLUE, size=21)
-    d.card(1060, 275, 400, 150, "market_loader", "Carga FX y referencias", BLUE, size=21)
-    d.card(1600, 275, 360, 150, "ports", "Contratos del núcleo", BLUE, size=21)
-    for x1, x2 in [(380, 520), (920, 1060), (1460, 1600)]:
+    d.card(80, 275, 260, 150, "main", "Selecciona y coordina", SLATE, size=21)
+    d.card(430, 275, 330, 150, "portfolio_loader", "Construye Portfolio", BLUE, size=21)
+    d.card(850, 275, 300, 150, "price_loader", "Lotes, hasta 4 hilos", BLUE, size=21)
+    d.card(1240, 275, 330, 150, "market_loader", "FX y referencias", BLUE, size=21)
+    d.card(1660, 275, 300, 150, "ports", "Contratos del núcleo", BLUE, size=21)
+    # main también importa price_loader (límite de --download-workers): arista omitida.
+    for x1, x2 in [(340, 430), (760, 850), (1570, 1660)]:
         d.line([(x1, 350), (x2, 350)], color=BLUE[1])
+    d.line([(1000, 275), (1000, 245), (1810, 245), (1810, 275)], color=BLUE[1])
+    d.line([(595, 425), (595, 448), (1405, 448), (1405, 425)], color=BLUE[1])
     d.text(
         82,
-        468,
+        478,
         "Los loaders solo importan los puertos (ports); main importa providers y crea los adaptadores.",
         23,
         MUTED,
@@ -974,7 +978,7 @@ def activity():
         185,
         "Cargar y mostrar cartera",
         "Pesos o número de acciones\nproveedor → activos → FX → Portfolio\n"
-        "Imprimir composición\nComisiones del rebalanceo, si hay tarifa",
+        "hasta --download-workers a la vez\nImprimir composición y comisiones",
         BLUE,
         size=22,
     )
@@ -1002,11 +1006,31 @@ def activity():
         "MANEJADOR DE EXCEPCIONES",
         22,
     )
-    d.decision(cx, 765, "¿simular?", 220, 110)
-    d.line([(cx, 685), (cx, 710)])
+    # Mismo orden que run(): primero el análisis (referencias incluidas) y después Monte Carlo.
+    d.decision(cx, 765, "¿informe\no gráficos?", 270, 130)
+    d.line([(cx, 685), (cx, 700)])
     d.card(
         80,
-        675,
+        640,
+        430,
+        240,
+        "Referencias y análisis",
+        "--report: load_references()\nbenchmark · FX · FRED / BCE\n"
+        "--plots-report: solo --benchmark\nportfolio.analyze()\n→ PortfolioAnalysis",
+        TEAL,
+        size=21,
+    )
+    d.line([(765, 765), (510, 765)], color=TEAL[1])
+    d.label(640, 725, "sí", 21, center=True)
+    d.line([(cx, 830), (cx, 920)], arrow=False)
+    d.label(920, 860, "no", 21)
+    d.line([(295, 880), (295, 920), (cx, 920)], arrow=False, color=TEAL[1])
+    d.decision(cx, 920, "", 32, 32)
+    d.decision(cx, 1060, "¿simular?", 220, 110)
+    d.line([(cx, 936), (cx, 1005)])
+    d.card(
+        80,
+        960,
         430,
         205,
         "Monte Carlo",
@@ -1015,15 +1039,15 @@ def activity():
         VIOLET,
         size=22,
     )
-    d.line([(790, 765), (510, 765)], color=VIOLET[1])
-    d.label(640, 725, "sí", 21, center=True)
-    d.line([(cx, 820), (cx, 895)], arrow=False)
-    d.label(920, 846, "no", 21)
-    d.line([(295, 880), (295, 895), (cx, 895)], arrow=False, color=VIOLET[1])
-    d.decision(cx, 895, "", 32, 32)
+    d.line([(790, 1060), (510, 1060)], color=VIOLET[1])
+    d.label(640, 1020, "sí", 21, center=True)
+    d.line([(cx, 1115), (cx, 1230)], arrow=False)
+    d.label(920, 1150, "no", 21)
+    d.line([(295, 1165), (295, 1230), (cx, 1230)], arrow=False, color=VIOLET[1])
+    d.decision(cx, 1230, "", 32, 32)
     d.card(
         1300,
-        815,
+        980,
         510,
         165,
         "Condición de simulación",
@@ -1031,61 +1055,33 @@ def activity():
         VIOLET,
         size=22,
     )
-    d.decision(cx, 1000, "¿informe\no gráficos?", 270, 130)
-    d.line([(cx, 911), (cx, 935)])
-    d.line([(1035, 1000), (1500, 1000), (1500, 1110)])
-    d.label(1190, 961, "no", 21, center=True)
-    d.dot(1500, 1127, True)
-    d.text(1540, 1113, "salida 0", 23, MUTED)
-    d.decision(cx, 1190, "¿--report?", 230, 100)
-    d.line([(cx, 1065), (cx, 1140)])
-    d.label(920, 1090, "sí", 21)
-    d.card(
-        80,
-        1110,
-        430,
-        170,
-        "Cargar referencias",
-        "Benchmark + FX + FRED / BCE\nFallo opcional → Notice\nmarket_loader.load_references()",
-        BLUE,
-        size=21,
-    )
-    d.line([(785, 1190), (510, 1190)], color=BLUE[1])
-    d.label(640, 1149, "sí", 21, center=True)
-    d.line([(cx, 1240), (cx, 1340)], arrow=False)
-    d.label(925, 1285, "no: references=None", 21)
-    d.line([(295, 1280), (295, 1340), (cx, 1340)], arrow=False, color=BLUE[1])
-    d.decision(cx, 1340, "", 32, 32)
-    d.card(
-        640,
-        1410,
-        520,
-        140,
-        "Analizar cartera",
-        "Histórico + referencias + simulación\n→ PortfolioAnalysis",
-        TEAL,
-        size=22,
-    )
-    d.line([(cx, 1356), (cx, 1410)])
+    d.decision(cx, 1380, "¿informe\no gráficos?", 270, 130)
+    d.line([(cx, 1246), (cx, 1315)])
+    d.line([(1035, 1380), (1500, 1380), (1500, 1470)])
+    d.label(1190, 1341, "no", 21, center=True)
+    d.dot(1500, 1487, True)
+    d.text(1540, 1473, "salida 0", 23, MUTED)
+    d.label(920, 1470, "sí", 21)
     d.card(
         1300,
-        1290,
+        1580,
         510,
-        210,
+        250,
         "Orden deliberado",
-        "Las referencias se consultan\ndespués de crear la cartera\ny de simular.\n\n--plots-report solo no las carga.",
+        "Se analiza antes de simular:\nsi faltan datos, se avisa\nsin simular en balde.\n\n"
+        "Sin --report ni --benchmark,\nno se cargan referencias.",
         SLATE,
         size=22,
     )
     d.decision(cx, 1670, "¿--report?", 230, 100)
-    d.line([(cx, 1550), (cx, 1620)])
+    d.line([(cx, 1445), (cx, 1620)])
     d.card(
         80,
         1610,
         430,
         130,
         "Guardar informe",
-        "Markdown + imágenes PNG\nDirectorio de salida",
+        "analysis.report(simulation)\nMarkdown + imágenes PNG",
         AMBER,
         size=22,
     )

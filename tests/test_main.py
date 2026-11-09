@@ -656,12 +656,16 @@ class MainTests(unittest.TestCase):
 
     def test_direct_script_runs_from_another_directory(self):
         script = Path(__file__).resolve().parents[1] / "src" / "main.py"
+        # La ayuda lleva tildes: se fija UTF-8 en el hijo y al leerla, para que la prueba no
+        # dependa de la página de códigos de la consola ni de PYTHONIOENCODING.
+        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
         with tempfile.TemporaryDirectory() as folder:
             result = subprocess.run(
                 [sys.executable, str(script), "--help"],
                 cwd=folder,
                 capture_output=True,
-                text=True,
+                encoding="utf-8",
+                env=env,
                 timeout=30,
             )
         self.assertEqual(result.returncode, 0, result.stderr)
