@@ -12,7 +12,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 
-from src.commissions import BROKER_PRESETS, RebalanceRule
+from src.commissions import IBKR_COMMISSIONS, RebalanceRule
 from src.errors import PortfolioError
 from src.main import main, parse_arguments
 from src.models import Asset, AssetProfile, MarketReferences, Portfolio, PriceHistory
@@ -45,7 +45,7 @@ def provider_prices(symbol, start, end, **_):
 
 class PortfolioEstimationTests(unittest.TestCase):
     def setUp(self):
-        self.rule = RebalanceRule(BROKER_PRESETS["ibkr"], band=0.05, max_order_cost=0.01)
+        self.rule = RebalanceRule(IBKR_COMMISSIONS, band=0.05, max_order_cost=0.01)
         analysis = [Asset(price_history(s, "2025-10-01", "2026-01-07")) for s in ("A", "B")]
         self.portfolio = Portfolio.from_units(
             analysis, {"A": 10, "B": 5}, rebalance="monthly", rebalance_rule=self.rule
@@ -191,7 +191,9 @@ class RunEstimationTests(unittest.TestCase):
         self.assertIn("Pocos datos para estimar", report)
 
     def test_without_a_band_the_rebalancing_has_no_condition(self):
-        report, _, _ = self.run_main("--broker", "none", "--rebalance-band", "0")
+        report, _, _ = self.run_main(
+            "--commission-rate", "0", "--commission-min", "0", "--rebalance-band", "0"
+        )
         self.assertIn(
             "Revisión cada 21 sesiones simuladas; se vuelve a los pesos objetivo |", report
         )

@@ -673,21 +673,17 @@ la cobertura mínima y CodeQL.
 
 ## Comisiones del rebalanceo (6 de noviembre)
 
-### 26. Tarifas de bróker con IBKR por defecto
+### 26. Tarifa de Interactive Brokers como bróker de ejemplo
 
-**Decisión.** Cada orden de rebalanceo paga una comisión. Hay tarifas predefinidas,
-consultadas en noviembre de 2026 y orientativas:
+**Decisión.** Cada orden de rebalanceo paga una comisión. Se toma como ejemplo un único
+bróker, Interactive Brokers (IBKR), con su tarifa consultada en noviembre de 2026: 0,05 % del
+importe de cada orden con un mínimo de 3. No se puede elegir otro bróker; solo cambiar los
+valores de esa tarifa con `--commission-rate`, `--commission-fixed`, `--commission-min` y
+`--commission-max`.
 
-| `--broker` | Tarifa por orden |
-| --- | --- |
-| `ibkr` (por defecto) | 0,05 %, mínimo 3 |
-| `degiro` | 2 fijos |
-| `trade_republic` | 1 fijo |
-| `xtb` | 0 |
-| `none` | Sin comisiones |
-
-El usuario puede cambiar cualquier campo con `--commission-rate`, `--commission-fixed`,
-`--commission-min` y `--commission-max`.
+**Por qué un solo bróker.** El objetivo es mostrar el efecto de las comisiones con una tarifa
+real de ejemplo, no comparar brókers. Ofrecer varias tarifas añadía opciones y datos que
+caducan sin aportar nada al análisis.
 
 **Por qué IBKR.** Su modelo porcentual con mínimo es la referencia profesional más usada y
 penaliza bien las órdenes pequeñas, que son las típicas de un rebalanceo.
@@ -695,7 +691,10 @@ penaliza bien las órdenes pequeñas, que son las típicas de un rebalanceo.
 **Ejemplo.**
 - Una orden de 10.000 € paga 5 € (0,05 %).
 - Una de 1.000 € pagaría 0,50 €, pero se aplica el mínimo: 3 €, que es un 0,3 % de la orden.
-- Con `--broker degiro --commission-min 5`, se parte de DEGIRO y se fija un mínimo de 5.
+- Con `--commission-min 5`, se parte de la tarifa de IBKR y se fija un mínimo de 5.
+
+**Estado.** Revisada el 9 de noviembre: antes había tarifas predefinidas de varios brókers
+(`--broker ibkr|degiro|trade_republic|xtb|none`); se eliminaron y solo queda IBKR.
 
 ### 27. Rebalancear solo si compensa: banda y coste máximo
 
@@ -751,7 +750,7 @@ Python, `Portfolio` no paga comisiones salvo que se le pase `rebalance_rule`.
 
 **Ejemplo.**
 ```python
-rule = RebalanceRule(BROKER_PRESETS["degiro"], band=0.05, max_order_cost=0.01)
+rule = RebalanceRule(IBKR_COMMISSIONS, band=0.05, max_order_cost=0.01)
 Portfolio(activos, {"IBM": 0.6, "MSFT": 0.4}, rebalance_rule=rule)
 ```
 

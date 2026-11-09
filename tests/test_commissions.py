@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from src.commissions import (
-    BROKER_PRESETS,
+    IBKR_COMMISSIONS,
     CommissionSchedule,
     RebalanceRule,
     rebalance_step,
@@ -24,7 +24,8 @@ from src.models import MarketReferences, Portfolio
 from src.models.backtest import backtest_allocation, backtest_with_costs
 from src.simulation import SimulationSettings, simulate
 
-IBKR = BROKER_PRESETS["ibkr"]
+IBKR = IBKR_COMMISSIONS
+DEGIRO_LIKE = CommissionSchedule(fixed=2.0, name="Fija")
 TARGET = np.array([0.6, 0.4])
 
 
@@ -50,10 +51,10 @@ class CommissionScheduleTests(unittest.TestCase):
         schedule = CommissionSchedule(rate=0.001, fixed=1, minimum=3, maximum=10)
         np.testing.assert_allclose(schedule.cost([0, 500, -5_000, 100_000]), [0, 3, 6, 10])
 
-    def test_presets_match_the_documented_tariffs(self):
+    def test_ibkr_matches_the_documented_tariff(self):
         np.testing.assert_allclose(IBKR.cost([1_000, 20_000]), [3, 10])
-        np.testing.assert_allclose(BROKER_PRESETS["degiro"].cost([50, 50_000]), [2, 2])
-        self.assertTrue(BROKER_PRESETS["none"].is_free)
+        self.assertEqual(IBKR.name, "Interactive Brokers")
+        self.assertFalse(IBKR.is_free)
 
     def test_invalid_tariffs_are_rejected(self):
         for options in ({"rate": -0.1}, {"rate": 1}, {"fixed": -1}, {"minimum": 5, "maximum": 2}):
@@ -179,7 +180,7 @@ class PortfolioCostTests(unittest.TestCase):
 
     def test_simulation_pays_commissions_and_ends_lower(self):
         # Mismo punto de partida: solo cambia la regla de la simulación.
-        inputs = self.portfolio(RebalanceRule(BROKER_PRESETS["degiro"])).simulation_inputs()
+        inputs = self.portfolio(RebalanceRule(DEGIRO_LIKE)).simulation_inputs()
         settings = SimulationSettings(steps=63, simulations=200, seed=3, expected_returns=0.08)
         paid = simulate(inputs, settings)
         free = simulate(replace(inputs, rebalance_rule=RebalanceRule()), settings)
@@ -197,13 +198,13 @@ class CommissionOptionsTests(unittest.TestCase):
         self.assertEqual(rule.commissions, IBKR)
         self.assertEqual((rule.band, rule.max_order_cost), (0.05, 0.01))
 
-    def test_preset_can_be_customised(self):
+    def test_ibkr_values_can_be_customised(self):
         rule = parse_arguments(
             [
                 "--assets",
                 "IBM:1",
-                "--broker",
-                "degiro",
+                "--commission-fixed",
+                "2",
                 "--commission-min",
                 "5",
                 "--rebalance-band",
@@ -214,12 +215,17 @@ class CommissionOptionsTests(unittest.TestCase):
         ).rebalance_rule
         self.assertEqual(rule.commissions.fixed, 2)
         self.assertEqual(rule.commissions.minimum, 5)
-        self.assertEqual(rule.commissions.name, "DEGIRO (personalizada)")
+        self.assertEqual(rule.commissions.rate, IBKR.rate)
+        self.assertEqual(rule.commissions.name, "Interactive Brokers (personalizada)")
         self.assertEqual((rule.band, rule.max_order_cost), (0, 0.02))
+
+    def test_other_brokers_cannot_be_selected(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parse_arguments(["--assets", "IBM:1", "--broker", "degiro"])
 
     def test_cost_options_require_monthly_rebalancing(self):
         for arguments in (
-            ["--assets", "IBM:1", "--rebalance", "none", "--broker", "degiro"],
+            ["--assets", "IBM:1", "--rebalance", "none", "--commission-min", "5"],
             ["--shares", "IBM:10", "--commission-rate", "0.001"],
             ["--assets", "IBM:1", "--commission-min", "-1"],
         ):
@@ -248,10 +254,12 @@ class CommissionOptionsTests(unittest.TestCase):
                 yahoo.return_value.get_prices.side_effect = lambda symbol, *a, **k: histories[
                     symbol
                 ]
-                arguments = ["--assets", "IBM:0.6", "MSFT:0.4", "--broker", "degiro", "--report"]
+                arguments = ["--assets", "IBM:0.6", "MSFT:0.4", "--report"]
                 self.assertEqual(main([*arguments, "--output-dir", str(reports)]), 0)
             report = next(reports.glob("*/*.md")).read_text(encoding="utf-8")
-        self.assertIn("Comisiones: DEGIRO, 2,00 USD por orden", output.getvalue())
+        self.assertIn(
+            "Comisiones: Interactive Brokers, 0,05 % por orden, mínimo 3,00 USD", output.getvalue()
+        )
         self.assertIn("**Coste del rebalanceo**", report)
         self.assertIn("Comisiones de rebalanceo", report)
 

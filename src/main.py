@@ -11,10 +11,9 @@ from dotenv import find_dotenv, load_dotenv
 
 from src.analysis import PortfolioAnalysis
 from src.commissions import (
-    BROKER_PRESETS,
-    DEFAULT_BROKER,
     DEFAULT_MAX_ORDER_COST,
     DEFAULT_REBALANCE_BAND,
+    IBKR_COMMISSIONS,
     RebalanceRule,
 )
 from src.constants import (
@@ -347,31 +346,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rebalanceo mensual o sin reajustes. Por defecto, mensual con --assets y sin "
         "reajustes con --shares; con --shares, monthly vuelve cada mes a los pesos iniciales",
     )
-    costs = parser.add_argument_group("Comisiones del rebalanceo")
-    costs.add_argument(
-        "--broker",
-        choices=list(BROKER_PRESETS),
-        help="Tarifa de partida: "
-        + "; ".join(
-            f"{key} ({commission_description(schedule, 'EUR').replace('%', '%%')})"
-            for key, schedule in BROKER_PRESETS.items()
-        )
-        + f". Por defecto: {DEFAULT_BROKER}",
+    costs = parser.add_argument_group(
+        "Comisiones del rebalanceo (tarifa de Interactive Brokers: 0,05 % por orden, mínimo 3; "
+        "sus valores se pueden cambiar)"
     )
     costs.add_argument(
         "--commission-rate",
         type=float,
         metavar="FRACCIÓN",
-        help="Comisión proporcional por orden, por ejemplo 0.0005 (0,05 %%)",
+        help="Comisión proporcional por orden (0.0005, 0,05 %%)",
     )
     costs.add_argument(
-        "--commission-fixed", type=float, metavar="IMPORTE", help="Comisión fija por orden"
+        "--commission-fixed", type=float, metavar="IMPORTE", help="Comisión fija por orden (0)"
     )
     costs.add_argument(
-        "--commission-min", type=float, metavar="IMPORTE", help="Comisión mínima por orden"
+        "--commission-min", type=float, metavar="IMPORTE", help="Comisión mínima por orden (3)"
     )
     costs.add_argument(
-        "--commission-max", type=float, metavar="IMPORTE", help="Comisión máxima por orden"
+        "--commission-max",
+        type=float,
+        metavar="IMPORTE",
+        help="Comisión máxima por orden (sin máximo)",
     )
     costs.add_argument(
         "--rebalance-band",
@@ -506,18 +501,18 @@ COMMISSION_OPTIONS = {
     "commission_min": "minimum",
     "commission_max": "maximum",
 }
-COST_OPTIONS = ("broker", *COMMISSION_OPTIONS, "rebalance_band", "max_order_cost")
+COST_OPTIONS = (*COMMISSION_OPTIONS, "rebalance_band", "max_order_cost")
 
 
 def _rebalance_rule(args: argparse.Namespace, rebalance: Rebalance) -> RebalanceRule:
-    """Tarifa del bróker elegido, con los cambios indicados, y criterio de reajuste."""
+    """Tarifa de Interactive Brokers, con los valores cambiados, y criterio de reajuste."""
     if rebalance != MONTHLY:
         if any(getattr(args, name) is not None for name in COST_OPTIONS):
             raise PortfolioError(
                 "Las comisiones solo se aplican al rebalanceo: usa --rebalance monthly."
             )
         return RebalanceRule()
-    schedule = BROKER_PRESETS[args.broker or DEFAULT_BROKER]
+    schedule = IBKR_COMMISSIONS
     changes = {
         field: getattr(args, option)
         for option, field in COMMISSION_OPTIONS.items()
