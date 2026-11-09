@@ -387,7 +387,7 @@ def commission_description(schedule: CommissionSchedule, currency: str) -> str:
 
 
 def tariff_label(schedule: CommissionSchedule, currency: str) -> str:
-    """Nombre y tarifa, como «DEGIRO: 2,00 EUR por orden»; solo el nombre si es gratis."""
+    """Nombre y tarifa, como «Interactive Brokers: 0,05 % por orden, mínimo 3,00 EUR»; solo el nombre si es gratis."""
     if schedule.is_free:
         return schedule.name
     return f"{schedule.name}: {commission_description(schedule, currency)}"

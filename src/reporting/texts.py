@@ -53,9 +53,9 @@ COMMISSIONS_NOTE = (
 REBALANCE_COSTS_NOTE = (
     "Sin rebalanceo se mantienen las posiciones de la primera fecha y no se paga ninguna comisión "
     "después de la compra inicial, común a las dos estrategias. Rebalancear controla el riesgo: "
-    "aunque rinda algo menos, puede compensar si mantiene la cartera cerca de sus pesos. Las "
-    "tarifas son orientativas; comprueba la vigente en tu bróker y ajústala con "
-    "`--broker` y `--commission-*`."
+    "aunque rinda algo menos, puede compensar si mantiene la cartera cerca de sus pesos. La "
+    "tarifa de Interactive Brokers es un ejemplo orientativo; comprueba la vigente y ajusta sus "
+    "valores con `--commission-*`."
 )
 
 # Rentabilidad ajustada al riesgo
