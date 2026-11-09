@@ -95,21 +95,22 @@ def _diversification_warnings(
     thresholds: WarningThresholds,
 ) -> list[RiskWarning]:
     """Concentración de las posiciones y correlación entre activos."""
-    warnings = []
-    largest = weights.idxmax()
-    if weights[largest] > thresholds.asset_weight:
-        warnings.append(
-            RiskWarning(
-                "asset_concentration",
-                "high",
-                f"{largest}: una posición supera el umbral de concentración.",
-                float(weights[largest]),
-                thresholds.asset_weight,
-                title="Concentración en un activo",
-                subject=largest,
-            )
+    # Una advertencia alta por cada posición sobre el umbral, de mayor a menor peso.
+    warnings = [
+        RiskWarning(
+            "asset_concentration",
+            "high",
+            f"{symbol}: una posición supera el umbral de concentración.",
+            float(weight),
+            thresholds.asset_weight,
+            title="Concentración en un activo",
+            subject=symbol,
         )
-    elif weights[largest] > thresholds.asset_weight_medium:
+        for symbol, weight in weights.sort_values(ascending=False).items()
+        if weight > thresholds.asset_weight
+    ]
+    largest = weights.idxmax()
+    if not warnings and weights[largest] > thresholds.asset_weight_medium:
         warnings.append(
             RiskWarning(
                 "asset_concentration",

@@ -143,6 +143,32 @@ class ReadingsTests(unittest.TestCase):
         message = next(w.message for w in warnings if w.code == "currency_risk")
         self.assertIn("la principal es EUR.", message)
 
+    def test_every_position_over_the_threshold_gets_its_own_warning(self):
+        def concentration(weights):
+            warnings = evaluate_risk(
+                pd.Series(
+                    {"max_drawdown": -0.1, "annualized_volatility": 0.1, "history_days": 400.0}
+                ),
+                pd.Series(weights),
+                pd.Series(dtype=float),
+                pd.Series(dtype=float),
+                _no_drawdown(),
+                WarningThresholds(),
+            )
+            return [
+                (w.subject, w.severity, w.observed)
+                for w in warnings
+                if w.code == "asset_concentration"
+            ]
+
+        self.assertEqual(
+            concentration({"MSFT": 0.4087, "IBM": 0.5913}),
+            [("IBM", "high", 0.5913), ("MSFT", "high", 0.4087)],
+        )
+        # Con una posición alta, las moderadas no se añaden; sin ninguna, solo la mayor.
+        self.assertEqual(concentration({"A": 0.45, "B": 0.3, "C": 0.25}), [("A", "high", 0.45)])
+        self.assertEqual(concentration({"A": 0.35, "B": 0.33, "C": 0.32}), [("A", "medium", 0.35)])
+
 
 class BenchmarkDividendTests(unittest.TestCase):
     def notices(self, benchmark_type, column):
