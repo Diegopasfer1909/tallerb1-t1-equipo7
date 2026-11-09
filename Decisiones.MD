@@ -136,7 +136,7 @@ o el usuario la eligió, y las propuestas descartadas se indican como tales.
 | 35 | Datos | Conservar los precios si falta la ficha del activo | `8ad866b` |
 | 36 | Datos | Validación estricta en las fronteras | README, «Validación de entradas» |
 | 37 | Datos | Marcar los saltos de más del 50 % sin corregirlos | README, `metrics.py` |
-| 38 | Datos | Descargar los activos en lote, uno tras otro | README, «Validación de entradas» |
+| 38 | Datos | Descargar los activos en lote, con hasta 4 a la vez si el proveedor lo admite | README, «Claves de API y caché» |
 | 39 | Proveedores | Un proveedor por ejecución, sin cambio automático | README, «Elección del proveedor» |
 | 40 | Medidas | Contrato temporal de las medidas | README, «Contrato temporal» |
 | 41 | Medidas | 365 períodos al año en carteras solo cripto | `c04ac05` |
@@ -919,24 +919,69 @@ también puede ser real. Corregirlo automáticamente escondería el problema.
 parece una caída del 66,7 % en un día. El informe lo marca para que se revise, en lugar de
 contarlo en silencio como una pérdida.
 
-### 38. Descargar los activos en lote, uno tras otro
+### 38. Descargar los activos en lote, con hasta 4 a la vez si el proveedor lo admite
 
-**Origen.** README, sección «Validación de entradas», apartado «Descarga en lote».
+**Origen.** README, sección «Validación de entradas», apartado «Descarga en lote» (versión
+inicial); hoy, README, «Claves de API y caché», párrafo «Descargas simultáneas», y
+`src/price_loader.py`.
 
-**Decisión.** `load_portfolio()` descarga los activos uno tras otro con el mismo proveedor,
-sin hilos. Es una de las dos opciones que da el enunciado («simultánea o en lote»).
+**Decisión.** `load_price_histories()` descarga los activos de un lote con el mismo
+proveedor, una llamada a `get_prices()` por símbolo. Es la opción «simultánea o en lote» del
+enunciado, con las dos variantes:
+- **Por defecto, uno tras otro.** Con `--download-workers 1` (o `max_workers=1` desde Python)
+  no se crea ningún hilo.
+- **Hasta 4 a la vez con `--download-workers N`.** Un `ThreadPoolExecutor` mantiene como
+  mucho N descargas en vuelo y repone una cada vez que termina otra. Se usa en la cartera
+  (por pesos o por acciones) y en los precios de estimación de Monte Carlo.
+- **El proveedor pone el límite.** Cada uno lo declara con `max_download_workers`: Yahoo 4,
+  Alpha Vantage 1 por su cuota; sin el atributo, 1. Se usa el menor entre lo pedido, ese
+  límite, el de la versión (4) y el número de activos. Si se pide más, la consola avisa una
+  vez.
+- **El resultado no depende del orden en que terminen.** Los historiales vuelven en el orden
+  de los símbolos de entrada, así que pesos, gráficos e informe son idénticos con cualquier
+  N.
+- **Si falla un activo, se para todo.** No se envían más descargas, se cancelan las
+  pendientes y se propaga el error con el símbolo. Si fallan varias a la vez, se informa del
+  primero de la lista. Nunca se devuelve un lote parcial.
+- Tipos de cambio, índice de referencia, FRED y BCE siguen descargándose en secuencia.
 
 **Por qué.**
-- Se respeta la cuota de Alpha Vantage sin coordinar hilos.
-- Cada error se atribuye a su símbolo.
-- La caché evita repetir consultas.
-- Con pocas decenas de activos, el tiempo no es relevante.
+- Casi todo el tiempo de una descarga es espera de red: solaparla acorta la carga de
+  carteras con muchos activos o con la caché vacía, sin cambiar los resultados.
+- Por defecto se mantiene el comportamiento anterior, el más fácil de seguir y depurar.
+- Alpha Vantage gratuito admite 25 peticiones al día y pocas por minuto: lanzarlas en
+  paralelo agotaría la cuota en un instante, así que su límite es 1.
+- Cada error se sigue atribuyendo a su símbolo y la caché evita repetir consultas.
+- El cambio es local del cargador y del adaptador de Yahoo: el contrato `PriceProvider` no
+  cambia, y un proveedor que no declare nada sigue funcionando en secuencia.
 
-Paralelizar sería un cambio local del cargador, sin tocar el contrato `PriceProvider`.
+**Cómo se hace seguro.**
+- La caché de Yahoo usa un bloqueo por archivo, compartido por el proceso: descargas de
+  activos distintos avanzan en paralelo y dos del mismo símbolo esperan su turno. Cada
+  operación usa su propio `Ticker`.
+- Los avisos de yfinance se silencian una sola vez en `main()`, antes de cualquier descarga,
+  porque los filtros de avisos son globales del proceso y no deben cambiarse desde varios
+  hilos (decisión 71).
+- Ante un error o Ctrl+C no se envía nada más; las descargas ya en curso terminan por su
+  cuenta, como mucho al agotar su *timeout* HTTP.
 
-**Ejemplo.** Si en una cartera de 12 activos falla el séptimo, el mensaje dice exactamente
-cuál ha fallado. Con 12 descargas a la vez sería más difícil saberlo y se podría pasar del
-límite de Alpha Vantage en un instante.
+**Alternativas descartadas.**
+- **Descargar siempre en paralelo:** complica la depuración y no aporta nada con la caché
+  llena o con dos o tres activos.
+- **Un límite global entre ejecuciones o procesos:** el bloqueo solo coordina hilos del mismo
+  proceso. Entre procesos, los temporales únicos y el reemplazo atómico evitan archivos a
+  medio escribir, lo que basta para un uso local.
+- **Más de 4 descargas:** la versión fija un tope prudente de 4 por lote. Yahoo no publica
+  sus límites de peticiones, y con más descargas a la vez la mejora es menor y el riesgo de
+  que las rechace, mayor.
+
+**Ejemplo.** Una cartera de 12 activos con Yahoo y `--download-workers 4` empieza con 4
+descargas; al terminar una, entra la quinta. Si falla la séptima, no se lanzan más y el
+mensaje dice cuál ha sido. Con `--provider alpha_vantage` y `--download-workers 4`, la consola avisa
+de que Alpha Vantage descarga de uno en uno y sigue en secuencia.
+
+**Estado.** Revisada el 9 de noviembre: antes la descarga era siempre secuencial, sin hilos;
+`--download-workers` se añadió en la rama `feature/descarga-multihilo`.
 
 ### 39. Un proveedor por ejecución, sin cambio automático
 
@@ -1843,8 +1888,9 @@ publicar el informe fallaba a veces con «Acceso denegado».
 - Al renombrar la carpeta temporal del informe, solo se reintenta ante un `PermissionError`:
   hasta 6 intentos, separados 0,5 segundos. Cualquier otro error falla en el acto, y se
   mantiene la limpieza de la carpeta a medias (decisión 15).
-- Los avisos de obsolescencia de yfinance se silencian solo durante sus llamadas y solo los
-  que proceden de sus módulos.
+- Los avisos de obsolescencia de yfinance se silencian solo si proceden de sus módulos. Con
+  las descargas simultáneas, la consola lo hace una sola vez al arrancar, con
+  `quiet_yfinance_warnings()`, en lugar de en cada llamada.
 
 **Por qué.** El apartado 4.1 pide clonar y ejecutar sin fricciones. Además, el antivirus o el
 indexador de Windows pueden tener abierto durante un instante un gráfico recién guardado, y
@@ -1854,11 +1900,15 @@ eso no es un error del programa.
 y el usuario no nota nada. Si el disco está lleno, el error aparece enseguida, porque no es un
 `PermissionError` y no tiene sentido esperar.
 
-**Límites.** `warnings.catch_warnings()` modifica un estado global y no es seguro entre
-hilos. Hoy no importa, porque la descarga es secuencial (decisión 38). Con yfinance 1.8.0 y
-pandas 3.1.1 no se reprodujeron esos avisos, así que el filtro es preventivo.
+**Límites.** Los filtros de avisos son un estado global del proceso y
+`warnings.catch_warnings()` no es seguro entre hilos. Por eso, desde que la descarga puede
+ir en paralelo (decisión 38), no se cambian en cada llamada: `main()` los fija una vez antes
+de descargar. Quien use el paquete desde Python decide si llama a
+`quiet_yfinance_warnings()`. Con yfinance 1.8.0 y pandas 3.1.1 no se reprodujeron esos
+avisos, así que el filtro es preventivo.
 
-**Estado.** Vigente.
+**Estado.** Vigente. Revisada el 9 de noviembre: el filtro pasó de aplicarse en cada llamada
+a fijarse una vez al arrancar, por las descargas simultáneas.
 
 ### 72. Simplificar sin cambiar el comportamiento
 
