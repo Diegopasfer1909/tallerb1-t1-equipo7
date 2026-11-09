@@ -44,7 +44,6 @@ select = ["E4", "E7", "E9", "F", "I", "B", "C901", "PLR0912", "PLR0915"]
 [tool.ruff.lint.per-file-ignores]
 # Los límites de complejidad solo se exigen al código de src.
 "tests/**" = ["C901", "PLR0912", "PLR0915"]
-"diagramas/**" = ["C901", "PLR0912", "PLR0915"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
