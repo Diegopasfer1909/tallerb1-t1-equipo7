@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "miax-b1-t1-equipo7-toolkit"
-version = "0.1.0"
+version = "1.0.0"
 description = "Extracción y análisis de datos de mercado para el taller MIAX B1-T1"
 readme = "README.MD"
 # Versión mínima admitida; el equipo desarrolla con la indicada en .python-version.

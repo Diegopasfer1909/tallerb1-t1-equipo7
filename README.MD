@@ -401,7 +401,7 @@ python -B -m coverage report
 La integración continua comprueba Python 3.11 y 3.14, una cobertura mínima del 94 %, el
 formato, la complejidad, el paquete instalado y la ausencia de claves filtradas.
 
-**Sigue leyendo:** [decisiones del modelo](Decisiones.MD) · [arquitectura](ARQUITECTURA.md) ·
+**Sigue leyendo:** [arquitectura](ARQUITECTURA.md) ·
 [diagramas](diagramas/README.md)
 
 [↑ Español](#espanol) · [English ↓](#english)
@@ -753,7 +753,7 @@ python -B -m coverage report
 Continuous integration checks Python 3.11 and 3.14, at least 94% coverage, formatting,
 complexity, the installed package, and leaked secrets.
 
-**Read more:** [model decisions, in Spanish](Decisiones.MD) · [architecture](ARQUITECTURA.md) ·
+**Read more:** [architecture](ARQUITECTURA.md) ·
 [diagrams](diagramas/README.md)
 
 [↑ Español](#espanol) · [English ↑](#english)
