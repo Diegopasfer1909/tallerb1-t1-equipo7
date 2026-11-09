@@ -14,11 +14,19 @@ from src.models import MarketReferences, Portfolio
 from src.models.notice import Notice
 from src.reporting.report import (
     _read_alpha,
+    _read_beta,
+    _read_cagr,
     _read_diversifier,
+    _read_drawdown,
     _read_loss_probability,
     _read_mean_correlation,
     _read_oil,
+    _read_pair,
+    _read_premium,
+    _read_sharpe,
     _read_sortino,
+    _read_total,
+    _read_volatility,
 )
 
 DATES = pd.bdate_range("2026-01-05", periods=6)
@@ -29,7 +37,7 @@ ADJUSTED = [95, 96, 94, 98, 97, 100]
 class ReadingsTests(unittest.TestCase):
     def test_a_weak_correlation_is_not_read_as_falling_together(self):
         read = _read_diversifier(0.18, "el Bund", "el Bund hace de refugio")
-        self.assertEqual(read, "el Bund diversifica bien")
+        self.assertIn("el Bund diversifica bien", read)
 
     def test_diversifier_bands(self):
         for value, expected in (
@@ -39,18 +47,18 @@ class ReadingsTests(unittest.TestCase):
             (0.7, "el oro diversifica poco"),
         ):
             with self.subTest(value=value):
-                self.assertEqual(_read_diversifier(value, "el oro", "refugio"), expected)
+                self.assertIn(expected, _read_diversifier(value, "el oro", "refugio"))
         self.assertEqual(_read_diversifier(math.nan, "el oro", "refugio"), "")
 
     def test_gold_and_mean_correlation_use_the_same_criteria(self):
-        self.assertEqual(_read_mean_correlation(0.25), "buena diversificación")
+        self.assertIn("buena diversificación", _read_mean_correlation(0.25))
         self.assertIn("diversifica bien", _read_diversifier(0.25, "el oro", "refugio"))
 
     def test_oil_needs_a_clear_correlation(self):
-        self.assertEqual(_read_oil(0.1), "poco sensible al petróleo")
-        self.assertEqual(_read_oil(-0.1), "poco sensible al petróleo")
-        self.assertEqual(_read_oil(0.5), "sensible al petróleo")
-        self.assertEqual(_read_oil(-0.5), "le perjudica que suba el petróleo")
+        self.assertIn("poco sensible al petróleo", _read_oil(0.1))
+        self.assertIn("poco sensible al petróleo", _read_oil(-0.1))
+        self.assertIn("sensible al petróleo", _read_oil(0.5))
+        self.assertIn("le perjudica que suba el petróleo", _read_oil(-0.5))
 
     def test_alpha_is_not_presented_as_skill(self):
         for value in (0.21, -0.21):
@@ -63,10 +71,10 @@ class ReadingsTests(unittest.TestCase):
         self.assertEqual(_read_alpha(math.nan), "")
 
     def test_sortino_compares_with_what_symmetric_returns_would_give(self):
-        self.assertEqual(_read_sortino(1.4, 1.0), "subidas y caídas equilibradas")
-        self.assertEqual(_read_sortino(2.0, 1.0), "las caídas pesan menos que las subidas")
-        self.assertEqual(_read_sortino(1.1, 1.0), "las caídas pesan más que las subidas")
-        self.assertEqual(_read_sortino(-1.0, -0.5), "")
+        self.assertIn("subidas y caídas equilibradas", _read_sortino(1.4, 1.0))
+        self.assertIn("las caídas pesan menos que las subidas", _read_sortino(2.0, 1.0))
+        self.assertIn("las caídas pesan más que las subidas", _read_sortino(1.1, 1.0))
+        self.assertIn("no compensó", _read_sortino(-1.0, -0.5))
 
     def test_loss_probability_states_the_actual_proportion(self):
         self.assertEqual(_read_loss_probability(0.39), "se pierde en unos 4 de cada 10 escenarios")
@@ -75,6 +83,48 @@ class ReadingsTests(unittest.TestCase):
             _read_loss_probability(0.01), "se pierde en menos de 1 de cada 20 escenarios"
         )
         self.assertEqual(_read_loss_probability(math.nan), "")
+
+    def test_sharpe_says_what_the_number_means(self):
+        read = _read_sharpe(1.19)
+        self.assertIn("alto", read)
+        self.assertIn("1,19 puntos", read)
+        self.assertIn("difícil de mantener", read)
+        self.assertIn("aceptable", _read_sharpe(0.7))
+        self.assertNotIn("difícil", _read_sharpe(0.7))
+        self.assertIn("bajo", _read_sharpe(0.2))
+        self.assertIn("rindió menos", _read_sharpe(-0.3))
+        self.assertEqual(_read_sharpe(math.nan), "")
+
+    def test_premium_states_the_points_and_is_limited_to_the_period(self):
+        self.assertIn("se cobró en este período", _read_premium(0.3601, 0.02))
+        self.assertIn("36,01 p. p.", _read_premium(0.3601, 0.02))
+        self.assertIn("poca compensación", _read_premium(0.01, 0.02))
+        self.assertIn("no se cobró", _read_premium(-0.01, 0.02))
+
+    def test_drawdown_states_the_gain_needed_to_recover(self):
+        self.assertIn("subir un 33,33 %", _read_drawdown(-0.25))
+        self.assertIn("moderada", _read_drawdown(-0.1))
+        self.assertIn("crisis", _read_drawdown(-0.4))
+        self.assertEqual(_read_drawdown(0.0), "sin caídas en el período")
+
+    def test_beta_and_volatility_are_translated_to_movements(self):
+        self.assertIn("un 15,00 %", _read_beta(1.5))
+        self.assertIn("amplifica", _read_beta(1.5))
+        self.assertIn("defensiva", _read_beta(0.5))
+        self.assertIn("al contrario", _read_beta(-0.2))
+        self.assertIn("±19 %", _read_volatility(0.19))
+
+    def test_returns_are_put_in_context(self):
+        self.assertIn("319,30 EUR", _read_total(2.193, "EUR"))
+        self.assertIn("por encima", _read_cagr(0.26))
+        self.assertIn("en línea", _read_cagr(0.07))
+        self.assertIn("por debajo", _read_cagr(0.03))
+        self.assertIn("pierde valor", _read_cagr(-0.03))
+
+    def test_correlated_pairs_are_described_by_their_level(self):
+        self.assertIn("independiente", _read_pair(0.1))
+        self.assertIn("en parte", _read_pair(0.57))
+        self.assertIn("redundantes", _read_pair(0.9))
 
     def test_currency_warning_names_the_main_currency(self):
         metrics = pd.Series(
