@@ -8,6 +8,7 @@ flowchart TB
         direction TB
         M["main"]
         PL["portfolio_loader"]
+        PRL["price_loader"]
         ML["market_loader"]
         P["providers"]
         PO["ports"]
@@ -16,6 +17,7 @@ flowchart TB
         S["simulation"]
         R["reporting"]
         M --> PL
+        M --> PRL
         M --> ML
         M --> P
         M --> PO
@@ -23,9 +25,12 @@ flowchart TB
         M --> A
         M --> S
         M --> R
+        PL --> PRL
         PL --> ML
         PL --> PO
         PL --> D
+        PRL --> PO
+        PRL --> D
         ML --> PO
         ML --> D
         P --> PO
@@ -60,13 +65,14 @@ flowchart TB
         TR -. "tipos" .-> TS
     end
     CORE["Infraestructura transversal<br/>constants · errors · validation<br/>commissions · frequency<br/>validation importa constants y errors"]
-    linkStyle 21,22,23,24 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
-    linkStyle 25,26,27,28 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
+    linkStyle 25,26,27,28 stroke:#7953BF,stroke-width:2px,stroke-dasharray:7 4;
+    linkStyle 29,30,31,32 stroke:#BF861B,stroke-width:1.5px,stroke-dasharray:2 4;
 
 %% Imports transversales omitidos visualmente:
 %% origen           | constants | errors | validation | commissions | frequency
 %% main             | sí        | sí     | sí         | sí          | no
 %% portfolio_loader | sí        | sí     | sí         | sí          | no
+%% price_loader     | no        | sí     | sí         | no          | no
 %% market_loader    | sí        | sí     | no         | no          | no
 %% providers        | sí        | sí     | sí         | no          | no
 %% models           | sí        | sí     | sí         | sí          | no
