@@ -336,10 +336,13 @@ acciones) como en los precios de estimación de Monte Carlo; el límite es por l
 global entre ejecuciones. Solo Yahoo descarga en paralelo: Alpha Vantage usa siempre una
 descarga por su cuota y la consola avisa una vez si pides más. Tipos de cambio, índice de
 referencia, FRED y BCE siguen en secuencia. Los resultados son los mismos con cualquier
-valor; si falla un activo, se detiene la carga y el error indica cuál.
+valor; si falla un activo, se detiene la carga y el error indica cuál. En nuestras
+mediciones con Yahoo (8 activos, caché vacía, `python -m tests.benchmark_downloads --real`),
+2 descargas fueron unas tres veces más rápidas que 1, pero con 4 Yahoo limitó las consultas
+y tardó más que con 1; por eso el ejemplo usa 2.
 
 ```bash
-python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 2
 ```
 
 <a id="es-problemas"></a>
@@ -700,10 +703,13 @@ the Monte Carlo estimation prices; the limit is per batch, not global across run
 Yahoo downloads in parallel: Alpha Vantage always uses one download because of its quota,
 and the CLI warns once if you ask for more. Exchange rates, the benchmark, FRED, and the ECB
 remain sequential. Results are identical for any value; if one asset fails, loading stops
-and the error names it.
+and the error names it. In our measurements with Yahoo (8 assets, empty cache,
+`python -m tests.benchmark_downloads --real`), 2 downloads were about three times faster
+than 1, but with 4 Yahoo throttled the requests and it took longer than 1; hence the example
+uses 2.
 
 ```bash
-python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 4
+python src/main.py --assets IBM:0.6 MSFT:0.4 --simulate --download-workers 2
 ```
 
 <a id="en-troubleshooting"></a>
