@@ -89,47 +89,140 @@ def _band(value: float, limits: list[tuple[float, str]], last: str) -> str:
 
 
 def _read_sharpe(value):
-    return _band(value, [(0, "malo"), (0.5, "pobre"), (1, "aceptable")], "bueno")
+    if pd.isna(value):
+        return ""
+    if value < 0:
+        return "negativo: rindió menos que el tipo libre de riesgo pese a asumir riesgo"
+    grade = _band(value, [(0.5, "bajo"), (1, "aceptable")], "alto")
+    reading = (
+        f"{grade}: {format_number(value)} puntos de rentabilidad sobre el tipo libre de riesgo "
+        "por cada punto de volatilidad"
+    )
+    return f"{reading}; difícil de mantener a largo plazo" if value >= 1 else reading
+
+
+def _read_premium(value, minimum):
+    """Prima anual ya obtenida: dice si se cobró el riesgo, no si se volverá a cobrar."""
+    if pd.isna(value):
+        return ""
+    points = format_points(abs(value))
+    if value < 0:
+        return f"rindió {points} al año menos que el tipo libre de riesgo: el riesgo no se cobró"
+    if value < minimum:
+        return (
+            f"solo {points} al año sobre el tipo libre de riesgo: poca compensación por el riesgo"
+        )
+    return f"{points} al año sobre el tipo libre de riesgo: el riesgo se cobró en este período"
 
 
 def _read_volatility(value):
-    return _band(
+    if pd.isna(value):
+        return ""
+    grade = _band(
         value,
-        [(0.15, "baja"), (0.20, "como un índice amplio"), (0.25, "elevada")],
-        "como una acción suelta",
+        [(0.15, "baja"), (0.20, "similar a un índice amplio"), (0.25, "elevada")],
+        "propia de una acción individual",
     )
+    return f"{grade}: en un año típico oscila unos ±{value * 100:.0f} % en torno a su tendencia"
 
 
 def _read_drawdown(value):
-    return _band(
-        value, [(-0.30, "caída de crisis fuerte"), (-0.15, "caída notable")], "caída moderada"
-    )
+    if pd.isna(value):
+        return ""
+    if value >= 0:
+        return "sin caídas en el período"
+    grade = _band(value, [(-0.30, "fuerte, propia de una crisis"), (-0.15, "notable")], "moderada")
+    return f"caída {grade}: recuperarla exige subir un {format_number(1 / (1 + value) - 1, True)}"
 
 
 def _read_beta(value):
-    return _band(
-        value, [(0.8, "defensiva"), (1.2, "se mueve como la referencia")], "amplifica al mercado"
+    if pd.isna(value):
+        return ""
+    if value < 0:
+        return "tiende a moverse al contrario que la referencia"
+    grade = _band(
+        value, [(0.8, "defensiva"), (1.2, "similar a la referencia")], "amplifica los movimientos"
+    )
+    return (
+        f"{grade}: si la referencia se mueve un 10 %, la cartera tiende a moverse un "
+        f"{format_number(value * 10)} %"
     )
 
 
 def _read_mean_correlation(value):
-    return _band(value, [(0.3, "buena diversificación"), (0.6, "moderada")], "poca diversificación")
+    return _band(
+        value,
+        [
+            (0.3, "buena diversificación: los activos se mueven con bastante independencia"),
+            (0.6, "diversificación moderada: los activos se mueven en parte juntos"),
+        ],
+        "poca diversificación: los activos tienden a moverse juntos",
+    )
+
+
+def _read_pair(value):
+    return _band(
+        value,
+        [
+            (0.3, "se mueven casi de forma independiente"),
+            (0.8, "se mueven en parte juntos"),
+        ],
+        "casi redundantes: aportan poca diversificación entre sí",
+    )
 
 
 def _read_diversifier(value, name: str, refuge: str):
     """Con los mismos tramos que la correlación media; solo una negativa clara es refugio."""
     return _band(
         value,
-        [(-0.2, refuge), (0.3, f"{name} diversifica bien"), (0.6, f"{name} diversifica en parte")],
-        f"{name} diversifica poco",
+        [
+            (-0.2, refuge),
+            (0.3, f"{name} diversifica bien: se mueve casi independiente de la cartera"),
+            (0.6, f"{name} diversifica en parte: se mueve en parte con la cartera"),
+        ],
+        f"{name} diversifica poco: se mueve con la cartera",
     )
 
 
 def _read_oil(value):
     return _band(
         value,
-        [(-0.3, "le perjudica que suba el petróleo"), (0.3, "poco sensible al petróleo")],
-        "sensible al petróleo",
+        [
+            (-0.3, "le perjudica que suba el petróleo: tiende a caer cuando sube"),
+            (0.3, "poco sensible al petróleo: apenas explica sus movimientos"),
+        ],
+        "sensible al petróleo: tiende a subir y bajar con él",
+    )
+
+
+def _read_total(value, currency: str):
+    if pd.isna(value):
+        return ""
+    return (
+        f"100 {currency} invertidos se convierten en {format_number(100 * (1 + value))} {currency}"
+    )
+
+
+def _read_cagr(value):
+    if pd.isna(value):
+        return ""
+    if value < 0:
+        return "pierde valor cada año en promedio"
+    return _band(
+        value,
+        [
+            (0.06, "por debajo del 6–9 % anual habitual en bolsa a largo plazo"),
+            (0.09, "en línea con el 6–9 % anual habitual en bolsa a largo plazo"),
+        ],
+        "por encima del 6–9 % anual habitual en bolsa: difícil de mantener a largo plazo",
+    )
+
+
+def _read_benchmark(value):
+    return _read_sign(
+        value,
+        "la cartera rindió más que la referencia; mira la beta para ver si asumió más riesgo",
+        "la cartera rindió menos que la referencia",
     )
 
 
@@ -144,12 +237,20 @@ def _read_alpha(value):
 
 def _read_sortino(sortino, sharpe):
     """Con subidas y caídas simétricas, el Sortino ronda 1,4 veces el Sharpe."""
-    if pd.isna(sortino) or pd.isna(sharpe) or sharpe <= 0:
+    if pd.isna(sortino) or pd.isna(sharpe):
         return ""
+    if sharpe <= 0:
+        return "no positivo: la rentabilidad no compensó las caídas"
     return _band(
         sortino / sharpe,
-        [(1.2, "las caídas pesan más que las subidas"), (1.8, "subidas y caídas equilibradas")],
-        "las caídas pesan menos que las subidas",
+        [
+            (
+                1.2,
+                "las caídas pesan más que las subidas: más riesgo a la baja del que indica el Sharpe",
+            ),
+            (1.8, "subidas y caídas equilibradas: el riesgo a la baja es el que indica el Sharpe"),
+        ],
+        "las caídas pesan menos que las subidas: menos riesgo a la baja del que indica el Sharpe",
     )
 
 
@@ -162,7 +263,15 @@ def _read_loss_probability(value):
 
 
 def _read_vix(value):
-    return _band(value, [(15, "calma"), (25, "normal"), (30, "nerviosismo")], "estrés")
+    return _band(
+        value,
+        [
+            (15, "calma: el mercado espera pocas oscilaciones"),
+            (25, "normal: nivel habitual de incertidumbre"),
+            (30, "nerviosismo: incertidumbre por encima de lo habitual"),
+        ],
+        "estrés: el mercado espera movimientos fuertes y el riesgo histórico puede quedarse corto",
+    )
 
 
 def _read_sign(value, positive: str, negative: str):
@@ -261,7 +370,7 @@ def _summary(report: ReportContext) -> str:
         [
             benchmark_label,
             f"**{points(difference)}**",
-            _read_sign(difference, "batió a la referencia", "rindió menos que la referencia"),
+            _read_benchmark(difference),
         ],
         [
             f"Diferencia frente al {_risk_free_label(analysis)}{period}",
@@ -542,7 +651,7 @@ def _returns(report: ReportContext) -> str:
         [
             "Rentabilidad acumulada",
             format_number(metrics["total_return"], True, signed=True),
-            "de principio a fin",
+            _read_total(metrics["total_return"], analysis.currency),
         ],
     ]
     if _short_history(analysis):
@@ -557,9 +666,7 @@ def _returns(report: ReportContext) -> str:
             [
                 "Diferencia frente a la referencia",
                 _period_points(difference),
-                _read_sign(
-                    difference, "la cartera batió a la referencia", "la referencia rindió más"
-                ),
+                _read_benchmark(difference),
             ],
             ["Inflación del período", format_number(metrics["total_inflation"], True), ""],
         ]
@@ -570,7 +677,7 @@ def _returns(report: ReportContext) -> str:
             [
                 "Rentabilidad anualizada (CAGR)",
                 format_number(metrics["annualized_return"], True),
-                "en renta variable, 6–9 % anual es lo habitual",
+                _read_cagr(metrics["annualized_return"]),
             ],
             [
                 f"CAGR de {benchmark}",
@@ -580,9 +687,7 @@ def _returns(report: ReportContext) -> str:
             [
                 "Diferencia frente a la referencia",
                 _annual_points(difference),
-                _read_sign(
-                    difference, "la cartera batió a la referencia", "la referencia rindió más"
-                ),
+                _read_benchmark(difference),
             ],
             ["Inflación media anual", format_number(metrics["annualized_inflation"], True), ""],
         ]
@@ -590,7 +695,11 @@ def _returns(report: ReportContext) -> str:
         [
             "Rentabilidad real",
             format_number(real, True),
-            _read_sign(real, "ganó poder de compra", "perdió frente a la inflación"),
+            _read_sign(
+                real,
+                "ganó poder de compra: rindió más que la inflación",
+                "perdió poder de compra: rindió menos que la inflación",
+            ),
         ]
     )
     monthly = analysis.monthly_returns
@@ -630,7 +739,7 @@ def _risk(report: ReportContext) -> str:
             format_date(episode.recovery) if episode.recovery is not None else "sin recuperar"
         )
         drawdown_read += (
-            f": pico {format_date(episode.peak)}, valle {format_date(episode.trough)}, "
+            f". Pico {format_date(episode.peak)}, valle {format_date(episode.trough)}, "
             f"recuperación {recovery}"
         )
     rows = [
@@ -673,13 +782,7 @@ def _risk_adjusted(report: ReportContext) -> str:
         ]
     else:
         premium = metrics["excess_annualized_return"]
-        premium_read = ""
-        if pd.notna(premium):
-            premium_read = (
-                "poca compensación para el riesgo de la bolsa"
-                if premium < analysis.warning_thresholds.premium
-                else "compensó"
-            )
+        premium_read = _read_premium(premium, analysis.warning_thresholds.premium)
         points, period = _annual_points, ""
         rate_row = [
             f"{label[0].upper()}{label[1:]}, medio del periodo",
@@ -727,7 +830,7 @@ def _diversification(report: ReportContext) -> str:
     if not pairs.empty:
         a, b = pairs.index[0]
         pair_value = f"{a} – {b}: {format_number(pairs.iloc[0])}"
-        pair_read = "casi redundantes" if pairs.iloc[0] > 0.8 else ""
+        pair_read = _read_pair(pairs.iloc[0])
     effective = metrics["effective_asset_count"]
     rows = [
         [
@@ -795,7 +898,11 @@ def _market(report: ReportContext) -> str:
         [
             "Bund en el 5 % de peores días",
             format_number(market.bund_on_worst_days, True, signed=True),
-            _read_sign(market.bund_on_worst_days, "protegió", "no protegió"),
+            _read_sign(
+                market.bund_on_worst_days,
+                "protegió: en los peores días de la cartera, subió de media",
+                "no protegió: en los peores días de la cartera, también bajó de media",
+            ),
         ],
     ]
     parts = [_table(["Métrica", "Valor", "Lectura"], rows)]
@@ -1048,7 +1155,7 @@ def _simulation(report: ReportContext) -> str:
             [
                 "Mediana del valor final",
                 _money(results["median_final_value"], currency),
-                "escenario central, no una predicción",
+                "la mitad de los escenarios acaba por encima y la mitad por debajo; no es una predicción",
             ],
             [
                 f"Percentiles {lower} y {upper}",
@@ -1064,14 +1171,14 @@ def _simulation(report: ReportContext) -> str:
             [
                 f"VaR al horizonte ({level})",
                 _money(var, currency),
-                f"con un {level} de confianza no se perdería más de esto"
+                f"en el {level} de los escenarios simulados no se pierde más de esto"
                 if var > 0
                 else f"negativo: incluso el percentil {lower} acaba con ganancia",
             ],
             [
                 "CVaR al horizonte",
                 _money(results["conditional_value_at_risk"], currency),
-                "pérdida media en los escenarios peores que el VaR",
+                f"pérdida media en el {lower} % de peores escenarios",
             ],
         ],
     )
